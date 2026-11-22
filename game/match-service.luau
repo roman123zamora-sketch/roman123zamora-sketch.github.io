@@ -110,9 +110,9 @@ local function publicState(m)
  end
  return s
 end
-local function pair(m)
+local function pair(m,recipient)
  local state=publicState(m); local players,ratings=matchPlayersPayload(m)
- for _,p in ipairs(m.players) do
+ for _,p in ipairs(recipient and {recipient} or m.players) do
   if not (m.resultsSent and m.resultsSent[p.UserId]) then send(p,"state",{matchId=m.id,mode=m.mode,variant=fourMode(m) and "four" or "chess",level=m.botRating,botRatings=m.botRatings,ratings=ratings,clocks=m.clocks,increment=m.increment,turnStarted=m.turnStarted,serverTime=workspace:GetServerTimeNow(),side=m.sides[p.UserId],players=players,state=state,opponent=m.mode=="bot" and "Exalted Bot" or "Opponent"}) end
  end
 end
@@ -157,6 +157,11 @@ local function recordHistory(m,p,side,result,reason,place)
 end
 local function finish(m,winner,reason,placements)
  if m.over then return end; m.over=true; m.botGeneration+=1
+ local sideToMove=m.state.turn
+ if m.clocks and m.clocks[sideToMove] then
+  local elapsed=math.max(0,workspace:GetServerTimeNow()-m.turnStarted)
+  m.clocks[sideToMove]=math.max(0,m.clocks[sideToMove]-elapsed)
+ end
  updateOnlineRatings(m,winner,placements)
  if winner and not fourMode(m) and (reason=="Checkmate" or reason=="Resignation") then
   local loser=winner=="w" and "b" or "w"; local spoils=0
@@ -170,21 +175,36 @@ local function finish(m,winner,reason,placements)
   local stars=(win and (m.mode=="bot" or m.mode=="fourBot")) and m.undoMax or 0
   if m.mode=="bot" and win then
    local prof=getProfile(p); local key=tostring(m.botRating); local old=prof.botStars[key] or 0; prof.botStars[key]=math.max(old,stars); saveProfile(p)
-   send(p,"result",{matchId=m.id,result="win",reason=reason,stars=stars,best=prof.botStars[key],improved=stars>old,placements=placements,final=true})
+   send(p,"result",{matchId=m.id,result="win",reason=reason,stars=stars,best=prof.botStars[key],improved=stars>old,placements=placements,clocks=m.clocks,final=true})
   elseif m.mode=="fourBot" and placements and placements[side]==1 then
    local prof=getProfile(p); local best=stars
    for _,c in ipairs({"B","Y","G"}) do local key=tostring(m.botRatings[c]); local old=prof.botStars[key] or 0; prof.botStars[key]=math.max(old,best) end
-   saveProfile(p); send(p,"result",{matchId=m.id,result="win",reason=reason,stars=best,placements=placements,final=true})
-  else send(p,"result",{matchId=m.id,result=win and "win" or winner and "loss" or "draw",reason=reason,stars=0,placements=placements,final=true}) end
+   saveProfile(p); send(p,"result",{matchId=m.id,result="win",reason=reason,stars=best,placements=placements,clocks=m.clocks,final=true})
+  else send(p,"result",{matchId=m.id,result=win and "win" or winner and "loss" or "draw",reason=reason,stars=0,placements=placements,clocks=m.clocks,final=true}) end
   local res=win and "win" or winner and "loss" or "draw"
   local place=(fourMode(m) and placements) and placements[side] or nil
   if place then res=place==1 and "win" or (place==4 and "loss" or "placed") end
   recordHistory(m,p,side,res,reason,place)
   m.resultsSent[p.UserId]=true; playerMatch[p.UserId]=nil; lastMatchId[p.UserId]=m.id
-  else send(p,"result",{matchId=m.id,result=win and "win" or winner and "loss" or "draw",reason=reason,stars=0,placements=placements,final=true}) end
+  else send(p,"result",{matchId=m.id,result=win and "win" or winner and "loss" or "draw",reason=reason,stars=0,placements=placements,clocks=m.clocks,final=true}) end
  end
 end
+local function clearQueue(p,q)
+ for i=#q,1,-1 do if q[i]==p then table.remove(q,i) end end
+end
 local function newMatch(players,mode,setting)
+ local occupied={}
+ for _,p in ipairs(players) do
+  local existing=matches[playerMatch[p.UserId]]
+  if occupied[p.UserId] or (existing and not existing.over) then
+   for _,member in ipairs(players) do send(member,"reject",{reason="A player is already in a match."}) end
+   return
+  end
+  occupied[p.UserId]=true
+ end
+ for _,p in ipairs(players) do
+  clearQueue(p,queue); clearQueue(p,queueFour); queueControls[p.UserId]=nil
+ end
  local id=HttpService:GenerateGUID(false); local sides={}
  if mode=="bot" then sides[players[1].UserId]="w"; setting=tonumber(setting) or 1000
  elseif mode=="fourBot" then sides[players[1].UserId]="R"
@@ -340,7 +360,8 @@ end
 
 local function requestMove(p,data)
  local id=playerMatch[p.UserId]; local m=id and matches[id]; if not m or m.over or type(data)~="table" then return end
- local side=m.sides[p.UserId]; if side~=m.state.turn then return end
+ local side=m.sides[p.UserId]
+ if side~=m.state.turn then send(p,"reject",{reason="It is not your turn."}); return end
  local engine=engineFor(m)
  local chosen=findMove(engine,m.state,data)
  if not chosen then send(p,"reject",{reason="Illegal move"}); return end
@@ -385,9 +406,6 @@ local function undo(p)
  m.state=copy(m.snapshots[target]); for i=#m.snapshots,target,-1 do m.snapshots[i]=nil end
  send(p,"undoState",{maxStars=m.undoMax}); pair(m)
 end
-local function clearQueue(p,q)
- for i=#q,1,-1 do if q[i]==p then table.remove(q,i) end end
-end
 local function isQueued(p,q) for _,queued in ipairs(q) do if queued==p then return true end end; return false end
 local function makeQueueMatch(p,q,mode,count)
  table.insert(q,p)
@@ -399,6 +417,10 @@ local function makeQueueMatch(p,q,mode,count)
 end
 Action.OnServerEvent:Connect(function(p,kind,data)
  if kind=="profile" then send(p,"profile",profileView(p))
+ elseif kind=="resume" then
+  send(p,"profile",profileView(p))
+  local m=matches[playerMatch[p.UserId]]
+  if m and not m.over then pair(m,p) end
  elseif kind=="buyBoard" then
   -- Purchase a board theme with stored captured pieces. Server validates price and ownership.
   local id=type(data)=="table" and tostring(data.id) or nil
@@ -652,7 +674,7 @@ Players.PlayerRemoving:Connect(function(p)
  end
  local id=playerMatch[p.UserId]; local m=id and matches[id]
  if m and not m.over and m.mode=="online" then
-  local winner; for _,other in ipairs(m.players) do if other~=p then winner=m.sides[other.UserId] end end; finish(m,winner,"Resignation")
+  local winner; for _,other in ipairs(m.players) do if other~=p then winner=m.sides[other.UserId] end end; finish(m,winner,"Opponent disconnected")
  elseif m and not m.over and m.mode=="fourOnline" then
   local side=m.sides[p.UserId]; m.state.eliminated[side]=true; m.state.eliminationReason[side]="Resignation"; table.insert(m.state.eliminationOrder,side); m.firstWindow[side]=nil; if m.state.turn==side then m.state.turn=Four.nextColor(side) end; distributeSpoils(m,side); playFart(m); playerMatch[p.UserId]=nil; m.resultsSent[p.UserId]=true; normalizeFour(m); pair(m)
  end

@@ -104,9 +104,9 @@ function selectData(kind, data) {
 
 async function serve(request, response) {
   const url = new URL(request.url, "http://localhost");
+  if (url.pathname.startsWith("/api/")) response.setHeader("Vary", "Origin");
   if (publicOrigin && request.headers.origin === publicOrigin) {
     response.setHeader("Access-Control-Allow-Origin", publicOrigin);
-    response.setHeader("Vary", "Origin");
     response.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
     response.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   }
@@ -128,7 +128,7 @@ async function serve(request, response) {
       } else {
         const user = tokens.get(token);
         user.seen = Date.now();
-        await dispatch("action", user.id, "profile");
+        await dispatch("action", user.id, "resume");
       }
       if (!previous) await persist();
       return { token, catalog };
@@ -136,12 +136,14 @@ async function serve(request, response) {
     return respond(response, 200, result);
   }
   if (url.pathname.startsWith("/api/")) {
-    const user = tokens.get(request.headers.authorization?.slice(7));
+    const bearer = /^Bearer (\S+)$/i.exec(request.headers.authorization ?? "")?.[1];
+    const user = tokens.get(bearer);
     if (!user) return respond(response, 401, "Session expired. Reload to reconnect.");
     user.seen = Date.now();
     if (url.pathname === "/api/events" && request.method === "GET") {
       const after = Number(url.searchParams.get("after")) || 0;
       return respond(response, 200, {
+        serverTime: Date.now() / 1000,
         events: user.events.filter(event => event.id > after),
         players: [...live.values()].filter(player => player !== user).map(({ id, name }) => ({ id, name }))
       });
@@ -149,8 +151,16 @@ async function serve(request, response) {
     if (url.pathname === "/api/action" && request.method === "POST") {
       const { kind, data } = await jsonBody(request) ?? {};
       if (!actions.has(kind)) return respond(response, 400, "Unknown action.");
-      await transact(() => dispatch("action", user.id, kind, selectData(kind, data)));
-      return respond(response, 200, {});
+      const accepted = await transact(async () => {
+        if (tokens.get(bearer) !== user) return false;
+        await dispatch("action", user.id, kind, selectData(kind, data));
+        if (kind === "leave") {
+          user.events.push({ id: ++user.cursor, kind: "left" });
+          if (user.events.length > 500) user.events.shift();
+        }
+        return true;
+      });
+      return respond(response, accepted ? 200 : 401, accepted ? {} : "Session expired.");
     }
     if (url.pathname === "/api/replay" && request.method === "POST") {
       const { variant, moves } = await jsonBody(request) ?? {};

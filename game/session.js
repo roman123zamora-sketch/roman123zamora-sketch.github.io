@@ -11,6 +11,8 @@ const pending = [];
 let server;
 let token;
 let eventCursor = 0;
+let clockOffset = 0;
+let reconnecting = false;
 let commands = Promise.resolve();
 
 function readSetting(name) {
@@ -62,6 +64,10 @@ function receive({ kind, data, requestId }) {
     writeSetting(key, JSON.stringify(data));
     return;
   }
+  if (kind === "left") {
+    clearMatch();
+    return;
+  }
   if (kind === "catalog") session.catalog = data;
   if (kind === "profile") session.profile = data;
   if (kind === "legal") session.legal = data;
@@ -73,6 +79,7 @@ function receive({ kind, data, requestId }) {
       playSound(data.state.status === "check" ? "check" : data.state.history[moves - 1]?.captured ? "capture" : "move");
     }
     session.match = data;
+    session.notice = "";
     session.queue = null;
     session.offer = null;
   }
@@ -96,13 +103,41 @@ async function request(path, options = {}) {
     ...options,
     headers: { "Content-Type": "application/json", ...(token ? { Authorization: "Bearer " + token } : {}) }
   });
-  if (!response.ok) throw new Error(await response.text());
+  if (!response.ok) throw Object.assign(new Error(await response.text()), { status: response.status });
   return response.json();
+}
+
+export function serverNow() {
+  return Date.now() / 1000 + clockOffset;
+}
+
+function clearMatch() {
+  session.match = null;
+  session.result = null;
+  session.legal = null;
+  notify("leave");
+}
+
+async function joinServer() {
+  const previous = token ?? readSetting("exalted-server-token");
+  const data = await request("/join", { method: "POST", body: JSON.stringify({ token: previous }) });
+  token = data.token;
+  writeSetting("exalted-server-token", token);
+  session.network = true;
+  if (data.catalog) receive({ kind: "catalog", data: data.catalog });
+  notify("network");
 }
 
 async function poll() {
   try {
+    const start = Date.now();
     const data = await request("/events?after=" + eventCursor);
+    if (typeof data.serverTime === "number") clockOffset = data.serverTime - (start + Date.now()) / 2000;
+    if (reconnecting) {
+      reconnecting = false;
+      session.notice = "";
+      notify("network");
+    }
     for (const event of data.events) {
       eventCursor = event.id;
       receive(event);
@@ -111,9 +146,23 @@ async function poll() {
       session.players = data.players;
       notify("players");
     }
-  } catch {
+  } catch (error) {
+    reconnecting = true;
     session.notice = "Connection to the match service was interrupted. Reconnecting…";
     notify("error");
+    if (error.status === 401) {
+      try {
+        await joinServer();
+        eventCursor = 0;
+        reconnecting = false;
+        session.queue = null;
+        session.offer = null;
+        session.notice = session.match ? "The previous match ended while you were disconnected." : "";
+        clearMatch();
+      } catch {
+        // Retry via the next poll while the service is unavailable.
+      }
+    }
   }
   setTimeout(poll, 550);
 }
@@ -122,13 +171,7 @@ export async function connect() {
   server = document.querySelector('meta[name="exalted-server"]')?.content || "";
   if (server) {
     try {
-      const previous = readSetting("exalted-server-token");
-      const data = await request("/join", { method: "POST", body: JSON.stringify({ token: previous }) });
-      token = data.token;
-      writeSetting("exalted-server-token", token);
-      session.network = true;
-      if (data.catalog) receive({ kind: "catalog", data: data.catalog });
-      notify("network");
+      await joinServer();
       poll();
       return;
     } catch (error) {
@@ -153,12 +196,7 @@ export async function connect() {
 export function action(first, second) {
   session.notice = "";
   if (first === "legal") session.legal = null;
-  if (first === "leave") {
-    session.match = null;
-    session.result = null;
-    session.legal = null;
-    notify("leave");
-  }
+  if (first === "leave" && !session.network) clearMatch();
   if (first === "challengeRespond" || first === "rematchRespond") session.offer = null;
   if (session.network) {
     commands = commands.then(() => request("/action", { method: "POST", body: JSON.stringify({ kind: first, data: second }) }))

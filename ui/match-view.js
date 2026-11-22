@@ -2,7 +2,7 @@ import { bindTouchBoard } from "../game/touch-board.js";
 import { board } from "./chessboard.js";
 import { getTheme } from "./board-themes.js";
 import { createChessPiece, setPieceDragImage } from "./chess-pieces.js";
-import { action, session, subscribe, unlockSound } from "../game/session.js";
+import { action, serverNow, session, subscribe, unlockSound } from "../game/session.js";
 
 const timeGroups = [
   ["Bullet", ["1 | 0", "1 | 1", "2 | 1"]],
@@ -200,12 +200,12 @@ export function renderMatch(content, { title, fourPlayer }) {
     const data = match();
     for (const clock of content.querySelectorAll(".clock")) {
       const side = clock.dataset.side;
-      const seconds = data?.clocks?.[side];
+      const seconds = (result()?.clocks ?? data?.clocks)?.[side];
       if (seconds == null) {
         clock.textContent = data?.ratings?.[side] ?? "";
       } else {
         const elapsed = side === data.state.turn && !result() && !data.state.eliminated?.[side]
-          ? Math.max(0, Date.now() / 1000 - data.turnStarted) : 0;
+          ? Math.max(0, serverNow() - data.turnStarted) : 0;
         const remaining = Math.max(0, Math.ceil(seconds - elapsed));
         clock.textContent = Math.floor(remaining / 60) + ":" + String(remaining % 60).padStart(2, "0");
       }

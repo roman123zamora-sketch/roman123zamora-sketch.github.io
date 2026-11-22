@@ -52,6 +52,7 @@ game/
 server/
   match-server.mjs             Optional multiplayer HTTP service
 tests/
+  match-admission-test.mjs     Checks seat assignment and move validation
   standard-chess-test.mjs      Runs the rules tests through the Luau runtime
   standard-chess-cases.luau    Positions and assertions for the rules tests
 reference/
@@ -70,6 +71,7 @@ Open `http://localhost:8080/`. Use Node.js 22 or newer to run the rules tests:
 
 ```sh
 node tests/standard-chess-test.mjs
+node tests/match-admission-test.mjs
 ```
 
 ## Online matches
@@ -91,3 +93,9 @@ To keep using GitHub Pages with a separately hosted service, set the
 `exalted-server` meta tag in `index.html` to the service's HTTPS URL ending in
 `/api`. Set `EXALTED_SITE_ORIGIN` on the service to the Pages origin without a
 trailing slash.
+
+The browser uses authenticated HTTP polling at `/api/events`. A refresh or
+short network interruption can resume the current match with the same browser
+session. After 30 seconds of inactivity the server treats the player as having
+disconnected. Live matches are held in memory and end if the service restarts.
+The persistent file stores player profiles and results.

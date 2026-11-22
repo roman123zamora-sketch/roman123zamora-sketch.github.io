@@ -40,18 +40,19 @@ export function board(theme, fourPlayer = false, sample = false, options = {}) {
     element.style.setProperty("--" + color, theme[color]);
   }
 
-  const position = sample ? new Map() : startingPosition(fourPlayer);
+  const reverse = options.side === "b";
+  const files = Array.from({ length: size }, (_, index) => "abcdefghijklmn"[reverse ? size - index - 1 : index]);
+  const ranks = Array.from({ length: size }, (_, index) => reverse ? index + 1 : size - index);
+  const position = !sample && !options.state ? startingPosition(fourPlayer) : null;
   for (let row = 0; row < size; row++) {
     for (let column = 0; column < size; column++) {
-      const rank = options.side === "b" ? row + 1 : size - row;
-      const file = "abcdefghijklmn"[options.side === "b" ? size - column - 1 : column];
-      const address = file + rank;
+      const address = files[column] + ranks[row];
       const cross = index => index >= 3 && index <= 10;
       const corner = fourPlayer && !cross(row) && !cross(column);
       const square = document.createElement(options.select && !corner ? "button" : "div");
       square.className = corner ? "square cutout" : (row + column) % 2 ? "square dark" : "square";
       const encoded = options.state?.board[address];
-      const piece = options.state ? (encoded && { type: encoded[1], side: colors[encoded[0]] }) : position.get(`${row},${column}`);
+      const piece = options.state ? (encoded && { type: encoded[1], side: colors[encoded[0]] }) : position?.get(`${size - ranks[row]},${"abcdefghijklmn".indexOf(files[column])}`);
       if (!corner && !sample) {
         const description = piece ? `${piece.side} ${pieceName(piece.type)}` : "empty";
         square.setAttribute("aria-label", `${address}, ${description}`);
@@ -96,9 +97,6 @@ export function board(theme, fourPlayer = false, sample = false, options = {}) {
   const frame = document.createElement("div");
   frame.className = "board-frame";
   frame.style.setProperty("--size", size);
-  const reverse = options.side === "b";
-  const files = Array.from({ length: size }, (_, index) => "abcdefghijklmn"[reverse ? size - index - 1 : index]);
-  const ranks = Array.from({ length: size }, (_, index) => reverse ? index + 1 : size - index);
   frame.append(coordinates("ranks", ranks), element, coordinates("files", files));
   return frame;
 }
