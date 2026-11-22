@@ -43,12 +43,12 @@ export function board(theme, fourPlayer = false, sample = false, options = {}) {
   const reverse = options.side === "b";
   const files = Array.from({ length: size }, (_, index) => "abcdefghijklmn"[reverse ? size - index - 1 : index]);
   const ranks = Array.from({ length: size }, (_, index) => reverse ? index + 1 : size - index);
+  const inCenter = index => index >= 3 && index < size - 3;
   const position = !sample && !options.state ? startingPosition(fourPlayer) : null;
   for (let row = 0; row < size; row++) {
     for (let column = 0; column < size; column++) {
       const address = files[column] + ranks[row];
-      const cross = index => index >= 3 && index <= 10;
-      const corner = fourPlayer && !cross(row) && !cross(column);
+      const corner = fourPlayer && !sample && !inCenter(row) && !inCenter(column);
       const square = document.createElement(options.select && !corner ? "button" : "div");
       square.className = corner ? "square cutout" : (row + column) % 2 ? "square dark" : "square";
       const encoded = options.state?.board[address];
@@ -56,6 +56,11 @@ export function board(theme, fourPlayer = false, sample = false, options = {}) {
       if (!corner && !sample) {
         const description = piece ? `${piece.side} ${pieceName(piece.type)}` : "empty";
         square.setAttribute("aria-label", `${address}, ${description}`);
+        // Follow the playable edge of each arm, skipping the four cutouts.
+        const leftEdge = fourPlayer && !inCenter(row) ? 3 : 0;
+        const bottomEdge = fourPlayer && !inCenter(column) ? size - 4 : size - 1;
+        if (column === leftEdge) square.dataset.rank = ranks[row];
+        if (row === bottomEdge) square.dataset.file = files[column];
       }
       if (piece) {
         const image = createChessPiece(piece.type, piece.side);
@@ -68,6 +73,7 @@ export function board(theme, fourPlayer = false, sample = false, options = {}) {
       );
       if (checked) {
         square.classList.add("checked");
+        square.append(marker("check-marker", "!"));
         square.setAttribute("aria-label", square.getAttribute("aria-label") + ", in check");
       }
       if (!corner && !sample) {
@@ -75,6 +81,7 @@ export function board(theme, fourPlayer = false, sample = false, options = {}) {
         const legalTarget = options.targets?.some(target => target.to === address) ?? false;
         if (legalTarget) {
           square.setAttribute("aria-label", square.getAttribute("aria-label") + ", legal destination");
+          square.append(marker("move-marker"));
         }
         square.classList.toggle("target", legalTarget);
       }
@@ -99,19 +106,15 @@ export function board(theme, fourPlayer = false, sample = false, options = {}) {
 
   const frame = document.createElement("div");
   frame.className = "board-frame";
-  frame.style.setProperty("--size", size);
-  frame.append(coordinates("ranks", ranks), element, coordinates("files", files));
+  frame.append(element);
   return frame;
 }
 
-function coordinates(axis, values) {
-  const strip = document.createElement("div");
-  strip.className = `board-coordinates board-${axis}`;
-  strip.setAttribute("aria-hidden", "true");
-  for (const value of values) {
-    const label = document.createElement("span");
-    label.textContent = value;
-    strip.append(label);
-  }
-  return strip;
+
+function marker(className, text = "") {
+  const element = document.createElement("span");
+  element.className = className;
+  element.setAttribute("aria-hidden", "true");
+  element.textContent = text;
+  return element;
 }
