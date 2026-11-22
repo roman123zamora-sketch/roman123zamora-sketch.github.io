@@ -1,3 +1,4 @@
+import { connect, soundEnabled, toggleSound, unlockSound, subscribe } from "./game/session.js";
 import chess from "./tabs/Chess.js";
 import fourPlayerChess from "./tabs/4-Player Chess.js";
 import shop from "./tabs/Shop.js";
@@ -14,7 +15,10 @@ const pages = new Map([
 const content = document.querySelector("#content");
 const links = document.querySelectorAll("nav a");
 
+let cleanup;
+
 function navigate() {
+  cleanup?.();
   const hash = location.hash.slice(1);
   const page = pages.has(hash) ? hash : "chess";
   for (const link of links) {
@@ -26,8 +30,21 @@ function navigate() {
     }
   }
   content.replaceChildren();
-  pages.get(page)(content);
+  cleanup = pages.get(page)(content);
 }
 
 window.addEventListener("hashchange", navigate);
 navigate();
+
+const audio = document.querySelector("#audio");
+audio.setAttribute("aria-pressed", String(soundEnabled()));
+audio.addEventListener("click", () => audio.setAttribute("aria-pressed", String(toggleSound())));
+document.addEventListener("pointerdown", unlockSound, { once: true });
+let previousMatch;
+subscribe((kind, match) => {
+  if (kind !== "state" || match.matchId === previousMatch) return;
+  previousMatch = match.matchId;
+  const page = match.variant === "four" ? "#4-player-chess" : "#chess";
+  if ((location.hash || "#chess") !== page) location.hash = page;
+});
+connect();

@@ -1,28 +1,30 @@
-import { board, getTheme, setTheme, themes } from "../Board Themes.js";
+import { board, themes } from "../Board Themes.js";
+import { action, session, subscribe } from "../game/session.js";
 
 export default function boards(content) {
   content.innerHTML = `
     <section class="panel page">
       <h1>My Boards</h1>
-      <p>Equip a theme for both chess boards. Your choice is saved in this browser.</p>
+      <p>Choose an owned theme to equip it on both chess boards.</p>
       <div class="theme-grid"></div>
     </section>`;
   const grid = content.querySelector(".theme-grid");
-  const equipped = getTheme().id;
 
-  for (const theme of themes) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "theme-card";
-    button.setAttribute("aria-pressed", String(equipped === theme.id));
-    const name = document.createElement("span");
-    name.textContent = theme.name;
-    button.append(board(theme, false, true), name);
-    button.addEventListener("click", () => {
-      setTheme(theme);
-      grid.querySelector('[aria-pressed="true"]').setAttribute("aria-pressed", "false");
-      button.setAttribute("aria-pressed", "true");
-    });
-    grid.append(button);
+  function draw() {
+    const { equippedBoard, ownedBoards } = session.profile;
+    grid.replaceChildren();
+    for (const theme of themes.filter(theme => Object.values(ownedBoards).includes(theme.id))) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "theme-card";
+      button.setAttribute("aria-pressed", String(equippedBoard === theme.id));
+      const name = document.createElement("span");
+      name.textContent = theme.name;
+      button.append(board(theme, false, true), name);
+      button.addEventListener("click", () => action("equipBoard", { id: theme.id }));
+      grid.append(button);
+    }
   }
+  draw();
+  return subscribe(kind => { if (kind === "profile") draw(); });
 }
