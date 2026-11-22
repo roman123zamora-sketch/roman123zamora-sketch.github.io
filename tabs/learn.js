@@ -40,7 +40,7 @@ export default function learn(content) {
     const text = document.createElement("p");
     text.textContent = explanation;
     const slot = document.createElement("div");
-    section.append(title, text, slot);
+    section.append(title, slot, text);
     grid.append(section);
     return slot;
   });

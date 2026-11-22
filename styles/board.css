@@ -1,3 +1,8 @@
+:root {
+  --board-rail: clamp(.75rem, 2vw, 1.45rem);
+  --board-padding: clamp(.2rem, .5vw, .4rem);
+}
+
 .board-area, .board-slot { display: grid; min-inline-size: 0; justify-items: center; }
 .board-slot { inline-size: 100%; }
 .board-status {
@@ -15,12 +20,12 @@
 .board-status:empty { display: none; }
 
 .board-frame {
-  --rail: clamp(.75rem, 2vw, 1.45rem);
+  --rail: var(--board-rail);
   display: grid;
   grid-template-columns: var(--rail) minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr) var(--rail);
   inline-size: min(100%, 42rem);
-  padding: clamp(.2rem, .5vw, .4rem);
+  padding: var(--board-padding);
   border: 1px solid var(--stroke);
   border-radius: var(--radius);
   background: linear-gradient(155deg, var(--board-frame-gloss), var(--recess));
@@ -106,19 +111,20 @@ button.square:focus-visible { z-index: 2; outline: 2px solid var(--square-focus)
 .square.drag-source .chess-piece { opacity: .18; }
 
 .board-and-eval {
+  position: relative;
   display: flex;
   align-items: stretch;
   gap: .4rem;
   inline-size: min(100%, 44.5rem);
 }
 .board-and-eval .board-slot { flex: 1; }
+.board-and-eval:has(.bot-eval:not([hidden])) { padding-block-end: 1.45rem; }
 .bot-eval {
   display: flex;
   flex-direction: column;
-  inline-size: clamp(2.25rem, 5vw, 3rem);
-  text-align: center;
+  inline-size: clamp(.85rem, 2.5vw, 1.35rem);
   flex: none;
-  gap: .25rem;
+  margin-block: calc(var(--board-padding) + 1px) calc(var(--board-rail) + var(--board-padding) + 1px);
 }
 .bot-eval[hidden] { display: none; }
 .eval-meter {
@@ -137,8 +143,11 @@ button.square:focus-visible { z-index: 2; outline: 2px solid var(--square-focus)
   transition: block-size 180ms ease-out;
 }
 .bot-eval output {
-  min-block-size: 2.8em;
-  font-size: .64rem;
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  text-align: center;
+  font-size: .75rem;
   line-height: 1.15;
   font-weight: 700;
   color: var(--text);
