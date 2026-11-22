@@ -91,7 +91,8 @@ local function legalForColor(state,color,tactical,firstOnly)
  for from,piece in pairs(state.board) do
   if string.sub(piece,1,1)==color then
    for _,move in ipairs(pseudo(state,from)) do
-    if not tactical or state.board[move.to] or move.promotion or move.special=="enpassant" then
+    local isTactical=state.board[move.to]~=nil or move.promotion~=nil or move.special=="enpassant"
+    if not tactical or (tactical=="quiet" and not isTactical) or (tactical==true and isTactical) then
      local child=applyPosition(state,move)
      if not Engine.inCheck(child,color) then
       if firstOnly then return true end
@@ -111,6 +112,10 @@ end
 
 function Engine.tacticalMoves(state)
  return legalForColor(state,state.turn,true,false)
+end
+
+function Engine.hasQuiet(state)
+ return legalForColor(state,state.turn,"quiet",true)
 end
 
 function Engine.hasLegal(state)

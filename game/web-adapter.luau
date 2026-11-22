@@ -100,6 +100,7 @@ end
 
 return function(op, time, id, first, second)
  if op == "catalog" then return boardCatalog end
+ if op == "puzzle" then return modules.PuzzleSearch.generate(modules.ChessEngine,modules.BotEngine,first) end
  if op == "analysis" then return modules.BotEngine.analyze(modules.ChessEngine,first) end
  if op == "lesson" then
   local results={}

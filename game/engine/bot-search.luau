@@ -324,6 +324,8 @@ function Bot.choose(engine,state,rating,options)
   {depth=completed,nodes=search.nodes,score=completedScore}
 end
 -- Position analysis is read-only and uses the same scoring as bot play.
+Bot.evaluatePosition=evaluate
+
 function Bot.analyze(engine,state)
  local sign=state.turn=="w" and 1 or -1
  local status=engine.status(state)

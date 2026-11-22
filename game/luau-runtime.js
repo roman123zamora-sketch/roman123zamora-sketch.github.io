@@ -4,6 +4,7 @@ const modules = {
   ChessEngine: "rules/standard-chess.luau",
   FourPlayerEngine: "rules/four-player-chess.luau",
   BotEngine: "engine/bot-search.luau",
+  PuzzleSearch: "puzzle-search.luau",
   ThemeLibrary: "board-catalog.luau"
 };
 

@@ -15,12 +15,12 @@ let clockOffset = 0;
 let reconnecting = false;
 let commands = Promise.resolve();
 
-function readSetting(name) {
+export function readSetting(name) {
   try { return localStorage.getItem(name); }
   catch { return null; }
 }
 
-function writeSetting(name, value) {
+export function writeSetting(name, value) {
   try { localStorage.setItem(name, value); }
   catch {
     // Storage restrictions should not interrupt gameplay.

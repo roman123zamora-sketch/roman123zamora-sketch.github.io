@@ -6,6 +6,7 @@ import shop from "../tabs/shop.js";
 import boards from "../tabs/boards.js";
 import profile from "../tabs/profile.js";
 import learn from "../tabs/learn.js";
+import puzzles from "../tabs/puzzles.js";
 
 const pages = new Map([
   ["chess", chess],
@@ -13,7 +14,8 @@ const pages = new Map([
   ["shop", shop],
   ["boards", boards],
   ["profile", profile],
-  ["learn", learn]
+  ["learn", learn],
+  ["puzzles", puzzles]
 ]);
 const content = document.querySelector("#content");
 const links = document.querySelectorAll("nav a");
@@ -48,6 +50,7 @@ subscribe((kind, match) => {
   if (kind === "profile" || kind === "catalog") applyEquippedTheme();
   if (kind !== "state" || match.matchId === previousMatch) return;
   previousMatch = match.matchId;
+  if (location.hash === "#puzzles") return;
   const page = match.variant === "four" ? "#4-player-chess" : "#chess";
   if ((location.hash || "#chess") !== page) location.hash = page;
 });

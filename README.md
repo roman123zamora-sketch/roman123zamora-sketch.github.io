@@ -124,3 +124,31 @@ Each run uses four starting positions, swaps colors, gives both engines a 60 ms
 search ceiling and reports games unfinished at 120 plies separately. Timings
 include small deadline-check overshoots and vary by machine. Results describe
 this sample only.
+
+## Puzzles
+
+Practice offers Checkmate and Material. The generator starts every candidate
+from the standard opening position and plays varied legal moves guided by
+Exalted Chess's own positional evaluator. Candidate analysis runs in a
+separate worker. It checks unique mates in one or two moves against every
+legal defense. Material puzzles verify all immediate replies and search
+capture and promotion exchanges, including all evasions in check. Positions
+that exceed the proof budget are discarded. Material verification is bounded
+to the verified tactical exchange.
+
+Difficulty is estimated from line length and tactical choices. Generation
+prefers the closest verified candidate to the player's rating within the time
+budget. Puzzle rating starts at 400. The clean solve reward is the nearest
+even integer to `32 × (1 − expected)`, with a minimum of 2, where
+`expected = 1 / (1 + 10^((difficulty − rating) / 400))`. One wrong move halves
+the reward, two wrong moves cost half the reward, and three cost the full
+reward. Skip is neutral. Rating stays between 100 and 2400.
+
+Browser storage holds the rating, selected category, generator seed, up to
+128 recent fingerprints, and the active puzzle with its exact progress. It
+stores no puzzle archive and does not sync across devices. Solving, failing,
+or skipping clears the active record.
+
+```sh
+node tests/puzzles-test.mjs
+```
