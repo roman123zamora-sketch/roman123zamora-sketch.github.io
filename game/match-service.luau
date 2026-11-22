@@ -110,11 +110,14 @@ local function publicState(m)
  end
  return s
 end
-local function pair(m,recipient)
+local function pair(m,recipient,terminal)
+ if not recipient then m.revision=(m.revision or 0)+1 end
  local state=publicState(m); local players,ratings=matchPlayersPayload(m)
+ state.terminal=terminal or state.status=="checkmate" or state.status=="stalemate" or state.status=="draw"
  for _,p in ipairs(recipient and {recipient} or m.players) do
-  if not (m.resultsSent and m.resultsSent[p.UserId]) then send(p,"state",{matchId=m.id,mode=m.mode,variant=fourMode(m) and "four" or "chess",level=m.botRating,botRatings=m.botRatings,ratings=ratings,clocks=m.clocks,increment=m.increment,turnStarted=m.turnStarted,serverTime=workspace:GetServerTimeNow(),side=m.sides[p.UserId],players=players,state=state,opponent=m.mode=="bot" and "Exalted Bot" or "Opponent"}) end
+  if not (m.resultsSent and m.resultsSent[p.UserId]) then send(p,"state",{matchId=m.id,revision=m.revision,mode=m.mode,variant=fourMode(m) and "four" or "chess",level=m.botRating,botRatings=m.botRatings,ratings=ratings,clocks=m.clocks,increment=m.increment,turnStarted=m.turnStarted,serverTime=workspace:GetServerTimeNow(),side=m.sides[p.UserId],players=players,state=state,opponent=m.mode=="bot" and "Exalted Bot" or "Opponent"}) end
  end
+ return state
 end
 local function expected(a,b) return 1/(1+10^((b-a)/400)) end
 local function updateOnlineRatings(m,winner,placements)
@@ -260,14 +263,18 @@ local function normalizeFour(m)
  local alive={}; for _,c in ipairs(Four.colors) do if not state.eliminated[c] then table.insert(alive,c) end end
  if #alive<=1 then
   local places={}; local winner=alive[1]; if winner then places[winner]=1 end; for rank=2,4 do local c=state.eliminationOrder[#state.eliminationOrder-(rank-2)]; if c then places[c]=rank end end
+  pair(m,nil,true)
   finish(m,winner,winner and "Last player standing" or "All players eliminated",places); return true
  end
  return false
 end
 local function publish(m)
- pair(m)
- if fourMode(m) then normalizeFour(m); pair(m); return end
- local status,reason=Chess.status(m.state)
+ if fourMode(m) then
+  if not normalizeFour(m) then pair(m) end
+  return
+ end
+ local state=pair(m)
+ local status,reason=state.status,state.drawReason
  if status=="checkmate" then finish(m,m.state.turn=="w" and "b" or "w","Checkmate")
  elseif status=="stalemate" then finish(m,nil,"Stalemate")
  elseif status=="draw" then finish(m,nil,reason) end
@@ -318,24 +325,52 @@ local function abortFour(m,side)
  end
  normalizeFour(m); pair(m)
 end
-local function runFourBots(m,token)
- while not m.over and m.mode=="fourBot" and m.state.turn~="R" do
-  if token~=m.botGeneration then return end
-  task.wait(1); if m.over or token~=m.botGeneration then return end
-  local color=m.state.turn; local move=Bot.choose(Four,m.state,m.botRatings[color])
-  if not move then m.state.eliminated[color]=true; m.state.eliminationReason[color]="No legal moves"; m.state.turn=Four.nextColor(color)
-  else snapshot(m); m.state=Four.apply(m.state,move) end
-  normalizeFour(m); pair(m)
+local function botTurnIsCurrent(m,generation,position)
+ return not m.over and m.botGeneration==generation and m.state==position
+end
+
+local function searchBot(m,engine,generation,rating)
+ local position=m.state
+ local options={}
+ if task.cooperativeSearch then
+  options.checkpoint=function()
+   task.wait(0)
+   return botTurnIsCurrent(m,generation,position)
+  end
+ end
+ local move,details=Bot.choose(engine,position,rating,options)
+ if not botTurnIsCurrent(m,generation,position) then return nil,nil,false end
+ return move,details,true
+end
+
+local function runFourBots(m,generation)
+ while not m.over and m.botGeneration==generation and m.state.turn~="R" do
+  task.wait(.12)
+  if m.over or m.botGeneration~=generation then return end
+  local color=m.state.turn
+  local move,_,current=searchBot(m,Four,generation,m.botRatings[color])
+  if not current then return end
+  if move then
+   snapshot(m)
+   m.state=Four.apply(m.state,move)
+  end
+  publish(m)
  end
 end
-local function runChessBot(m,token)
- task.wait(1); if m.over or token~=m.botGeneration or m.mode~="bot" or m.state.turn~="b" then return end
- local claim=Chess.claimReason(m.state)
- if claim then finish(m,nil,claim); return end
- local move=Bot.choose(Chess,m.state,m.botRating); if not move then publish(m); return end
- claim=Chess.claimReason(m.state,move)
- if claim then finish(m,nil,claim); return end
- snapshot(m); m.state=Chess.apply(m.state,move); publish(m)
+
+local function runChessBot(m,generation)
+ task.wait(.12)
+ if m.over or m.botGeneration~=generation or m.state.turn~="b" then return end
+ local move,details,current=searchBot(m,Chess,generation,m.botRating)
+ if not current then return end
+ if not move then publish(m); return end
+ if details.score and details.score<=0 then
+  local claim=Chess.claimReason(m.state) or Chess.claimReason(m.state,move)
+  if claim then finish(m,nil,claim); return end
+ end
+ snapshot(m)
+ m.state=Chess.apply(m.state,move)
+ publish(m)
 end
 local function findMove(engine,state,data)
  if type(data)~="table" or type(data.from)~="string" or type(data.to)~="string" then return end
@@ -348,18 +383,32 @@ local function findMove(engine,state,data)
  end
 end
 
+local function matchesRequest(m,data)
+ return not data or ((not data.matchId or data.matchId==m.id) and
+  (data.revision==nil or data.revision==m.revision))
+end
+
 local function claimDraw(p,data)
  local m=matches[playerMatch[p.UserId]]
- if not m or m.over or fourMode(m) or m.sides[p.UserId]~=m.state.turn then return end
- local move=data and findMove(Chess,m.state,data)
+ if not m or m.over or fourMode(m) or m.sides[p.UserId]~=m.state.turn then
+  send(p,"reject",{reason="A draw cannot be claimed right now."})
+  return
+ end
+ if not matchesRequest(m,data) then send(p,"reject",{reason="The position changed. Try again."}); return end
+ local hasMove=data and data.from
+ local move=hasMove and findMove(Chess,m.state,data) or nil
  local reason
- if not data or move then reason=Chess.claimReason(m.state,move) end
+ if not hasMove or move then reason=Chess.claimReason(m.state,move) end
  if reason then finish(m,nil,reason)
  else send(p,"reject",{reason="A draw cannot be claimed for that position."}) end
 end
 
 local function requestMove(p,data)
- local id=playerMatch[p.UserId]; local m=id and matches[id]; if not m or m.over or type(data)~="table" then return end
+ local id=playerMatch[p.UserId]; local m=id and matches[id]
+ if not m or m.over or type(data)~="table" or not matchesRequest(m,data) then
+  send(p,"reject",{reason="The position changed. Try again."})
+  return
+ end
  local side=m.sides[p.UserId]
  if side~=m.state.turn then send(p,"reject",{reason="It is not your turn."}); return end
  local engine=engineFor(m)
@@ -387,13 +436,13 @@ local function requestMove(p,data)
   if not grey then awardPieces(p,1) end
  end
  if m.undoOpen then m.didMoveAfterUndo=true; m.undoOpen=false end
- if fourMode(m) then normalizeFour(m) end
+ if fourMode(m) and normalizeFour(m) then return end
  m.firstWindow[side]=nil
  if not m.over and m.clocks and (m.mode=="online" or m.mode=="fourOnline") then
   local nextSide=m.state.turn
   if not (m.state.eliminated and m.state.eliminated[nextSide]) and not hasMoved(m,nextSide) then m.firstWindow[nextSide]=true; m.turnStarted=workspace:GetServerTimeNow()+20 end
  end
- publish(m)
+ if fourMode(m) then pair(m) else publish(m) end
  if m.mode=="bot" and not m.over and m.state.turn=="b" then m.botGeneration+=1; task.spawn(runChessBot,m,m.botGeneration)
  elseif m.mode=="fourBot" and not m.over and m.state.turn~="R" then m.botGeneration+=1; task.spawn(runFourBots,m,m.botGeneration) end
 end
@@ -442,8 +491,15 @@ Action.OnServerEvent:Connect(function(p,kind,data)
   local owned=false; for _,o in ipairs(prof.ownedBoards or {}) do if o==id then owned=true break end end
   if not owned then return end
   prof.equippedBoard=id; saveProfile(p); send(p,"profile",profileView(p))
- elseif kind=="bot" then if playerMatch[p.UserId] then return end; local rating=tonumber(data and data.rating) or 1000; newMatch({p},"bot",rating)
- elseif kind=="fourBot" then if playerMatch[p.UserId] then return end; newMatch({p},"fourBot",data and data.ratings or {})
+ elseif kind=="bot" or kind=="fourBot" then
+  if playerMatch[p.UserId] then
+   send(p,"reject",{reason="Leave the current match before starting another."})
+   return
+  end
+  local settings
+  if kind=="bot" then settings=tonumber(data and data.rating) or 1000
+  else settings=data and data.ratings or {} end
+  newMatch({p},kind,settings)
  elseif kind=="queue" then
   if playerMatch[p.UserId] or isQueued(p,queue) or isQueued(p,queueFour) then return end
   queueControls[p.UserId]=type(data)=="table" and {baseSeconds=tonumber(data.baseSeconds),increment=tonumber(data.increment)} or {baseSeconds=180,increment=0}
@@ -504,12 +560,14 @@ Action.OnServerEvent:Connect(function(p,kind,data)
    m.over=true; m.botGeneration+=1
    matches[m.id]=nil
    newMatch({p},m.mode,m.mode=="bot" and m.botRating or m.botRatings)
+  else
+   send(p,"reject",{reason="This match cannot be reset."})
   end
  elseif kind=="claimDraw" then claimDraw(p,data)
  elseif kind=="move" then requestMove(p,data)
  elseif kind=="legal" then
   local id=playerMatch[p.UserId]; local m=id and matches[id]; local e=m and engineFor(m)
-  if m and e and not m.over and type(data)=="table" and type(data.from)=="string" then
+  if m and e and not m.over and type(data)=="table" and type(data.from)=="string" and matchesRequest(m,data) then
    local side=m.sides[p.UserId]
    local piece=side and m.state.board[data.from]
    if piece and string.sub(piece,1,1)==side and not (m.state.eliminated and m.state.eliminated[side]) then
@@ -518,7 +576,7 @@ Action.OnServerEvent:Connect(function(p,kind,data)
      local claimable=e==Chess and side==m.state.turn and Chess.claimReason(m.state,move)~=nil
      table.insert(targets,{to=move.to,promotion=move.promotion,claimable=claimable})
     end
-    send(p,"legal",{from=data.from,moves=targets})
+    send(p,"legal",{from=data.from,moves=targets,matchId=m.id,revision=m.revision,requestId=data.requestId})
    end
   end
  elseif kind=="undo" then undo(p)

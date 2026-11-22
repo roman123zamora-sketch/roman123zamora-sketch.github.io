@@ -33,6 +33,7 @@ export const session = {
   match: null,
   result: null,
   legal: null,
+  movePending: false,
   notice: "",
   queue: null,
   offer: null,
@@ -70,10 +71,17 @@ function receive({ kind, data, requestId }) {
   }
   if (kind === "catalog") session.catalog = data;
   if (kind === "profile") session.profile = data;
-  if (kind === "legal") session.legal = data;
+  if (kind === "legal") {
+    if (data.matchId && (data.matchId !== session.match?.matchId || data.revision !== session.match?.revision)) return;
+    session.legal = data;
+  }
   if (kind === "state") {
     const prior = session.match;
     if (prior?.matchId !== data.matchId) session.result = null;
+    if (prior?.matchId !== data.matchId || prior?.revision !== data.revision || data.revision == null) {
+      session.legal = null;
+      session.movePending = false;
+    }
     const moves = Object.values(data.state.history).length;
     if (moves > Object.values(prior?.state.history ?? {}).length) {
       playSound(data.state.status === "check" ? "check" : data.state.history[moves - 1]?.captured ? "capture" : "move");
@@ -84,6 +92,7 @@ function receive({ kind, data, requestId }) {
     session.offer = null;
   }
   if (kind === "result") {
+    session.movePending = false;
     session.result = data;
     playSound(data.result === "win" ? "win" : "end");
   }
@@ -91,8 +100,14 @@ function receive({ kind, data, requestId }) {
   if (kind === "queueCancelled" || kind === "challengeDeclined") session.queue = null;
   if (kind === "challengeOffer" || kind === "rematchOffer") session.offer = { ...data, kind };
   if (kind === "boardPurchase") session.notice = data.ok ? "Board added to your collection." : data.reason;
-  if (kind === "reject") session.notice = data.reason;
-  if (kind === "error") session.notice = typeof data === "string" ? data : "The game service could not complete that action.";
+  if (kind === "reject") {
+    session.movePending = false;
+    session.notice = data.reason;
+  }
+  if (kind === "error") {
+    session.movePending = false;
+    session.notice = typeof data === "string" ? data : "The game service could not complete that action.";
+  }
   if (kind === "challengeDeclined" || kind === "rematchDeclined") session.notice = "The invitation is no longer available.";
   if (kind === "fart") playSound("end");
   notify(kind, data);
@@ -113,6 +128,7 @@ export function serverNow() {
 
 function clearMatch() {
   session.match = null;
+  session.movePending = false;
   session.result = null;
   session.legal = null;
   notify("leave");
@@ -194,6 +210,13 @@ export async function connect() {
 }
 
 export function action(first, second) {
+  if (first === "move" || first === "claimDraw") {
+    if (!session.match || session.movePending) return;
+    session.movePending = true;
+  }
+  if (session.match && (first === "move" || first === "claimDraw" || first === "legal")) {
+    second = { ...second, matchId: session.match.matchId, revision: session.match.revision };
+  }
   session.notice = "";
   if (first === "legal") session.legal = null;
   if (first === "leave" && !session.network) clearMatch();

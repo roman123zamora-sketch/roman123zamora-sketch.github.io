@@ -1,8 +1,23 @@
 -- Standard chess rules module. Board keys use fixed algebraic square names.
 local Engine = {}
 local files = "abcdefgh"
-local function xy(s) return string.find(files, string.sub(s,1,1),1,true), tonumber(string.sub(s,2,2)) end
-local function sq(x,y) if x and y and x>=1 and x<=8 and y>=1 and y<=8 then return string.sub(files,x,x)..tostring(y) end end
+local squares, coordinates = {}, {}
+for file=1,8 do
+ squares[file]={}
+ for rank=1,8 do
+  local square=string.sub(files,file,file)..rank
+  squares[file][rank]=square
+  coordinates[square]={file,rank}
+ end
+end
+local function xy(square)
+ local point=coordinates[square]
+ return point[1],point[2]
+end
+local function sq(file,rank)
+ local column=squares[file]
+ return column and column[rank]
+end
 function Engine.initial()
  local b={}; for x=1,8 do b[sq(x,2)]="wP"; b[sq(x,7)]="bP" end
  local row={"R","N","B","Q","K","B","N","R"}; for x=1,8 do b[sq(x,1)]="w"..row[x]; b[sq(x,8)]="b"..row[x] end
@@ -71,8 +86,35 @@ function Engine.legalMoves(state,from,color)
  local p=state.board[from]; if not p or string.sub(p,1,1)~=(color or state.turn) then return {} end
  local out={}; for _,m in ipairs(pseudo(state,from)) do local n=applyPosition(state,m); if n and not Engine.inCheck(n,string.sub(p,1,1)) then table.insert(out,m) end end; return out
 end
+local function legalForColor(state,color,tactical,firstOnly)
+ local out={}
+ for from,piece in pairs(state.board) do
+  if string.sub(piece,1,1)==color then
+   for _,move in ipairs(pseudo(state,from)) do
+    if not tactical or state.board[move.to] or move.promotion or move.special=="enpassant" then
+     local child=applyPosition(state,move)
+     if not Engine.inCheck(child,color) then
+      if firstOnly then return true end
+      table.insert(out,move)
+     end
+    end
+   end
+  end
+ end
+ if firstOnly then return false end
+ return out
+end
+
 function Engine.allLegal(state,color)
- local old=state.turn; state.turn=color or old; local out={}; for s,p in pairs(state.board) do if string.sub(p,1,1)==state.turn then for _,m in ipairs(Engine.legalMoves(state,s)) do table.insert(out,m) end end end; state.turn=old; return out
+ return legalForColor(state,color or state.turn,false,false)
+end
+
+function Engine.tacticalMoves(state)
+ return legalForColor(state,state.turn,true,false)
+end
+
+function Engine.hasLegal(state)
+ return legalForColor(state,state.turn,false,true)
 end
 -- A repetition includes en passant only when the side to move can legally capture.
 function Engine.positionKey(state)

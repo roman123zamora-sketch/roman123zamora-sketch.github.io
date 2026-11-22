@@ -3,18 +3,25 @@ local E={}
 local files="abcdefghijklmn"
 E.colors={"R","B","Y","G"}
 local dirs={R={0,1},B={1,0},Y={0,-1},G={-1,0}}
-local function xy(s)
- if type(s)~="string" then return nil,nil end
- local x=string.find(files,string.sub(s,1,1),1,true); local y=tonumber(string.sub(s,2))
- return x,y
+local squares,coordinates={},{}
+for file=1,14 do
+ squares[file]={}
+ for rank=1,14 do
+  if (file>=4 and file<=11) or (rank>=4 and rank<=11) then
+   local square=string.sub(files,file,file)..rank
+   squares[file][rank]=square
+   coordinates[square]={file,rank}
+  end
+ end
 end
-local function sq(x,y)
- if not x or not y or x<1 or x>14 or y<1 or y>14 then return nil end
- if not (x>=4 and x<=11 or y>=4 and y<=11) then return nil end
- return string.sub(files,x,x)..tostring(y)
+local function xy(square)
+ local point=coordinates[square]
+ if point then return point[1],point[2] end
+ return nil,nil
 end
-local function clone(t)
- local n={}; for k,v in pairs(t) do n[k]=type(v)=="table" and clone(v) or v end; return n
+local function sq(file,rank)
+ local column=squares[file]
+ return column and column[rank]
 end
 local function nextColor(color)
  for i,c in ipairs(E.colors) do if c==color then return E.colors[i%4+1] end end
@@ -102,24 +109,56 @@ local function pseudo(state,from)
  end
  return out
 end
-function E.apply(state,m)
- local n=clone(state); local piece=n.board[m.from]; if not piece then return nil end; local color=string.sub(piece,1,1); local captured=n.board[m.to]
- local grey=captured and n.eliminated[string.sub(captured,1,1)] or false
- local entry={from=m.from,to=m.to,color=color,captured=captured,promotion=m.promotion}
+-- Search and king-safety probes need no history, score, or result allocations.
+function E.searchApply(state,move)
+ local piece=state.board[move.from]
+ if not piece then return nil end
+ local child=table.clone(state)
+ child.board=table.clone(state.board)
+ local color=string.sub(piece,1,1)
+ child.board[move.from]=nil
+ child.board[move.to]=color..(move.promotion or string.sub(piece,2,2))
+ child.turn=nextColor(color)
+ return child
+end
+
+function E.apply(state,move)
+ local nextState=E.searchApply(state,move)
+ if not nextState then return nil end
+ local color=string.sub(state.board[move.from],1,1)
+ local captured=state.board[move.to]
+ local grey=captured and state.eliminated[string.sub(captured,1,1)]
+ local entry={from=move.from,to=move.to,color=color,captured=captured,promotion=move.promotion}
  if grey then entry.grey=true end
- if captured and not grey then local v=E.values[string.sub(captured,2,2)]; if v then n.scores[color]=(n.scores[color] or 0)+v end end
- n.board[m.from]=nil; n.board[m.to]=color..(m.promotion or string.sub(piece,2,2)); n.turn=nextColor(color); n.lastMove={from=m.from,to=m.to,color=color}; table.insert(n.history,entry); if color=="G" then n.fullmove+=1 end
- return n
+ nextState.history=table.clone(state.history)
+ table.insert(nextState.history,entry)
+ nextState.scores=table.clone(state.scores)
+ if captured and not grey then
+  local value=E.values[string.sub(captured,2,2)] or 0
+  nextState.scores[color]=(nextState.scores[color] or 0)+value
+ end
+ nextState.eliminated=table.clone(state.eliminated)
+ nextState.eliminationReason=table.clone(state.eliminationReason or {})
+ nextState.eliminationOrder=table.clone(state.eliminationOrder or {})
+ nextState.lastMove={from=move.from,to=move.to,color=color}
+ if color=="G" then nextState.fullmove+=1 end
+ return nextState
 end
 function E.legalMoves(state,from,color)
  local mover=color or state.turn
  local piece=state.board[from]; if not piece or state.eliminated[mover] or string.sub(piece,1,1)~=mover then return {} end
- local out={}; for _,m in ipairs(pseudo(state,from)) do local n=E.apply(state,m); if n and not E.inCheck(n,mover) then table.insert(out,m) end end; return out
+ local out={}; for _,m in ipairs(pseudo(state,from)) do local n=E.searchApply(state,m); if n and not E.inCheck(n,mover) then table.insert(out,m) end end; return out
 end
 function E.allLegal(state,color)
- local old=state.turn; state.turn=color or old; local out={}
- if not state.eliminated[state.turn] then for s,p in pairs(state.board) do if string.sub(p,1,1)==state.turn then for _,m in ipairs(E.legalMoves(state,s)) do table.insert(out,m) end end end end
- state.turn=old; return out
+ local mover=color or state.turn
+ local out={}
+ if state.eliminated[mover] then return out end
+ for square,piece in pairs(state.board) do
+  if string.sub(piece,1,1)==mover then
+   for _,move in ipairs(E.legalMoves(state,square,mover)) do table.insert(out,move) end
+  end
+ end
+ return out
 end
 function E.public(state)
  return {board=state.board,turn=state.turn,eliminated=state.eliminated,eliminationReason=state.eliminationReason,eliminationOrder=state.eliminationOrder,history=state.history,lastMove=state.lastMove,fullmove=state.fullmove,scores=state.scores}

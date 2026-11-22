@@ -1,27 +1,10 @@
--- Bot strength is selected by an explicit Elo value (400-2400), not a vague difficulty label.
--- One engine, one search: iterative-deepening negamax with alpha-beta pruning, a
--- transposition table, MVV-LVA move ordering, and a quiescence search so capture
--- chains at the horizon are resolved before the position is evaluated. A shared
--- node budget bounds think time: when it runs out, the bot plays the best move
--- from the last fully completed depth instead of stalling the server.
+-- Exalted Chess search. Rating preferences select effort, without random moves.
 local Bot={}
 local MATE=100000
 local values={P=100,N=310,B=330,R=500,Q=900,K=20000}
 local levels={400,600,800,1000,1200,1400,1600,1800,2000,2200,2400}
 Bot.ratings=levels
-local profiles={
- [400]={depth=1,random=.70,blunder=.35,pool=8,nodes=200},
- [600]={depth=1,random=.45,blunder=.28,pool=7,nodes=300},
- [800]={depth=1,random=.25,blunder=.21,pool=6,nodes=400},
- [1000]={depth=2,random=.10,blunder=.15,pool=5,nodes=700},
- [1200]={depth=2,random=.04,blunder=.09,pool=4,nodes=900},
- [1400]={depth=3,random=0,blunder=.04,pool=3,nodes=1500},
- [1600]={depth=3,random=0,blunder=0,pool=2,nodes=700},
- [1800]={depth=4,random=0,blunder=0,pool=1,nodes=1000},
- [2000]={depth=4,random=0,blunder=0,pool=1,nodes=1500},
- [2200]={depth=5,random=0,blunder=0,pool=1,nodes=2500},
- [2400]={depth=6,random=0,blunder=0,pool=1,nodes=4000},
-}
+Bot.limits={timeMs=220,depth=7,nodes=24000}
 local files="abcdefgh"
 -- Piece-square tables (midgame, centipawns) listed rank 8 down to rank 1. They
 -- drive piece activity and king safety preferences: knights toward the center,
@@ -42,15 +25,9 @@ local passedB={0,100,60,35,20,10,0,0}
 -- evaluator; other variants (four-player) keep material-only scoring since the
 -- tables assume an 8x8 two-sided board.
 local function evaluate(state)
- if not state.castling then
-  local total=0
-  for _,p in pairs(state.board) do
-   local v=values[string.sub(p,2,2)] or 0
-   total+=(string.sub(p,1,1)==state.turn) and v or -v
-  end
-  return total
- end
  local score=0
+ local phase=0
+ local kingEndgame=0
  local pw={}; local pb={}; local rw={}; local rb={}
  local bishopsW=0; local bishopsB=0
  local kw; local kb
@@ -60,12 +37,21 @@ local function evaluate(state)
   local t=pst[kind]
   local idx=(color=="w") and ((8-y)*8+x) or ((y-1)*8+x)
   local v=(values[kind] or 0)+(t and t[idx] or 0)
+  if kind=="N" or kind=="B" then phase+=1
+  elseif kind=="R" then phase+=2
+  elseif kind=="Q" then phase+=4
+  elseif kind=="K" then
+   local center=24-7*(math.abs(x-4.5)+math.abs(y-4.5))
+   kingEndgame+=(color=="w" and 1 or -1)*(center-t[idx])
+  end
   score+=(color=="w") and v or -v
   if kind=="P" then table.insert((color=="w") and pw or pb,{x,y})
   elseif kind=="R" then table.insert((color=="w") and rw or rb,{x,y})
   elseif kind=="B" then if color=="w" then bishopsW+=1 else bishopsB+=1 end
   elseif kind=="K" then if color=="w" then kw={x,y} else kb={x,y} end end
  end
+ local late=1-math.min(phase,24)/24
+ score+=kingEndgame*late
  local fileW={}; local fileB={}
  for _,pp in ipairs(pw) do fileW[pp[1]]=(fileW[pp[1]] or 0)+1 end
  for _,pp in ipairs(pb) do fileB[pp[1]]=(fileB[pp[1]] or 0)+1 end
@@ -101,209 +87,240 @@ local function evaluate(state)
  if kw then
   local shield=0
   for _,pp in ipairs(pw) do if math.abs(pp[1]-kw[1])<=1 and math.abs(pp[2]-kw[2])<=1 then shield+=1 end end
-  score+=math.min(shield,3)*10
+  score+=math.min(shield,3)*10*(1-late)
  end
  if kb then
   local shield=0
   for _,pp in ipairs(pb) do if math.abs(pp[1]-kb[1])<=1 and math.abs(pp[2]-kb[2])<=1 then shield+=1 end end
-  score-=math.min(shield,3)*10
+  score-=math.min(shield,3)*10*(1-late)
  end
  return (state.turn=="w") and score or -score
 end
--- Position keys for the transposition table. Standard chess walks the 64 squares
--- in a fixed order (fast, no sorting); other variants fall back to a sorted dump.
-local function chessKey(state)
- local parts=table.create(65)
- local i=0
- for r=1,8 do for f=1,8 do i+=1; parts[i]=state.board[string.sub(files,f,f)..r] or "-" end end
- local c=state.castling
- local rights=c and ((c.wK and "K" or "-")..(c.wQ and "Q" or "-")..(c.bK and "k" or "-")..(c.bQ and "q" or "-")) or "----"
- parts[i+1]="|"..rights.."|"..(state.ep or "-").."|"..state.turn
- return table.concat(parts)
-end
-local function genericKey(state)
- local parts={}
- for s,p in pairs(state.board) do table.insert(parts,s.."="..p) end
- table.sort(parts)
- table.insert(parts,state.turn)
- return table.concat(parts,",")
-end
--- MVV-LVA: winning captures and promotions first, cheap attackers preferred.
-local function moveOrder(state,m)
- local v=0
- local victim=state.board[m.to]
- if victim then v=10*(values[string.sub(victim,2,2)] or 0) end
- if m.special=="enpassant" then v=10*values.P end
- if m.promotion then v+=(values[m.promotion] or 0) end
- local attacker=state.board[m.from]
- if attacker then v-=(values[string.sub(attacker,2,2)] or 0)/10 end
- return v
-end
-local function sameMove(a,b) return a.from==b.from and a.to==b.to and a.promotion==b.promotion and a.special==b.special end
-local function orderMoves(state,moves,ttMove)
- table.sort(moves,function(a,b)
-  if ttMove then
-   if sameMove(a,ttMove) then return true end
-   if sameMove(b,ttMove) then return false end
+local function orderMoves(state,moves,hint,search,ply)
+ local killers=search.killers[ply]
+ local scores={}
+ for _,move in ipairs(moves) do
+  local victim=state.board[move.to]
+  local attacker=state.board[move.from]
+  local value=0
+  local id=move.from..":"..move.to..":"..(move.promotion or "")
+  if id==hint then
+   value=200000
+  elseif victim or move.promotion or move.special=="enpassant" then
+   local capture=victim and values[string.sub(victim,2,2)] or (move.special=="enpassant" and 100 or 0)
+   value=30000+capture*8+(values[move.promotion] or 0)*4-values[string.sub(attacker,2,2)]
+  elseif id==killers then
+   value=20000
+  else
+   value=search.history[id] or 0
   end
-  return moveOrder(state,a)>moveOrder(state,b)
+  move.searchId=id
+  scores[move]=value
+ end
+ table.sort(moves,function(a,b)
+  if scores[a]~=scores[b] then return scores[a]>scores[b] end
+  return a.searchId<b.searchId
  end)
 end
--- Quiescence: only captures and promotions are searched past the horizon so the
--- evaluator never stops in the middle of a trade.
-local function quiescence(engine,state,alpha,beta,budget,ply)
+
+local function admitNode(search)
+ search.nodes+=1
+ if search.nodes>search.maxNodes or search.clock()>=search.deadline then return false end
+ if search.checkpoint and search.nodes%64==0 and search.clock()-search.lastYield>=.010 then
+  if not search.checkpoint() then search.cancelled=true; return false end
+  search.lastYield=search.clock()
+  return search.lastYield<search.deadline
+ end
+ return true
+end
+
+local function repetitions(search,key)
+ return (search.rootPositions[key] or 0)+(search.path[key] or 0)
+end
+
+local function standardVisit(engine,state,depth,alpha,beta,search,ply,qPly,key)
+ if not admitNode(search) then return nil end
  local inCheck=engine.inCheck(state,state.turn)
- local stand=evaluate(state)
- if inCheck then
-  -- A side in check may not stand pat: every evasion is searched so checks
-  -- (forks, skewers, mating attacks) are resolved before the horizon score.
-  if ply>=6 then return stand end
+ local count=repetitions(search,key)
+ local moves
+ if depth>0 or inCheck then
+  moves=engine.allLegal(state)
+ elseif engine.tacticalMoves then
+  moves=engine.tacticalMoves(state)
+  if #moves==0 and not engine.hasLegal(state) then return 0 end
  else
-  if stand>=beta or ply>=4 then return stand end
-  if stand>alpha then alpha=stand end
+  moves=engine.allLegal(state)
+  if #moves==0 then return 0 end
+  local captures={}
+  for _,move in ipairs(moves) do
+   if state.board[move.to] or move.promotion or move.special=="enpassant" then table.insert(captures,move) end
+  end
+  moves=captures
  end
- if budget.nodes<=0 then return stand end
- budget.nodes-=1
- local moves=engine.allLegal(state,state.turn)
- if #moves==0 then
-  -- Terminal positions are visible even at the quiescence horizon.
-  if inCheck then return -(MATE-ply) end
-  return 0
+ if #moves==0 and (depth>0 or inCheck) then return inCheck and -MATE+ply or 0 end
+ if count>=5 or state.halfmove>=150 or engine.insufficientMaterial(state) then return 0 end
+ if depth<=0 and inCheck and qPly>=12 then return nil end
+
+ local originalAlpha,originalBeta=alpha,beta
+ local best=(count>=3 or state.halfmove>=100) and 0 or -math.huge
+ if depth<=0 and not inCheck then
+  best=math.max(best,evaluate(state))
+  if qPly>=8 then return best end
  end
- local caps
- if inCheck then
-  caps=moves
- else
-  caps={}
-  for _,m in ipairs(moves) do
-   if state.board[m.to] or m.special=="enpassant" or m.promotion then
-    table.insert(caps,m)
-   elseif ply==0 and budget.nodes>10 then
-    -- Checks are forcing moves too: include quiet checks at the horizon so the
-    -- search sees mating attacks before committing to a stand-pat score.
-    budget.nodes-=1
-    local child=(engine.searchApply or engine.apply)(state,m)
-    if child and engine.inCheck(child,child.turn) then table.insert(caps,m) end
+ if best>=beta then return best end
+ alpha=math.max(alpha,best)
+
+ -- Reversible history affects draw claims. Reuse scores only immediately
+ -- after an irreversible move; elsewhere a cached move is only an ordering hint.
+ local entry=depth>0 and search.table[key] or nil
+ if entry and state.halfmove==0 and entry.depth>=depth and entry.score then
+  if entry.flag=="exact" or (entry.flag=="lower" and entry.score>=beta)
+   or (entry.flag=="upper" and entry.score<=alpha) then return entry.score end
+ end
+ orderMoves(state,moves,entry and entry.move,search,ply)
+
+ local bestMove
+ for _,move in ipairs(moves) do
+  local child=engine.searchApply(state,move)
+  local childKey=engine.positionKey(child)
+  search.path[childKey]=(search.path[childKey] or 0)+1
+  local reply=standardVisit(engine,child,depth-1,-beta,-alpha,search,ply+1,depth<=0 and qPly+1 or 0,childKey)
+  local prospectiveClaim=repetitions(search,childKey)>=3 or child.halfmove>=100
+  local children=search.path[childKey]-1
+  search.path[childKey]=children>0 and children or nil
+  if reply==nil then return nil end
+  local score=-reply
+  if prospectiveClaim then score=math.max(0,score) end
+  if score>best then best,bestMove=score,move.searchId end
+  if score>alpha then alpha=score end
+  if alpha>=beta then
+   if depth>0 and not state.board[move.to] and not move.promotion and move.special~="enpassant" then
+    search.killers[ply]=move.searchId
+    search.history[move.searchId]=math.min(19000,(search.history[move.searchId] or 0)+depth*depth)
    end
+   break
   end
  end
- orderMoves(state,caps,nil)
- local best=inCheck and -math.huge or stand
- for _,m in ipairs(caps) do
-  if budget.nodes<=0 then break end
-  local v=-quiescence(engine,(engine.searchApply or engine.apply)(state,m),-beta,-alpha,budget,ply+1)
-  if v>best then best=v end
-  if v>alpha then alpha=v end
+ if depth>0 and bestMove and (entry or search.entries<4096) and (not entry or entry.depth<=depth) then
+  if not entry then search.entries+=1 end
+  local score
+  if state.halfmove==0 and math.abs(best)<MATE-1000 then score=best end
+  search.table[key]={depth=depth,move=bestMove,score=score,
+   flag=best<=originalAlpha and "upper" or (best>=originalBeta and "lower" or "exact")}
+ end
+ return best
+end
+
+local function fourEvaluation(state,root)
+ local totals={R=0,B=0,Y=0,G=0}
+ for _,piece in pairs(state.board) do
+  local color,kind=string.sub(piece,1,1),string.sub(piece,2,2)
+  if not state.eliminated[color] and kind~="K" then totals[color]+=values[kind] end
+ end
+ local strongest,combined,rivals=0,0,0
+ for color,total in pairs(totals) do
+  if color~=root and not state.eliminated[color] then
+   strongest=math.max(strongest,total)
+   combined+=total
+   rivals+=1
+  end
+ end
+ if rivals==0 then return MATE end
+ return totals[root]-(strongest+combined/rivals)/2
+end
+
+local function advanceFour(engine,state,move)
+ local nextState=engine.searchApply(state,move)
+ local victim=state.board[move.to]
+ if victim and string.sub(victim,2,2)=="K" then
+  nextState.eliminated=table.clone(state.eliminated)
+  nextState.eliminated[string.sub(victim,1,1)]=true
+ end
+ return nextState
+end
+
+-- Other seats are allowed to choose the worst reply for our seat. This
+-- conservative model keeps a single score perspective over four plies.
+local function fourVisit(engine,state,depth,alpha,beta,search,ply)
+ if not admitNode(search) then return nil end
+ local moves
+ for _=1,#engine.colors do
+  if state.eliminated[search.root] then return -MATE+ply end
+  local score=fourEvaluation(state,search.root)
+  if score==MATE then return MATE-ply end
+  moves=engine.allLegal(state)
+  if #moves>0 then
+   if depth<=0 then return score end
+   break
+  end
+  state=table.clone(state)
+  state.eliminated=table.clone(state.eliminated)
+  state.eliminated[state.turn]=true
+  state.turn=engine.nextColor(state.turn)
+ end
+ local maximize=state.turn==search.root
+ local best=maximize and -math.huge or math.huge
+ orderMoves(state,moves,nil,search,ply)
+ for _,move in ipairs(moves) do
+  local score=fourVisit(engine,advanceFour(engine,state,move),depth-1,alpha,beta,search,ply+1)
+  if score==nil then return nil end
+  if maximize then best=math.max(best,score); alpha=math.max(alpha,best)
+  else best=math.min(best,score); beta=math.min(beta,best) end
   if alpha>=beta then break end
  end
- if best==-math.huge then return stand end
  return best
 end
-local function normalized(rating)
- rating=tonumber(rating) or 1000
- local best=levels[1]; for _,v in ipairs(levels) do if math.abs(v-rating)<math.abs(best-rating) then best=v end end
- return best
-end
--- Negamax with alpha-beta, transposition cutoffs, and mate scores that shrink
--- with ply so the bot prefers the fastest checkmate. TT flag: 0 exact, 1 lower
--- bound (fail high), 2 upper bound (fail low). Mate-range values are not stored
--- so mate distances cannot be corrupted across different paths.
-local function negamax(engine,state,depth,alpha,beta,budget,ply,tt)
- if state.halfmove and state.halfmove>=100 then return 0 end
- if depth<=0 then return quiescence(engine,state,alpha,beta,budget,0) end
- if budget.nodes<=0 then return evaluate(state) end
- local key=tt.key(state)
- local entry=tt.map[key]
- local ttMove=entry and entry.move or nil
- if entry and entry.depth>=depth then
-  if entry.flag==0 then return entry.value end
-  if entry.flag==1 then if entry.value>alpha then alpha=entry.value end
-  elseif entry.flag==2 then if entry.value<beta then beta=entry.value end end
-  if alpha>=beta then return entry.value end
+
+function Bot.choose(engine,state,rating,options)
+ options=options or {}
+ local clock=options.clock or os.clock
+ local effort=math.clamp(((tonumber(rating) or 1000)-400)/2000,0,1)
+ local limits=Bot.limits
+ local maxDepth=math.floor(math.clamp(options.depth or (2+effort*(limits.depth-2)),1,12))
+ local search={deadline=clock()+(options.timeMs or limits.timeMs)/1000,clock=clock,
+  checkpoint=options.checkpoint,lastYield=clock(),maxNodes=options.nodes or math.floor(3200+effort*(limits.nodes-3200)),
+  nodes=0,entries=0,table={},history={},killers={},path={},root=state.turn,rootPositions=state.positions or {}}
+ local moves=engine.allLegal(state)
+ if #moves==0 then return nil end
+ local standard=state.castling~=nil
+ if standard and (engine.insufficientMaterial(state) or state.halfmove>=150
+  or (search.rootPositions[engine.positionKey(state)] or 0)>=5) then return nil end
+ if not standard then
+  local alive=0
+  for _,side in ipairs(engine.colors) do if not state.eliminated[side] then alive+=1 end end
+  if alive<=1 then return nil end
  end
- budget.nodes-=1
- local moves=engine.allLegal(state,state.turn)
- if #moves==0 then
-  if engine.inCheck(state,state.turn) then return -(MATE-ply) end
-  return 0
- end
- orderMoves(state,moves,ttMove)
- local originalAlpha=alpha
- local best=-math.huge; local bestMove=nil
- for _,m in ipairs(moves) do
-  if budget.nodes<=0 then break end
-  local v=-negamax(engine,(engine.searchApply or engine.apply)(state,m),depth-1,-beta,-alpha,budget,ply+1,tt)
-  if v>best then best=v; bestMove=m end
-  if v>alpha then alpha=v end
-  if alpha>=beta then break end
- end
- if best==-math.huge then return evaluate(state) end
- if math.abs(best)<MATE-1000 then
-  local flag=best<=originalAlpha and 2 or (best>=beta and 1 or 0)
-  tt.map[key]={value=best,depth=depth,flag=flag,move=bestMove}
- end
- return best
-end
-function Bot.choose(engine,state,rating)
- rating=normalized(rating); local prof=profiles[rating] or profiles[1000]
- local moves=engine.allLegal(state,state.turn); if #moves==0 then return nil end
- if #moves==1 then return moves[1] end
- if prof.random>0 and math.random()<prof.random then return moves[math.random(1,#moves)] end
- local budget={nodes=prof.nodes or math.huge}
- local tt={map={},key=state.castling and chessKey or genericKey}
- -- Pool profiles need honest values for every root move to rank the candidate
- -- pool, so they search with a full window; pure-strength profiles prune at
- -- the root as well and simply take the best move.
- local fullWindow=prof.pool>1 or (prof.blunder or 0)>0
- local scored={}
- for _,m in ipairs(moves) do table.insert(scored,{move=m,value=moveOrder(state,m)}) end
- table.sort(scored,function(a,b) return a.value>b.value end)
- -- Iterative deepening: each pass reorders the root moves by the previous
- -- pass, and an iteration cut short by the budget is discarded entirely.
- for depth=1,prof.depth do
-  if budget.nodes<=0 then break end
-  local result={}; local alpha=-MATE; local complete=true
-  for _,entry in ipairs(scored) do
-   if budget.nodes<=0 then complete=false; break end
-   budget.nodes-=1
-   local child=(engine.searchApply or engine.apply)(state,entry.move)
-   local v
-   if fullWindow then
-    v=-negamax(engine,child,depth-1,-MATE,MATE,budget,1,tt)
+
+ orderMoves(state,moves,nil,search,0)
+ local best=moves[1]
+ local completed,completedScore=0,nil
+ for depth=1,maxDepth do
+  orderMoves(state,moves,best.searchId,search,0)
+  local iterationBest
+  local alpha=-MATE
+  for _,move in ipairs(moves) do
+   local score
+   if standard then
+    local child=engine.searchApply(state,move)
+    local key=engine.positionKey(child)
+    search.path[key]=1
+    local reply=standardVisit(engine,child,depth-1,-MATE,-alpha,search,1,0,key)
+    search.path[key]=nil
+    if reply~=nil then score=-reply end
    else
-    v=-negamax(engine,child,depth-1,-MATE,-alpha,budget,1,tt)
-    if v>alpha then alpha=v end
+    score=fourVisit(engine,advanceFour(engine,state,move),depth-1,alpha,MATE,search,1)
    end
-   table.insert(result,{move=entry.move,value=v})
+   if score==nil then iterationBest=nil; break end
+   if not iterationBest or score>alpha then alpha=score; iterationBest=move end
   end
-  if complete and #result==#scored then
-   table.sort(result,function(a,b) return a.value>b.value end)
-   scored=result
-  end
+  if not iterationBest then break end
+  best=iterationBest
+  completed,completedScore=depth,alpha
+  if math.abs(alpha)>MATE-1000 then break end
  end
- -- Any bot that searches its way to an immediate mate takes it: even low-rated
- -- players reliably spot mate in one, so the pool never dilutes a found mate.
- if scored[1] and scored[1].value>=MATE-1000 then return scored[1].move end
- local candidateCount=math.min(math.max(prof.pool,1),#scored)
- local pool={}; for i=1,candidateCount do table.insert(pool,scored[i]) end
- -- Lower ratings occasionally select a move beyond the candidate pool to model blunders.
- if prof.blunder>0 and #scored>candidateCount and math.random()<prof.blunder then
-  local floorIndex=math.min(#scored,candidateCount+math.random(1,math.min(4,#scored-candidateCount)))
-  return scored[floorIndex].move
- end
- -- Weighted pick: a clearly best move (like a free queen) is taken far more
- -- often than near-equal alternatives, while quiet positions still vary.
- local floorValue=pool[#pool].value
- local weights={}; local total=0
- for i,e in ipairs(pool) do
-  local w=1+math.max(0,(e.value-floorValue)/4)
-  weights[i]=w; total+=w
- end
- local pick=math.random()*total
- for i,e in ipairs(pool) do
-  pick-=weights[i]
-  if pick<=0 then return e.move end
- end
- return pool[#pool].move
+ if search.cancelled then return nil end
+ -- The order key is private; preserve the move contract for all callers.
+ return {from=best.from,to=best.to,promotion=best.promotion,special=best.special},
+  {depth=completed,nodes=search.nodes,score=completedScore}
 end
 return Bot

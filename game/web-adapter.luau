@@ -64,6 +64,7 @@ local function resume(thread, ...)
 end
 
 local task = {
+ cooperativeSearch = cooperativeSearch,
  spawn = function(handler, ...) resume(coroutine.create(handler), ...) end,
  wait = function(seconds) coroutine.yield(seconds) end
 }
@@ -99,7 +100,12 @@ end
 
 return function(op, time, id, first, second)
  if op == "catalog" then return boardCatalog end
- tick(time)
+ -- Invalidate a bot turn before resuming due search coroutines.
+ if op=="action" and (first=="reset" or first=="undo" or first=="leave" or first=="resign") then
+  now=time
+ else
+  tick(time)
+ end
  if op == "join" then
   local player = {UserId = id, Name = "WebPlayer" .. tostring(id), DisplayName = first, Parent = players}
   profiles[tostring(id)] = second

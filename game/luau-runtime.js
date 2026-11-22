@@ -32,7 +32,7 @@ function plain(value) {
   return value;
 }
 
-export async function createRuntime(read) {
+export async function createRuntime(read, { cooperativeSearch = false } = {}) {
   const names = Object.keys(modules);
   const [adapter, service, ...sources] = await Promise.all([
     read("web-adapter.luau"),
@@ -45,14 +45,19 @@ export async function createRuntime(read) {
     end)()
   `).join("\n");
   const shim = "local function color(r,g,b) return {R=r,G=g,B=b} end; local Color3 = { new=color, fromRGB = function(r,g,b) return color(r/255,g/255,b/255) end }\n";
-  const source = shim + "local modules = {}\n" + definitions +
+  const source = shim + `local cooperativeSearch = ${cooperativeSearch}\nlocal modules = {}\n` + definitions +
     "\nwebDispatch = (function()\n" + adapter.replace("-- GAME_SERVICE", "\n" + service + "\n") + "\nend)()";
   const vm = await LuauState.createAsync();
   await vm.loadstring(source, "Exalted Chess", true)();
+  const tick = vm.loadstring('return webDispatch("tick", ...)', "Match tick", true);
 
   let queue = Promise.resolve();
   return (...args) => {
     const call = queue.then(async () => {
+      if (args[0] === "tick") {
+        const [result] = await tick(args[1]);
+        return plain(result);
+      }
       const invoke = vm.loadstring("return webDispatch(" + args.map(literal).join(",") + ")", "Web action", true);
       const [result] = await invoke();
       return plain(result);

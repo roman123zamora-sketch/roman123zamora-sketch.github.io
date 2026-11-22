@@ -102,3 +102,5 @@ button.square:focus-visible { z-index: 2; outline: 2px solid var(--square-focus)
 }
 .square.checked { outline: 2px dashed var(--warning-line); outline-offset: -3px; }
 .board-status.in-check { border-color: #ffb2be; color: var(--warning-text); }
+
+.square.drag-source .chess-piece { opacity: .18; }

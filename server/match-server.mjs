@@ -85,13 +85,17 @@ function selectData(kind, data) {
   const address = value => typeof value === "string" && /^[a-n](?:[1-9]|1[0-4])$/.test(value) ? value : undefined;
   const rating = value => Number.isFinite(value) ? Math.max(400, Math.min(2400, value)) : 1000;
   const number = value => Number.isSafeInteger(value) ? value : undefined;
+  const context = {
+    matchId: typeof input.matchId === "string" ? input.matchId.slice(0, 64) : undefined,
+    revision: number(input.revision)
+  };
   const timer = { baseSeconds: number(input.baseSeconds), increment: number(input.increment) };
   switch (kind) {
     case "claimDraw":
     case "move":
       if (kind === "claimDraw" && data == null) return undefined;
-      return { from: address(input.from), to: address(input.to), promotion: ["Q", "R", "B", "N"].includes(input.promotion) ? input.promotion : undefined };
-    case "legal": return { from: address(input.from) };
+      return { ...context, from: address(input.from), to: address(input.to), promotion: ["Q", "R", "B", "N"].includes(input.promotion) ? input.promotion : undefined };
+    case "legal": return { ...context, from: address(input.from), requestId: number(input.requestId) };
     case "bot": return { rating: rating(input.rating) };
     case "fourBot": return { ratings: { B: rating(input.ratings?.B), Y: rating(input.ratings?.Y), G: rating(input.ratings?.G) } };
     case "buyBoard": case "equipBoard": return { id: typeof input.id === "string" ? input.id.slice(0, 48) : "" };

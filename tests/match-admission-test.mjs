@@ -31,6 +31,16 @@ for (const event of moved) {
   assert.equal(event.data.state.board.e4, "wP");
   assert.equal(event.data.state.turn, "b");
 }
+const currentState = moved.find(event => event.user === black).data;
+const stale = await action(black, "move", {
+  from: "e7", to: "e5", matchId: currentState.matchId, revision: currentState.revision - 1
+});
+assert.equal(stale[0].kind, "reject");
+const legal = await action(black, "legal", {
+  from: "e7", matchId: currentState.matchId, revision: currentState.revision, requestId: 12
+});
+assert.equal(legal[0].data.requestId, 12);
+assert.equal(legal[0].data.revision, currentState.revision);
 const resumed = (await action(black, "resume")).filter(event => event.kind === "state");
 assert.equal(resumed.length, 1);
 assert.equal(resumed[0].user, black);

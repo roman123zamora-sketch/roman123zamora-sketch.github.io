@@ -52,7 +52,9 @@ game/
 server/
   match-server.mjs             Optional multiplayer HTTP service
 tests/
-  match-admission-test.mjs     Checks seat assignment and move validation
+  match-admission-test.mjs     Checks seat assignment and stale move validation
+  engine-search-test.mjs       Checks bot legality, terminal states, and both modes
+  engine-benchmark.mjs         Runs color-swapped standard games against a Git revision
   standard-chess-test.mjs      Runs the rules tests through the Luau runtime
   standard-chess-cases.luau    Positions and assertions for the rules tests
 reference/
@@ -72,6 +74,7 @@ Open `http://localhost:8080/`. Use Node.js 22 or newer to run the rules tests:
 ```sh
 node tests/standard-chess-test.mjs
 node tests/match-admission-test.mjs
+node tests/engine-search-test.mjs
 ```
 
 ## Online matches
@@ -99,3 +102,25 @@ short network interruption can resume the current match with the same browser
 session. After 30 seconds of inactivity the server treats the player as having
 disconnected. Live matches are held in memory and end if the service restarts.
 The persistent file stores player profiles and results.
+
+## Engine limits and comparison
+
+The bots search deterministically. The bot rating selector changes search effort.
+The default wall-clock ceiling in `game/engine/bot-search.luau` is 220 ms per bot
+turn, with a level-dependent depth and node cap. The existing `Bot.choose`
+function also accepts optional `timeMs`, `depth`, and `nodes` overrides. Browser
+search runs in the match worker, yielding at checkpoints so reset, undo and
+leave can invalidate outstanding work.
+
+To compare standard-chess search against the previous implementation, use a
+checkout with commit `e4b8329` available:
+
+```sh
+node tests/engine-benchmark.mjs e4b8329 1000
+node tests/engine-benchmark.mjs e4b8329 2400
+```
+
+Each run uses four starting positions, swaps colors, gives both engines a 60 ms
+search ceiling and reports games unfinished at 120 plies separately. Timings
+include small deadline-check overshoots and vary by machine. Results describe
+this sample only.
