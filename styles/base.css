@@ -10,6 +10,12 @@
   --muted: #b3c7e1;
   --ice: #aadaff;
   --focus: #91d6ff;
+  --selected: #164e88;
+  --legal: #112e51a6;
+  --last-move: #95d4ef80;
+  --warning-dark: #741f32;
+  --warning-line: #9c2946;
+  --warning-text: #ffced6;
   --accent: #2462b0;
   --accent-hover: #3076c9;
   --radius: .75rem;

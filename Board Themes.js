@@ -102,10 +102,22 @@ export function board(theme, fourPlayer = false, sample = false, options = {}) {
         if (options.state?.eliminated?.[encoded?.[0]]) image.classList.add("eliminated");
         square.append(image);
       }
+      const checked = piece?.type.toUpperCase() === "K" && (
+        options.state?.checkedColors ? Object.values(options.state.checkedColors).includes(encoded?.[0]) :
+          options.state?.status === "check" && encoded?.[0] === options.state.turn
+      );
+      if (checked) {
+        square.classList.add("checked");
+        square.setAttribute("aria-label", square.getAttribute("aria-label") + ", in check");
+      }
       if (options.select && !corner) {
         square.type = "button";
         square.dataset.square = address;
         square.classList.toggle("selected", options.selected === address);
+        square.setAttribute("aria-pressed", String(options.selected === address));
+        if (options.targets.some(target => target.to === address)) {
+          square.setAttribute("aria-label", square.getAttribute("aria-label") + ", legal destination");
+        }
         square.classList.toggle("target", options.targets.some(target => target.to === address));
         const last = options.state?.lastMove;
         square.classList.toggle("last-move", [last?.from, last?.to].includes(address));

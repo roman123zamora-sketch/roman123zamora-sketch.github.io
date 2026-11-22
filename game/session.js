@@ -3,7 +3,7 @@ const settings = "exalted-chess-audio";
 const listeners = new Set();
 const replays = new Map();
 let replayId = 0;
-let sound = localStorage.getItem(settings) === "on";
+let sound = readSetting(settings) === "on";
 let audio;
 let worker;
 let ready = false;
@@ -12,6 +12,18 @@ let server;
 let token;
 let eventCursor = 0;
 let commands = Promise.resolve();
+
+function readSetting(name) {
+  try { return localStorage.getItem(name); }
+  catch { return null; }
+}
+
+function writeSetting(name, value) {
+  try { localStorage.setItem(name, value); }
+  catch {
+    // Storage restrictions should not interrupt gameplay.
+  }
+}
 
 export const session = {
   profile: { chessElo: 1000, fourElo: 1000, league: "Soil", leaguePoints: 0, pieceStorage: 0, ownedBoards: ["classic"], equippedBoard: "classic" },
@@ -46,7 +58,7 @@ function receive({ kind, data, requestId }) {
     return;
   }
   if (kind === "save") {
-    localStorage.setItem(key, JSON.stringify(data));
+    writeSetting(key, JSON.stringify(data));
     return;
   }
   if (kind === "profile") session.profile = data;
@@ -108,10 +120,10 @@ export async function connect() {
   server = document.querySelector('meta[name="exalted-server"]')?.content || "";
   if (server) {
     try {
-      const previous = localStorage.getItem("exalted-server-token");
+      const previous = readSetting("exalted-server-token");
       const data = await request("/join", { method: "POST", body: JSON.stringify({ token: previous }) });
       token = data.token;
-      localStorage.setItem("exalted-server-token", token);
+      writeSetting("exalted-server-token", token);
       session.network = true;
       notify("network");
       poll();
@@ -123,7 +135,7 @@ export async function connect() {
     }
   }
   let profile;
-  try { profile = JSON.parse(localStorage.getItem(key)); } catch { profile = null; }
+  try { profile = JSON.parse(readSetting(key)); } catch { profile = null; }
   worker = new Worker(new URL("./local-worker.js", import.meta.url), { type: "module" });
   worker.onmessage = ({ data }) => {
     if (data.kind === "ready") {
@@ -186,12 +198,14 @@ function playSound(name) {
 export function soundEnabled() { return sound; }
 export function toggleSound() {
   sound = !sound;
-  localStorage.setItem(settings, sound ? "on" : "off");
+  writeSetting(settings, sound ? "on" : "off");
   if (sound) unlockSound();
   return sound;
 }
 export function unlockSound() {
   if (!sound) return;
-  audio ??= new AudioContext();
-  audio.resume();
+  const Audio = globalThis.AudioContext ?? globalThis.webkitAudioContext;
+  if (!Audio) return;
+  audio ??= new Audio();
+  audio.resume().catch(() => {});
 }

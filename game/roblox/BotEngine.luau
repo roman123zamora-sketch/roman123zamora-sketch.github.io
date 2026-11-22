@@ -182,7 +182,7 @@ local function quiescence(engine,state,alpha,beta,budget,ply)
     -- Checks are forcing moves too: include quiet checks at the horizon so the
     -- search sees mating attacks before committing to a stand-pat score.
     budget.nodes-=1
-    local child=engine.apply(state,m)
+    local child=(engine.searchApply or engine.apply)(state,m)
     if child and engine.inCheck(child,child.turn) then table.insert(caps,m) end
    end
   end
@@ -191,7 +191,7 @@ local function quiescence(engine,state,alpha,beta,budget,ply)
  local best=inCheck and -math.huge or stand
  for _,m in ipairs(caps) do
   if budget.nodes<=0 then break end
-  local v=-quiescence(engine,engine.apply(state,m),-beta,-alpha,budget,ply+1)
+  local v=-quiescence(engine,(engine.searchApply or engine.apply)(state,m),-beta,-alpha,budget,ply+1)
   if v>best then best=v end
   if v>alpha then alpha=v end
   if alpha>=beta then break end
@@ -232,7 +232,7 @@ local function negamax(engine,state,depth,alpha,beta,budget,ply,tt)
  local best=-math.huge; local bestMove=nil
  for _,m in ipairs(moves) do
   if budget.nodes<=0 then break end
-  local v=-negamax(engine,engine.apply(state,m),depth-1,-beta,-alpha,budget,ply+1,tt)
+  local v=-negamax(engine,(engine.searchApply or engine.apply)(state,m),depth-1,-beta,-alpha,budget,ply+1,tt)
   if v>best then best=v; bestMove=m end
   if v>alpha then alpha=v end
   if alpha>=beta then break end
@@ -266,7 +266,7 @@ function Bot.choose(engine,state,rating)
   for _,entry in ipairs(scored) do
    if budget.nodes<=0 then complete=false; break end
    budget.nodes-=1
-   local child=engine.apply(state,entry.move)
+   local child=(engine.searchApply or engine.apply)(state,entry.move)
    local v
    if fullWindow then
     v=-negamax(engine,child,depth-1,-MATE,MATE,budget,1,tt)

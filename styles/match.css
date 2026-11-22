@@ -88,3 +88,14 @@
 }
 .match-offer { margin-block-start: .75rem; overflow-wrap: anywhere; }
 .match-offer .action-row { margin-block-start: .5rem; }
+
+.quick-play { display: none; }
+@media (max-width: 65rem) {
+  .quick-play:not([hidden]) {
+    display: block;
+    margin-block-end: .65rem;
+    background: var(--accent);
+    border-color: var(--focus);
+  }
+  .quick-play:disabled { background: var(--surface); }
+}

@@ -57,21 +57,21 @@
 .square.cutout { background: transparent; }
 button.square { padding: 0; border: 0; border-radius: 0; }
 button.square:focus-visible { z-index: 2; outline: 2px solid #08264b; outline-offset: -3px; }
-.square.selected { box-shadow: inset 0 0 0 3px #1d548e; }
-.square.last-move { background-image: linear-gradient(#95d4ef80, #95d4ef80); }
+.square.selected { box-shadow: inset 0 0 0 3px var(--selected); }
+.square.last-move { background-image: linear-gradient(var(--last-move), var(--last-move)); }
 .square.marked { background-image: linear-gradient(#b83048a6, #b83048a6); }
 .square.target::after {
   position: absolute;
   inset: 36%;
   border-radius: 50%;
-  background: #112e51a6;
+  background: var(--legal);
   content: "";
   pointer-events: none;
 }
-.square.target:has(.chess-piece)::after { inset: 5%; border: 3px solid #112e51a6; background: transparent; }
+.square.target:has(.chess-piece)::after { inset: 5%; border: 3px solid var(--legal); background: transparent; }
 @media (hover: hover) {
   button.square:hover { box-shadow: inset 0 0 0 2px #173c6799; }
-  button.square.selected:hover { box-shadow: inset 0 0 0 3px #1d548e; }
+  button.square.selected:hover { box-shadow: inset 0 0 0 3px var(--selected); }
 }
 .chess-piece { display: block; inline-size: 88%; aspect-ratio: 1; user-select: none; }
 .chess-piece svg { display: block; inline-size: 100%; block-size: 100%; filter: drop-shadow(0 1px 1px #07142755); pointer-events: none; }
@@ -80,3 +80,25 @@ button.square:focus-visible { z-index: 2; outline: 2px solid #08264b; outline-of
 .eliminated { filter: grayscale(1); opacity: .64; }
 .piece-drag-image { position: fixed; top: 0; left: -100vw; pointer-events: none; }
 .sample { grid-area: auto; border: 1px solid var(--stroke); box-shadow: none; }
+
+.square.touch-source { touch-action: none; -webkit-touch-callout: none; }
+.touch-piece {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 4;
+  pointer-events: none;
+  opacity: .92;
+}
+.square.checked::before {
+  content: "!";
+  position: absolute;
+  inset: .08rem .12rem auto auto;
+  color: var(--warning-dark);
+  font-size: clamp(.55rem, 1.4vw, .95rem);
+  font-weight: 850;
+  line-height: 1;
+  z-index: 1;
+}
+.square.checked { outline: 2px dashed var(--warning-line); outline-offset: -3px; }
+.board-status.in-check { border-color: #ffb2be; color: var(--warning-text); }

@@ -205,7 +205,7 @@ local function newMatch(players,mode,setting)
  if mode=="fourBot" then local requested=setting or {}; for _,c in ipairs({"B","Y","G"}) do m.botRatings[c]=tonumber(requested[c]) or 1000 end end
  matches[id]=m; for _,p in ipairs(players) do playerMatch[p.UserId]=id end; pair(m); return m
 end
-local function snapshot(m) table.insert(m.snapshots,copy(m.state)) end
+local function snapshot(m) table.insert(m.snapshots,fourMode(m) and copy(m.state) or m.state) end
 local function normalizeFour(m)
  local state=m.state
  -- A captured king counts as checkmate: the capturer receives the eliminated side's remaining pieces.
@@ -247,8 +247,10 @@ end
 local function publish(m)
  pair(m)
  if fourMode(m) then normalizeFour(m); pair(m); return end
- local status=Chess.status(m.state)
- if status=="checkmate" then finish(m,m.state.turn=="w" and "b" or "w","Checkmate") elseif status=="stalemate" then finish(m,nil,"Stalemate") end
+ local status,reason=Chess.status(m.state)
+ if status=="checkmate" then finish(m,m.state.turn=="w" and "b" or "w","Checkmate")
+ elseif status=="stalemate" then finish(m,nil,"Stalemate")
+ elseif status=="draw" then finish(m,nil,reason) end
 end
 -- First-move tracking: has this side made any move yet (used for the 20s abort window).
 local function hasMoved(m,side)
@@ -308,17 +310,41 @@ local function runFourBots(m,token)
 end
 local function runChessBot(m,token)
  task.wait(1); if m.over or token~=m.botGeneration or m.mode~="bot" or m.state.turn~="b" then return end
+ local claim=Chess.claimReason(m.state)
+ if claim then finish(m,nil,claim); return end
  local move=Bot.choose(Chess,m.state,m.botRating); if not move then publish(m); return end
+ claim=Chess.claimReason(m.state,move)
+ if claim then finish(m,nil,claim); return end
  snapshot(m); m.state=Chess.apply(m.state,move); publish(m)
 end
+local function findMove(engine,state,data)
+ if type(data)~="table" or type(data.from)~="string" or type(data.to)~="string" then return end
+ local promotion=({Q="Q",R="R",B="B",N="N"})[data.promotion] or "Q"
+ for _,move in ipairs(engine.legalMoves(state,data.from)) do
+  if move.to==data.to then
+   if engine==Four and move.promotion then move.promotion=promotion end
+   if not move.promotion or move.promotion==promotion then return move end
+  end
+ end
+end
+
+local function claimDraw(p,data)
+ local m=matches[playerMatch[p.UserId]]
+ if not m or m.over or fourMode(m) or m.sides[p.UserId]~=m.state.turn then return end
+ local move=data and findMove(Chess,m.state,data)
+ local reason
+ if not data or move then reason=Chess.claimReason(m.state,move) end
+ if reason then finish(m,nil,reason)
+ else send(p,"reject",{reason="A draw cannot be claimed for that position."}) end
+end
+
 local function requestMove(p,data)
  local id=playerMatch[p.UserId]; local m=id and matches[id]; if not m or m.over or type(data)~="table" then return end
  local side=m.sides[p.UserId]; if side~=m.state.turn then return end
- local engine=engineFor(m); local from,to=data.from,data.to
- if type(from)~="string" or type(to)~="string" then return end
- local chosen; for _,move in ipairs(engine.legalMoves(m.state,from)) do if move.to==to then chosen=move; break end end
+ local engine=engineFor(m)
+ local chosen=findMove(engine,m.state,data)
  if not chosen then send(p,"reject",{reason="Illegal move"}); return end
- if chosen.promotion then chosen.promotion=({Q="Q",R="R",B="B",N="N"})[data.promotion] or "Q" end
+ local to=chosen.to
  if m.clocks and (m.mode=="online" or m.mode=="fourOnline") then
   local now=workspace:GetServerTimeNow(); local elapsed=math.max(0,now-m.turnStarted); local remaining=m.clocks[side]-elapsed
   if remaining<=0 then
@@ -450,6 +476,14 @@ Action.OnServerEvent:Connect(function(p,kind,data)
     end
    end
   end
+ elseif kind=="reset" then
+  local m=matches[playerMatch[p.UserId]]
+  if m and not m.over and (m.mode=="bot" or m.mode=="fourBot") then
+   m.over=true; m.botGeneration+=1
+   matches[m.id]=nil
+   newMatch({p},m.mode,m.mode=="bot" and m.botRating or m.botRatings)
+  end
+ elseif kind=="claimDraw" then claimDraw(p,data)
  elseif kind=="move" then requestMove(p,data)
  elseif kind=="legal" then
   local id=playerMatch[p.UserId]; local m=id and matches[id]; local e=m and engineFor(m)
@@ -457,7 +491,12 @@ Action.OnServerEvent:Connect(function(p,kind,data)
    local side=m.sides[p.UserId]
    local piece=side and m.state.board[data.from]
    if piece and string.sub(piece,1,1)==side and not (m.state.eliminated and m.state.eliminated[side]) then
-    local moves=e.legalMoves(m.state,data.from,side); local targets={}; for _,move in ipairs(moves) do table.insert(targets,{to=move.to,promotion=move.promotion}) end; send(p,"legal",{from=data.from,moves=targets})
+    local targets={}
+    for _,move in ipairs(e.legalMoves(m.state,data.from,side)) do
+     local claimable=e==Chess and side==m.state.turn and Chess.claimReason(m.state,move)~=nil
+     table.insert(targets,{to=move.to,promotion=move.promotion,claimable=claimable})
+    end
+    send(p,"legal",{from=data.from,moves=targets})
    end
   end
  elseif kind=="undo" then undo(p)

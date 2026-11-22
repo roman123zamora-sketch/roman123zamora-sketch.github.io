@@ -12,7 +12,7 @@ const publicOrigin = process.env.EXALTED_SITE_ORIGIN;
 const files = /^(?:index\.html|styles\.css|styles\/[^/]+\.css|site\.js|Board Themes\.js|Match Layout\.js|Chess Pieces\.js|tabs\/[^/]+\.js|game\/(?:[^/]+\.(?:js|luau)|roblox\/[^/]+\.luau|vendor\/(?:index\.js|lib\/[^/]+\.js)))$/;
 const actions = new Set([
   "profile", "buyBoard", "equipBoard", "bot", "fourBot", "queue", "queueFour", "challenge",
-  "challengeRespond", "move", "legal", "undo", "resign", "abort", "leave", "cancelQueue",
+  "challengeRespond", "move", "claimDraw", "reset", "legal", "undo", "resign", "abort", "leave", "cancelQueue",
   "rematch", "rematchRespond", "rematchCancel"
 ]);
 const types = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8" };
@@ -86,7 +86,10 @@ function selectData(kind, data) {
   const number = value => Number.isSafeInteger(value) ? value : undefined;
   const timer = { baseSeconds: number(input.baseSeconds), increment: number(input.increment) };
   switch (kind) {
-    case "move": return { from: address(input.from), to: address(input.to), promotion: ["Q", "R", "B", "N"].includes(input.promotion) ? input.promotion : undefined };
+    case "claimDraw":
+    case "move":
+      if (kind === "claimDraw" && data == null) return undefined;
+      return { from: address(input.from), to: address(input.to), promotion: ["Q", "R", "B", "N"].includes(input.promotion) ? input.promotion : undefined };
     case "legal": return { from: address(input.from) };
     case "bot": return { rating: rating(input.rating) };
     case "fourBot": return { ratings: { B: rating(input.ratings?.B), Y: rating(input.ratings?.Y), G: rating(input.ratings?.G) } };

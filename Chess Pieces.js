@@ -47,10 +47,11 @@ function artwork(piece, side, id) {
   const body = id + "-body";
   const bevel = id + "-bevel";
   const foot = id + "-foot";
+  const shadow = id + "-shadow";
   const shape = silhouettes[piece]
     .replaceAll('class="highlight"', `fill="none" stroke="${detail}" stroke-opacity=".55" stroke-width="1.25"`)
     .replaceAll('class="groove"', `fill="none" stroke="${edge}" stroke-opacity=".72" stroke-width="1.35"`);
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="59" viewBox="0 0 64 59" aria-hidden="true" focusable="false">
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="59" viewBox="0 0 64 59" shape-rendering="geometricPrecision" aria-hidden="true" focusable="false">
     <defs>
       <linearGradient id="${body}" x1="10%" y1="4%" x2="90%" y2="96%">
         <stop stop-color="${light}"/>
@@ -66,7 +67,12 @@ function artwork(piece, side, id) {
         <stop stop-color="${fill}"/>
         <stop offset="1" stop-color="${shade}"/>
       </linearGradient>
+      <radialGradient id="${shadow}">
+        <stop stop-color="#10243b" stop-opacity=".28"/>
+        <stop offset="1" stop-color="#10243b" stop-opacity="0"/>
+      </radialGradient>
     </defs>
+    <ellipse cx="32" cy="56.9" rx="18" ry="1.4" fill="url(#${shadow})"/>
     <g fill="url(#${body})" stroke="${edge}" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
       ${shape}
       <path d="M20 44.5h24q1.6 0 2 1.5l.8 3.5H17.2l.8-3.5q.4-1.5 2-1.5Z" fill="url(#${bevel})"/>

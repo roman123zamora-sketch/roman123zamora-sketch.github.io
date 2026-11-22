@@ -1,3 +1,4 @@
+import { bindTouchBoard } from "./game/touch-board.js";
 import { board, getTheme } from "./Board Themes.js";
 import { createChessPiece, setPieceDragImage } from "./Chess Pieces.js";
 import { action, session, subscribe, unlockSound } from "./game/session.js";
@@ -25,6 +26,7 @@ export function renderMatch(content, { title, fourPlayer }) {
   let dropped;
   let clearDragImage;
   let starting = false;
+  let claiming = false;
 
   content.innerHTML = `
     <div class="match">
@@ -37,6 +39,7 @@ export function renderMatch(content, { title, fourPlayer }) {
         <p class="match-notice help" aria-live="polite"></p>
       </aside>
       <section class="board-area" aria-label="${title} board">
+        <button class="quick-play primary" type="button" data-action="start">Play a bot game</button>
         <div class="board-slot"></div>
         <p class="board-status" aria-live="polite"></p>
       </section>
@@ -61,10 +64,15 @@ export function renderMatch(content, { title, fourPlayer }) {
   const controls = content.querySelector(".match-controls");
   const slot = content.querySelector(".board-slot");
   const status = content.querySelector(".board-status");
+  const quickPlay = content.querySelector(".quick-play");
   const dialog = content.querySelector("dialog");
   const match = () => session.match?.variant === variant ? session.match : null;
   const result = () => match()?.matchId === session.result?.matchId ? session.result : null;
-  const currentTargets = () => session.legal?.from === selected ? Object.values(session.legal.moves) : [];
+  const currentTargets = () => {
+    if (session.legal?.from !== selected) return [];
+    const moves = Object.values(session.legal.moves);
+    return claiming ? moves.filter(move => move.claimable) : moves;
+  };
   const active = () => match() && !result();
   const control = () => {
     const [minutes, increment] = preferences.control.split(" | ").map(Number);
@@ -73,7 +81,11 @@ export function renderMatch(content, { title, fourPlayer }) {
 
   function submit(move) {
     const data = match();
-    if (data && data.state.turn !== data.side) premove = move;
+    if (claiming) {
+      claiming = false;
+      action("claimDraw", move);
+      drawControls();
+    } else if (data && data.state.turn !== data.side) premove = move;
     else action("move", move);
     selected = null;
     drawBoard();
@@ -119,7 +131,10 @@ export function renderMatch(content, { title, fourPlayer }) {
     for (const square of slot.querySelectorAll("[data-square]")) {
       if (data?.state.board[square.dataset.square]?.[0] === data?.side) {
         const piece = square.querySelector(".chess-piece");
-        if (piece) piece.draggable = true;
+        if (piece) {
+          piece.draggable = true;
+          square.classList.add("touch-source");
+        }
       }
     }
     if (focused) slot.querySelector(`[data-square="${focused}"]`)?.focus({ preventScroll: true });
@@ -136,8 +151,10 @@ export function renderMatch(content, { title, fourPlayer }) {
     } else if (data) {
       status.textContent = data.state.eliminated?.[data.side] ? "Eliminated · Watching the remaining players" :
         premove ? `Premove queued · ${premove.from}–${premove.to}` :
-        `${sides[data.state.turn]} to move${data.state.status === "check" ? " · Check" : ""}`;
+        claiming ? "Choose a move to support your draw claim." :
+        `${sides[data.state.turn]} to move${data.state.status === "check" ? " · Check" : ""}${/bot/i.test(data.mode) && data.state.turn !== data.side ? " · Bot thinking" : ""}`;
     } else status.textContent = "";
+    status.classList.toggle("in-check", data?.state.status === "check" && !outcome);
   }
 
   function drawPlayers() {
@@ -215,6 +232,10 @@ export function renderMatch(content, { title, fourPlayer }) {
   function drawControls() {
     const data = match();
     const otherMatch = session.match && !data && !session.result;
+    quickPlay.hidden = !!(otherMatch || active() || result() || queued || session.queue);
+    quickPlay.disabled = starting;
+    quickPlay.setAttribute("aria-busy", String(starting));
+    quickPlay.textContent = starting ? "Starting…" : "Play a bot game";
     const ratings = fourPlayer ? ["B", "Y", "G"] : ["w"];
     const selector = ratings.map(side => `
       <label class="rating-choice">${side === "w" ? "Bot rating" : sides[side] + " bot rating"}
@@ -228,16 +249,16 @@ export function renderMatch(content, { title, fourPlayer }) {
       : active()
         ? '<button type="button" data-action="leave">Leave match</button>'
         : `
-          <h2>Time control</h2>
+          ${session.network ? `<h2>Time control</h2>
           <div class="time-controls">
             ${timeGroups.map(([name, options]) => `<div class="time-row"><span>${name}</span>
               ${options.map(time => `<button type="button" aria-pressed="${time === preferences.control}" data-time="${time}">${time}</button>`).join("")}
             </div>`).join("")}
           </div>
-          ${session.network ? `<div class="action-stack">
+          <div class="action-stack">
             <button data-action="${session.queue || queued ? "cancelQueue" : "queue"}">${session.queue || queued ? "Cancel search" : "Find match"}</button>
             <button data-action="challengeMenu">Challenge</button>
-          </div>` : '<p class="help">Time controls apply to online games. Bot games are untimed.</p>'}
+          </div>` : '<p class="help">Bot games are untimed. Local results stay in this browser.</p>'}
           ${setup ? selector : ""}
           <button type="button" class="primary" data-action="${setup ? "start" : "setup"}"${starting ? ' disabled aria-busy="true"' : ""}>${starting ? "Starting…" : setup ? "Start match" : "Play bots"}</button>`;
 
@@ -273,7 +294,10 @@ export function renderMatch(content, { title, fourPlayer }) {
     const bot = /bot/i.test(data?.mode ?? "");
     const abort = !bot && !Object.values(data?.state.history ?? {}).some(move => move.color === data?.side);
     actions.innerHTML = result() ? '<button data-action="rematch">Rematch</button><button data-action="leave">New match</button>' :
-      active() ? `${bot ? '<button data-action="undo">Undo</button>' : ""}
+      active() ? `${bot ? `<button data-action="undo"${Object.values(data.state.history).some(move => move.color === data.side) ? "" : " disabled"}>Undo</button>
+        <button data-action="reset">Reset game</button>` : ""}
+        ${data.state.turn === data.side && data.state.claimReason ? '<button data-action="claim">Claim draw</button>' :
+          data.state.turn === data.side && data.state.mayClaimWithMove ? `<button data-action="claimMove" aria-pressed="${claiming}">${claiming ? "Cancel draw claim" : "Claim with move"}</button>` : ""}
         <button data-action="${abort ? "abort" : "resign"}">${abort ? "Abort" : "Resign"}</button>` : "";
     const profile = session.profile;
     content.querySelector(".ratings").innerHTML = `
@@ -331,6 +355,16 @@ export function renderMatch(content, { title, fourPlayer }) {
       case "resign":
         if (confirm("Resign this match?")) action("resign");
         break;
+      case "reset":
+        if (confirm("Reset this game to the starting position?")) action("reset");
+        break;
+      case "claim": action("claimDraw"); break;
+      case "claimMove":
+        claiming = !claiming;
+        drawControls();
+        drawBoard();
+        drawStatus();
+        break;
       case "undo": case "rematch": case "abort": action(button.dataset.action); break;
     }
   }
@@ -353,13 +387,28 @@ export function renderMatch(content, { title, fourPlayer }) {
   slot.addEventListener("dragover", event => {
     if (dragged && event.target.closest("[data-square]")) event.preventDefault();
   });
+  function drop(from, to) {
+    if (!active() || !from || !to || from === to) return;
+    if (selected === from && currentTargets().some(move => move.to === to)) {
+      select(to);
+    } else {
+      selected = from;
+      dropped = to;
+      action("legal", { from });
+    }
+  }
   slot.addEventListener("drop", event => {
     event.preventDefault();
-    const to = event.target.closest("[data-square]")?.dataset.square;
-    if (!active() || !dragged || !to || dragged === to) return;
-    selected = dragged;
-    dropped = to;
-    action("legal", { from: selected });
+    drop(dragged, event.target.closest("[data-square]")?.dataset.square);
+  });
+  const stopTouch = bindTouchBoard(slot, {
+    begin(from) {
+      dropped = null;
+      selected = from;
+      action("legal", { from });
+      drawBoard();
+    },
+    drop
   });
   slot.addEventListener("dragend", () => {
     dragged = null;
@@ -380,7 +429,12 @@ export function renderMatch(content, { title, fourPlayer }) {
     if (kind === "state") {
       queued = false;
       const data = match();
-      if (data?.matchId !== lastMatch) { marks = new Set(); premove = null; selected = null; }
+      if (data?.matchId !== lastMatch) {
+        marks = new Set(); premove = null; selected = null; claiming = false; dropped = null;
+        if (data && window.matchMedia("(max-width: 65rem)").matches) {
+          requestAnimationFrame(() => slot.scrollIntoView({ block: "nearest" }));
+        }
+      }
       lastMatch = data?.matchId;
       if (data && premove && data.state.turn === data.side) {
         const next = premove;
@@ -392,6 +446,7 @@ export function renderMatch(content, { title, fourPlayer }) {
       selected = null;
       premove = null;
       dropped = null;
+      claiming = false;
     }
     if (kind === "state" || kind === "result" || kind === "profile" || kind === "leave") {
       drawBoard();
@@ -409,6 +464,7 @@ export function renderMatch(content, { title, fourPlayer }) {
   drawStatus();
   return () => {
     subscription();
+    stopTouch();
     clearDragImage?.();
     clearInterval(clock);
     content.removeEventListener("click", click);

@@ -8,8 +8,18 @@ interface is implemented for the web in `tabs/`, with shared match controls in
 ## Static site
 
 Serve the repository with any HTTP server. On GitHub Pages, both chess modes
-support bot games. Profiles, earned pieces, board purchases, equipped boards, and
-replays are stored in the current browser.
+support untimed bot games. Tap or click a piece and its highlighted destination,
+or drag it directly. Profiles, earned pieces, board purchases, equipped boards,
+and replays are stored in the current browser. Online play and shared profiles
+require the service below.
+
+The live site uses the original Luau engine and runs bot searches in a browser
+worker. The extensionless Chess Board, Chess Engine, and Chess Rules files are
+earlier prototypes. To run the active standard-chess rule checks locally:
+
+```sh
+node tests/chess-rules.mjs
+```
 
 ## Online matches
 
