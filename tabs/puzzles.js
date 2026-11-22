@@ -1,6 +1,6 @@
 import { createPositionTools } from "../game/position-tools.js";
 import { loadPractice, nextSeed, resolvePuzzle, savePractice } from "../game/puzzle-progress.js";
-import { subscribe } from "../game/session.js";
+import { playSound, subscribe } from "../game/session.js";
 import { bindTouchBoard } from "../game/touch-board.js";
 import { getTheme } from "../ui/board-themes.js";
 import { setPieceDragImage } from "../ui/chess-pieces.js";
@@ -62,6 +62,7 @@ export default function puzzles(content) {
   let generating = false;
   let tools;
   let transition;
+  let advanceTimer;
   let wrong;
   let wrongTimer;
   let animationPosition;
@@ -131,6 +132,7 @@ export default function puzzles(content) {
 
   function stopAnimation() {
     clearTimeout(transition);
+    clearTimeout(advanceTimer);
     clearTimeout(wrongTimer);
     transition = undefined;
     wrong = null;
@@ -207,6 +209,7 @@ export default function puzzles(content) {
     selected = null;
     if (step.move.from !== move.from || step.move.to !== move.to || step.move.promotion !== move.promotion) {
       active.hearts--;
+      playSound("wrong");
       wrong = move.from;
       clearTimeout(wrongTimer);
       if (!active.hearts) resolve("failed");
@@ -223,8 +226,13 @@ export default function puzzles(content) {
     wrong = null;
     active.step++;
     const solved = active.step === active.puzzle.steps.length;
-    if (solved) resolve("solved");
-    else {
+    if (solved) {
+      resolve("solved");
+      playSound("solved");
+      const resultMessage = message;
+      advanceTimer = setTimeout(() => generate(resultMessage), 1000);
+    } else {
+      playSound("move");
       outcome = "correct";
       message = "Correct. Find the next move.";
       savePractice(practice);
@@ -234,6 +242,7 @@ export default function puzzles(content) {
       transition = setTimeout(() => {
         animationPosition = null;
         transition = undefined;
+        if (!solved) playSound("move");
         render();
       }, 240);
     }
@@ -298,7 +307,7 @@ export default function puzzles(content) {
     resolve("skipped");
     generate(message);
   }, listeners);
-  next.addEventListener("click", () => generate(), listeners);
+  next.addEventListener("click", () => generate(outcome === "solved" ? message : ""), listeners);
   for (const button of content.querySelectorAll("[data-category]")) {
     button.addEventListener("click", () => {
       if (button.dataset.category === practice.category) return;

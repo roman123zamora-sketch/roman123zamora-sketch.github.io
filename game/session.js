@@ -243,19 +243,25 @@ export async function replay(game) {
   });
 }
 
-const notes = { move: [290], capture: [220, 150], check: [390, 320], win: [330, 440, 550], end: [280, 170] };
-function playSound(name) {
+const notes = {
+  move: [290], capture: [220, 150], check: [390, 320], win: [330, 440, 550], end: [280, 170],
+  hover: [560], button: [420], wrong: [240, 185], solved: [440, 550, 660]
+};
+
+export function playSound(name) {
   if (!sound || !audio || audio.state !== "running") return;
+  const duration = name === "hover" ? .045 : name === "button" ? .075 : .14;
+  const level = name === "hover" ? .018 : name === "button" ? .04 : .08;
   notes[name].forEach((frequency, index) => {
     const tone = audio.createOscillator();
     const volume = audio.createGain();
     const start = audio.currentTime + index * .1;
     tone.frequency.value = frequency;
-    volume.gain.setValueAtTime(.08, start);
-    volume.gain.exponentialRampToValueAtTime(.001, start + .13);
+    volume.gain.setValueAtTime(level, start);
+    volume.gain.exponentialRampToValueAtTime(.001, start + duration - .01);
     tone.connect(volume).connect(audio.destination);
     tone.start(start);
-    tone.stop(start + .14);
+    tone.stop(start + duration);
   });
 }
 
@@ -263,13 +269,17 @@ export function soundEnabled() { return sound; }
 export function toggleSound() {
   sound = !sound;
   writeSetting(settings, sound ? "on" : "off");
-  if (sound) unlockSound();
+  if (sound) unlockSound("button");
   return sound;
 }
-export function unlockSound() {
+export function unlockSound(cue) {
   if (!sound) return;
   const Audio = globalThis.AudioContext ?? globalThis.webkitAudioContext;
   if (!Audio) return;
   audio ??= new Audio();
-  audio.resume().catch(() => {});
+  if (audio.state === "running") {
+    if (cue) playSound(cue);
+  } else {
+    audio.resume().then(() => { if (cue) playSound(cue); }).catch(() => {});
+  }
 }

@@ -1,5 +1,5 @@
 import { applyEquippedTheme } from "./board-themes.js";
-import { connect, soundEnabled, toggleSound, unlockSound, subscribe } from "../game/session.js";
+import { connect, soundEnabled, toggleSound, unlockSound, playSound, subscribe } from "../game/session.js";
 import chess from "../tabs/chess.js";
 import fourPlayerChess from "../tabs/four-player-chess.js";
 import shop from "../tabs/shop.js";
@@ -44,7 +44,18 @@ navigate();
 const audio = document.querySelector("#audio");
 audio.setAttribute("aria-pressed", String(soundEnabled()));
 audio.addEventListener("click", () => audio.setAttribute("aria-pressed", String(toggleSound())));
-document.addEventListener("pointerdown", unlockSound, { once: true });
+const soundControl = 'button:not(:disabled):not([data-square]):not([aria-disabled="true"]), a[href]:not([aria-disabled="true"])';
+document.addEventListener("pointerdown", () => unlockSound(), { once: true });
+document.addEventListener("pointerover", event => {
+  if (event.pointerType !== "mouse") return;
+  const control = event.target.closest(soundControl);
+  if (control && !control.contains(event.relatedTarget)) playSound("hover");
+});
+document.addEventListener("click", event => {
+  const control = event.target.closest(soundControl);
+  if (control && control !== audio) unlockSound("button");
+  else if (control !== audio) unlockSound();
+}, { capture: true });
 let previousMatch;
 subscribe((kind, match) => {
   if (kind === "profile" || kind === "catalog") applyEquippedTheme();
