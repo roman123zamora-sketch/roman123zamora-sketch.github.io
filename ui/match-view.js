@@ -4,6 +4,8 @@ import { getTheme } from "./board-themes.js";
 import { createChessPiece, setPieceDragImage } from "./chess-pieces.js";
 import { action, serverNow, session, subscribe, unlockSound } from "../game/session.js";
 
+const offlineNotice = "Online play requires a connected match server. This site currently supports bot games.";
+
 const timeGroups = [
   ["Bullet", ["1 | 0", "1 | 1", "2 | 1"]],
   ["Blitz", ["3 | 0", "3 | 2", "5 | 0"]],
@@ -21,6 +23,7 @@ export function renderMatch(content, { title, fourPlayer }) {
   let promotion;
   let setup = false;
   let challenge = false;
+  let onlineInfo = false;
   let lastMatch = session.match?.matchId;
   let queued = false;
   let dragged;
@@ -259,11 +262,12 @@ export function renderMatch(content, { title, fourPlayer }) {
       : active()
         ? '<div class="action-stack"><button type="button" data-action="leave">Leave match</button></div>'
         : `
-          ${!botMode && session.network ? `<div class="action-stack">
-            <button data-action="${session.queue || queued ? "cancelQueue" : "queue"}">${session.queue || queued ? "Cancel search" : "Find match"}</button>
-            <button data-action="challengeMenu">Challenge</button>
-          </div>` : '<p class="help">Bot games are untimed.</p>'}
-          ${!botMode && !session.network ? '<p class="help">Time controls apply to online games.</p>' : ""}
+          ${botMode ? '<p class="help">Bot games are untimed.</p>' : `
+            <div class="online-actions">
+              <button type="button" data-action="${session.queue || queued ? "cancelQueue" : "queue"}">${session.queue || queued ? "Cancel search" : "Play online"}</button>
+              <button type="button" data-action="challengeMenu">Challenge</button>
+            </div>
+            <p class="online-status help" role="status">${onlineInfo && !session.network ? offlineNotice : ""}</p>`}
           ${setup ? selector : ""}
           <button type="button" class="primary" data-action="${setup ? "start" : "setup"}"${starting ? ' disabled aria-busy="true"' : ""}>${starting ? "Starting…" : setup ? "Start match" : "Play bots"}</button>
           ${setup && !starting ? '<button type="button" class="help" data-action="cancelSetup">Back to time controls</button>' : ""}`);
@@ -324,8 +328,14 @@ export function renderMatch(content, { title, fourPlayer }) {
         option.setAttribute("aria-pressed", String(option === button));
       }
     }
+    if (!session.network && ["queue", "challengeMenu"].includes(button.dataset.action)) {
+      onlineInfo = true;
+      controls.querySelector(".online-status").textContent = offlineNotice;
+      return;
+    }
     switch (button.dataset.action) {
       case "setup":
+        onlineInfo = false;
         setup = true;
         drawControls();
         controls.querySelector("select")?.focus();
