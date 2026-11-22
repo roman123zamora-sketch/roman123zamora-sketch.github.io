@@ -245,25 +245,30 @@ export function renderMatch(content, { title, fourPlayer }) {
             `<option${rating === preferences[side] ? " selected" : ""}>${rating}</option>`).join("")}
         </select>
       </label>`).join("");
-    controls.innerHTML = otherMatch
+    const botMode = (setup && !active()) || starting || /bot/i.test(data?.mode ?? "");
+    const timeLocked = !!(otherMatch || active());
+    const timeControls = botMode ? "" : `
+      <h2>Time control</h2>
+      <div class="time-controls">
+        ${timeGroups.map(([name, options]) => `<div class="time-row"><span>${name}</span>
+          ${options.map(time => `<button type="button" aria-pressed="${!timeLocked && time === preferences.control}" data-time="${time}"${timeLocked ? " disabled" : ""}>${time}</button>`).join("")}
+        </div>`).join("")}
+      </div>`;
+    controls.innerHTML = timeControls + (otherMatch
       ? '<p class="help">A match is in progress in the other chess tab.</p>'
       : active()
-        ? '<button type="button" data-action="leave">Leave match</button>'
+        ? '<div class="action-stack"><button type="button" data-action="leave">Leave match</button></div>'
         : `
-          ${session.network ? `<h2>Time control</h2>
-          <div class="time-controls">
-            ${timeGroups.map(([name, options]) => `<div class="time-row"><span>${name}</span>
-              ${options.map(time => `<button type="button" aria-pressed="${time === preferences.control}" data-time="${time}">${time}</button>`).join("")}
-            </div>`).join("")}
-          </div>
-          <div class="action-stack">
+          ${!botMode && session.network ? `<div class="action-stack">
             <button data-action="${session.queue || queued ? "cancelQueue" : "queue"}">${session.queue || queued ? "Cancel search" : "Find match"}</button>
             <button data-action="challengeMenu">Challenge</button>
-          </div>` : '<p class="help">Bot games are untimed. Local results stay in this browser.</p>'}
+          </div>` : '<p class="help">Bot games are untimed.</p>'}
+          ${!botMode && !session.network ? '<p class="help">Time controls apply to online games.</p>' : ""}
           ${setup ? selector : ""}
-          <button type="button" class="primary" data-action="${setup ? "start" : "setup"}"${starting ? ' disabled aria-busy="true"' : ""}>${starting ? "Starting…" : setup ? "Start match" : "Play bots"}</button>`;
+          <button type="button" class="primary" data-action="${setup ? "start" : "setup"}"${starting ? ' disabled aria-busy="true"' : ""}>${starting ? "Starting…" : setup ? "Start match" : "Play bots"}</button>
+          ${setup && !starting ? '<button type="button" class="help" data-action="cancelSetup">Back to time controls</button>' : ""}`);
 
-    if (challenge && !active() && session.network) {
+    if (challenge && !botMode && !active() && session.network) {
       const form = document.createElement("div");
       form.className = "action-stack";
       for (const player of session.players) {
@@ -324,6 +329,11 @@ export function renderMatch(content, { title, fourPlayer }) {
         setup = true;
         drawControls();
         controls.querySelector("select")?.focus();
+        break;
+      case "cancelSetup":
+        setup = false;
+        drawControls();
+        controls.querySelector('[data-action="setup"]')?.focus();
         break;
       case "start":
         if (session.queue) action("cancelQueue");
@@ -442,6 +452,10 @@ export function renderMatch(content, { title, fourPlayer }) {
         premove = null;
         action("move", next);
       }
+    }
+    if (kind === "leave") {
+      setup = false;
+      starting = false;
     }
     if (kind === "undoState" || kind === "leave" || kind === "result") {
       selected = null;
