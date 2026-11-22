@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Exalted Chess — Board</title>
+
+  <style>
+    :root {
+      color-scheme: dark;
+      --navy: #071a2d;
+      --blue: #123d65;
+      --blue-edge: #285f8c;
+      --ice: #e5f4ff;
+      --text: #eff8ff;
+      --muted: #9ebbd2;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+      background:
+        radial-gradient(ellipse at 50% 15%, #173c5d 0%, transparent 55%),
+        linear-gradient(145deg, #08192a, #0c2237 55%, #061421);
+    }
+
+    .page {
+      width: min(94vw, 820px);
+      display: grid;
+      justify-items: center;
+      gap: 22px;
+    }
+
+    .brand {
+      margin: 0;
+      color: #dff2ff;
+      font-size: clamp(20px, 4vw, 30px);
+      letter-spacing: 0.2em;
+      text-align: center;
+      text-shadow: 0 2px 12px #6eb8ec55;
+    }
+
+    .board-frame {
+      width: 100%;
+      padding: clamp(9px, 2vw, 16px);
+      border: 1px solid #8fc9f477;
+      border-radius: 12px;
+      background:
+        linear-gradient(145deg, #426f91, #102e4a 30%, #071a2c 75%, #4b7897);
+      box-shadow:
+        0 26px 65px #0009,
+        0 7px 20px #0008,
+        inset 0 1px 0 #d8f2ff88,
+        inset 0 -3px 8px #020b14;
+    }
+
+    .board-layout {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      display: grid;
+      grid-template-columns: clamp(22px, 4vw, 34px) minmax(0, 1fr);
+      grid-template-rows: minmax(0, 1fr) clamp(22px, 4vw, 34px);
+      gap: 2px;
+    }
+
+    .ranks,
+    .files {
+      display: grid;
+      color: #b8d9ef;
+      font-size: clamp(10px, 1.8vw, 14px);
+      font-weight: 700;
+      text-shadow: 0 1px 2px #000b;
+    }
+
+    .ranks {
+      grid-column: 1;
+      grid-row: 1;
+      grid-template-rows: repeat(8, 1fr);
+    }
+
+    .files {
+      grid-column: 2;
+      grid-row: 2;
+      grid-template-columns: repeat(8, 1fr);
+    }
+
+    .ranks span,
+    .files span {
+      display: grid;
+      place-items: center;
+    }
+
+    .board {
+      grid-column: 2;
+      grid-row: 1;
+      display: grid;
+      grid-template-columns: repeat(8, minmax(0, 1fr));
+      grid-template-rows: repeat(8, minmax(0, 1fr));
+      overflow: hidden;
+      border: 2px solid #071b2d;
+      outline: 1px solid #a6d7f055;
+      box-shadow:
+        0 0 0 2px #3c739c,
+        0 5px 15px #0008,
+        inset 0 0 12px #061421;
+    }
+
+    .square {
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+      border: 1px solid #17466b;
+      box-shadow:
+        inset 1px 1px 0 #dff5ff55,
+        inset -2px -2px 0 #06182a55;
+    }
+
+    .square.light {
+      background:
+        radial-gradient(ellipse at 28% 22%, #ffffffaa 0%, transparent 47%),
+        linear-gradient(135deg, #e9f7ff, #c6e5f7 55%, #a9d0e8);
+    }
+
+    .square.dark {
+      background:
+        radial-gradient(ellipse at 28% 20%, #b3dfff66 0%, transparent 45%),
+        linear-gradient(135deg, #568ab2, #36709d 52%, #24577f);
+      box-shadow:
+        inset 1px 1px 0 #d6efff55,
+        inset -2px -2px 0 #09254199;
+    }
+
+    /* Fine surface grain and a soft glass-like highlight. */
+    .square::after {
+      position: absolute;
+      inset: 0;
+      content: "";
+      pointer-events: none;
+      opacity: 0.2;
+      background:
+        repeating-linear-gradient(
+          0deg,
+          #ffffff12 0,
+          #ffffff12 1px,
+          transparent 1px,
+          transparent 4px
+        ),
+        radial-gradient(circle, #ffffff20 0.6px, transparent 0.9px);
+      background-size: auto, 5px 5px;
+      mix-blend-mode: soft-light;
+    }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 14px;
+      }
+
+      .page {
+        width: 100%;
+      }
+
+      .board-frame {
+        padding: 8px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="page">
+    <h1 class="brand">EXALTED CHESS</h1>
+
+    <section class="board-frame" aria-label="Chessboard">
+      <div class="board-layout">
+        <div class="ranks" id="ranks" aria-hidden="true"></div>
+        <div class="board" id="board" role="grid" aria-label="Chessboard squares"></div>
+        <div class="files" id="files" aria-hidden="true"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const board = document.getElementById("board");
+    const ranks = document.getElementById("ranks");
+    const files = document.getElementById("files");
+    const fileNames = "abcdefgh";
+
+    // Rank labels run from 8 at the top to 1 at the bottom.
+    for (let rank = 8; rank >= 1; rank--) {
+      const label = document.createElement("span");
+      label.textContent = rank;
+      ranks.appendChild(label);
+    }
+
+    // File labels run from a on the left to h on the right.
+    for (const file of fileNames) {
+      const label = document.createElement("span");
+      label.textContent = file;
+      files.appendChild(label);
+    }
+
+    // Build 64 empty squares. No chess pieces are included.
+    for (let rank = 8; rank >= 1; rank--) {
+      for (let fileIndex = 0; fileIndex < 8; fileIndex++) {
+        const square = document.createElement("div");
+        const file = fileNames[fileIndex];
+        const isLight = (rank + fileIndex) % 2 === 1;
+
+        square.className = `square ${isLight ? "light" : "dark"}`;
+        square.dataset.square = `${file}${rank}`;
+        square.setAttribute("role", "gridcell");
+        square.setAttribute("aria-label", `${file}${rank}`);
+
+        board.appendChild(square);
+      }
+    }
+  </script>
+</body>
+</html>
