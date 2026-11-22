@@ -9,7 +9,7 @@ import { createRuntime } from "../game/runtime.js";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const dataFile = resolve(process.env.EXALTED_DATA ?? resolve(homedir(), ".exalted-chess", "profiles.json"));
 const publicOrigin = process.env.EXALTED_SITE_ORIGIN;
-const files = /^(?:index\.html|styles\.css|site\.js|Board Themes\.js|Match Layout\.js|Chess Pieces\.js|tabs\/[^/]+\.js|game\/(?:[^/]+\.(?:js|luau)|roblox\/[^/]+\.luau|vendor\/(?:index\.js|lib\/[^/]+\.js)))$/;
+const files = /^(?:index\.html|styles\.css|styles\/[^/]+\.css|site\.js|Board Themes\.js|Match Layout\.js|Chess Pieces\.js|tabs\/[^/]+\.js|game\/(?:[^/]+\.(?:js|luau)|roblox\/[^/]+\.luau|vendor\/(?:index\.js|lib\/[^/]+\.js)))$/;
 const actions = new Set([
   "profile", "buyBoard", "equipBoard", "bot", "fourBot", "queue", "queueFour", "challenge",
   "challengeRespond", "move", "legal", "undo", "resign", "abort", "leave", "cancelQueue",

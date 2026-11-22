@@ -31,12 +31,21 @@ export default function profile(content) {
       item.type = "button";
       item.textContent = `${record.v === "four" ? "4-Player Chess" : "Chess"} · ${record.opp} · ${record.place ? "Placed " + record.place : record.result} · ${record.reason}`;
       item.addEventListener("click", async () => {
+        if (opening) return;
         opening = true;
+        item.disabled = true;
+        item.setAttribute("aria-busy", "true");
+        item.textContent = "Loading replay…";
         try {
           const positions = await replay(record);
           if (!disposed) showReplay(record, positions);
         } catch {
-          if (!disposed) item.textContent = "Replay unavailable. Try again.";
+          opening = false;
+          if (!disposed) {
+            item.disabled = false;
+            item.removeAttribute("aria-busy");
+            item.textContent = "Replay unavailable. Try again.";
+          }
         }
       });
       list.append(item);
@@ -46,8 +55,10 @@ export default function profile(content) {
   function showReplay(record, positions) {
     let ply = 0;
     panel.innerHTML = `
-      <button type="button" class="return-history">Back to history</button>
-      <h1>Match replay</h1>
+      <div class="replay-heading">
+        <h1 tabindex="-1">Match replay</h1>
+        <button type="button" class="return-history">Back to history</button>
+      </div>
       <div class="replay-board"></div>
       <div class="action-row replay-actions">
         <button type="button" data-step="-1">Previous</button>
@@ -71,6 +82,7 @@ export default function profile(content) {
       draw();
     });
     draw();
+    panel.querySelector("h1").focus();
   }
 
   history();

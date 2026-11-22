@@ -1,0 +1,126 @@
+:root {
+  color-scheme: dark;
+  font-family: system-ui, sans-serif;
+  line-height: 1.5;
+  --navy: #081426;
+  --surface: #122743;
+  --recess: #0d1e35;
+  --stroke: #355372;
+  --text: #f1f7ff;
+  --muted: #b3c7e1;
+  --ice: #aadaff;
+  --focus: #91d6ff;
+  --accent: #2462b0;
+  --accent-hover: #3076c9;
+  --radius: .75rem;
+  --panel-radius: 1.125rem;
+  --space: clamp(.75rem, 2vw, 1.75rem);
+  --shadow: 0 12px 32px #020a1940;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-block-size: 100dvh;
+  background: radial-gradient(ellipse at 50% 0%, #19375b, transparent 53rem), var(--navy);
+  color: var(--text);
+}
+a { color: var(--ice); text-underline-offset: .2em; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+h1, h2, p { margin: 0; }
+h1 { font-size: clamp(1.3rem, 1rem + 1vw, 1.75rem); line-height: 1.18; letter-spacing: -.025em; }
+h2 { color: var(--muted); font-size: .78rem; font-weight: 750; letter-spacing: .075em; text-transform: uppercase; }
+dt, .help { color: var(--muted); }
+dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+:where(button:not(.square), select, nav a) {
+  min-block-size: 2.75rem;
+  padding: .5rem .75rem;
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius);
+  background: #142b49;
+  color: var(--text);
+  font: inherit;
+  font-size: .875rem;
+  font-weight: 650;
+  transition: background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+:where(button, select, input) { touch-action: manipulation; }
+:where(button, select) { cursor: pointer; }
+:where(button:not(.square)[aria-pressed="true"], nav a[aria-current]) {
+  background: #214b78;
+  border-color: #73b6ed;
+  color: #fff;
+}
+:where(button:not(.square):active:not(:disabled), nav a:active) { box-shadow: inset 0 0 0 2px #9ad3ff6b; }
+:where(button:disabled) {
+  cursor: default;
+  background: var(--recess);
+  color: #a4bad4;
+}
+:where(button[aria-busy="true"]) { cursor: progress; }
+@media (hover: hover) {
+  :where(button:not(.square):not(:disabled), select, nav a):hover {
+    background: #234973;
+    border-color: #86b5de;
+  }
+}
+
+.topbar {
+  display: grid;
+  grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr);
+  align-items: center;
+  gap: .625rem 1.25rem;
+  padding: .75rem max(var(--space), calc((100vw - 98rem) / 2));
+  background: #0a192cec;
+  border-bottom: 1px solid var(--stroke);
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: .55rem;
+  color: var(--text);
+  font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.brand span {
+  display: grid;
+  place-items: center;
+  inline-size: 2.15rem;
+  aspect-ratio: 1;
+  border-radius: .6rem;
+  background: #1b4270;
+  color: var(--ice);
+  font-size: 1.4rem;
+}
+nav { display: flex; justify-content: center; flex-wrap: wrap; gap: .35rem; }
+nav a { display: grid; place-items: center; padding-inline: clamp(.55rem, 1.25vw, 1rem); text-decoration: none; text-align: center; }
+nav a[aria-current] { box-shadow: inset 0 -2px #91d6ff; }
+#audio { justify-self: end; }
+main { width: min(100%, 100rem); margin-inline: auto; padding: var(--space); }
+
+.panel {
+  min-inline-size: 0;
+  padding: clamp(.85rem, 1.6vw, 1.4rem);
+  border: 1px solid var(--stroke);
+  border-radius: var(--panel-radius);
+  background: linear-gradient(150deg, #172f4d, var(--surface) 60%);
+  box-shadow: var(--shadow);
+}
+.inset { padding: .75rem; border: 1px solid var(--stroke); border-radius: var(--radius); background: var(--recess); }
+.action-row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+
+@media (max-width: 49rem) {
+  .topbar { grid-template-columns: minmax(0, 1fr) auto; }
+  nav { grid-row: 2; grid-column: 1 / -1; }
+}
+@media (max-width: 30rem) {
+  nav { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  nav a { grid-column: span 2; padding-inline: .25rem; font-size: .8rem; }
+  nav a:nth-last-child(-n+2) { grid-column: span 3; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+}

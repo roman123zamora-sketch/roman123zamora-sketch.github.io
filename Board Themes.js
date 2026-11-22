@@ -1,7 +1,7 @@
 import { createChessPiece, pieceName } from "./Chess Pieces.js";
 
 export const themes = [
-  {"id": "classic", "price": 0, "name": "Classic", "light": "#e9f0e5", "dark": "#6a8e74", "frame": "#111d16", "stroke": "#3c664c"},
+  {"id": "classic", "price": 0, "name": "Classic", "light": "#ecf6ff", "dark": "#7fa5cc", "frame": "#324e70", "stroke": "#496b90"},
   {"id": "honeyFrost", "price": 10, "name": "Honey Frost", "light": "#fff5d6", "dark": "#9a5b12", "frame": "#422c0a", "stroke": "#925c16"},
   {"id": "walnut", "price": 15, "name": "Walnut", "light": "#eddcc4", "dark": "#a06e4a", "frame": "#302116", "stroke": "#6e4c32"},
   {"id": "lavenderMilk", "price": 20, "name": "Lavender Milk", "light": "#f4ecff", "dark": "#6941a5", "frame": "#281a42", "stroke": "#7048a0"},
@@ -102,10 +102,6 @@ export function board(theme, fourPlayer = false, sample = false, options = {}) {
         if (options.state?.eliminated?.[encoded?.[0]]) image.classList.add("eliminated");
         square.append(image);
       }
-      if (!sample && !fourPlayer && (column === 0 || row === 7)) {
-        square.dataset.rank = column === 0 ? rank : "";
-        square.dataset.file = row === 7 ? file : "";
-      }
       if (options.select && !corner) {
         square.type = "button";
         square.dataset.square = address;
@@ -124,5 +120,26 @@ export function board(theme, fourPlayer = false, sample = false, options = {}) {
       element.append(square);
     }
   }
-  return element;
+  if (sample) return element;
+
+  const frame = document.createElement("div");
+  frame.className = "board-frame";
+  frame.style.setProperty("--size", size);
+  const reverse = options.side === "b";
+  const files = Array.from({ length: size }, (_, index) => "abcdefghijklmn"[reverse ? size - index - 1 : index]);
+  const ranks = Array.from({ length: size }, (_, index) => reverse ? index + 1 : size - index);
+  frame.append(coordinates("ranks", ranks), element, coordinates("files", files));
+  return frame;
+}
+
+function coordinates(axis, values) {
+  const strip = document.createElement("div");
+  strip.className = `board-coordinates board-${axis}`;
+  strip.setAttribute("aria-hidden", "true");
+  for (const value of values) {
+    const label = document.createElement("span");
+    label.textContent = value;
+    strip.append(label);
+  }
+  return strip;
 }

@@ -1,0 +1,59 @@
+.page { max-inline-size: 83rem; margin-inline: auto; padding: clamp(1rem, 2.6vw, 2.25rem); }
+.page h1 { margin-block-end: .55rem; }
+.page > p { max-inline-size: 62ch; color: var(--muted); }
+.balance {
+  display: table;
+  margin-block-start: .9rem;
+  padding: .45rem .7rem;
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius);
+  background: var(--recess);
+  color: var(--ice);
+  font-size: .875rem;
+  font-weight: 700;
+}
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 10rem), 1fr));
+  gap: clamp(.55rem, 1.25vw, 1rem);
+  margin-block-start: 1.15rem;
+}
+.theme-card {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  align-items: start;
+  gap: .6rem;
+  min-inline-size: 0;
+  padding: .65rem;
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius);
+  background: var(--recess);
+  text-align: start;
+}
+.theme-card > :is(h2, span) { color: var(--text); font-size: .9rem; font-weight: 700; text-transform: none; letter-spacing: normal; overflow-wrap: anywhere; }
+.theme-card > button { width: 100%; }
+.theme-card > button:disabled { background: #132944; }
+.profile-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+  gap: .65rem;
+  margin: 1.15rem 0 1.6rem;
+}
+.profile-stats div { padding: .85rem; border: 1px solid var(--stroke); border-radius: var(--radius); background: var(--recess); }
+.profile-stats dt { font-size: .8rem; }
+.profile-stats dd { margin-block-start: .25rem; color: var(--ice); font-size: 1.3rem; }
+.game-history { display: grid; gap: .55rem; margin-block-start: .65rem; }
+.game-history button { text-align: start; overflow-wrap: anywhere; }
+.game-history .inset { color: var(--muted); }
+.replay-board { max-inline-size: 33rem; margin: 1rem auto 0; }
+.replay-actions { justify-content: center; margin-block-start: .85rem; }
+.replay-actions output { text-align: center; min-inline-size: 7ch; color: var(--ice); font-variant-numeric: tabular-nums; }
+
+@media (max-width: 35rem) {
+  .theme-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 8rem), 1fr)); }
+  .profile-stats { grid-template-columns: repeat(auto-fit, minmax(min(100%, 7.5rem), 1fr)); }
+}
+.theme-card small { color: var(--ice); }
+.theme-card[aria-pressed="true"] { border-color: #73b6ed; background: #193f66; }
+.replay-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .65rem; }
+.replay-heading :is(h1, button) { margin: 0; }

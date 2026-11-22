@@ -21,6 +21,11 @@ export default function boards(content) {
       const name = document.createElement("span");
       name.textContent = theme.name;
       button.append(board(theme, false, true), name);
+      if (equippedBoard === theme.id) {
+        const status = document.createElement("small");
+        status.textContent = "Equipped";
+        button.append(status);
+      }
       button.addEventListener("click", () => action("equipBoard", { id: theme.id }));
       grid.append(button);
     }

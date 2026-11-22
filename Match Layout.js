@@ -1,5 +1,5 @@
 import { board, getTheme } from "./Board Themes.js";
-import { createChessPiece } from "./Chess Pieces.js";
+import { createChessPiece, setPieceDragImage } from "./Chess Pieces.js";
 import { action, session, subscribe, unlockSound } from "./game/session.js";
 
 const timeGroups = [
@@ -23,6 +23,8 @@ export function renderMatch(content, { title, fourPlayer }) {
   let queued = false;
   let dragged;
   let dropped;
+  let clearDragImage;
+  let starting = false;
 
   content.innerHTML = `
     <div class="match">
@@ -237,7 +239,7 @@ export function renderMatch(content, { title, fourPlayer }) {
             <button data-action="challengeMenu">Challenge</button>
           </div>` : '<p class="help">Time controls apply to online games. Bot games are untimed.</p>'}
           ${setup ? selector : ""}
-          <button type="button" class="primary" data-action="${setup ? "start" : "setup"}">${setup ? "Start match" : "Play bots"}</button>`;
+          <button type="button" class="primary" data-action="${setup ? "start" : "setup"}"${starting ? ' disabled aria-busy="true"' : ""}>${starting ? "Starting…" : setup ? "Start match" : "Play bots"}</button>`;
 
     if (challenge && !active() && session.network) {
       const form = document.createElement("div");
@@ -262,6 +264,7 @@ export function renderMatch(content, { title, fourPlayer }) {
       const panel = document.createElement("div");
       const label = document.createElement("p");
       label.textContent = (session.offer.name || "A player") + (session.offer.kind === "rematchOffer" ? " wants a rematch." : " challenged you.");
+      panel.className = "match-offer inset";
       panel.append(label);
       panel.insertAdjacentHTML("beforeend", '<div class="action-row"><button data-action="accept">Accept</button><button data-action="decline">Decline</button></div>');
       controls.append(panel);
@@ -292,10 +295,16 @@ export function renderMatch(content, { title, fourPlayer }) {
       }
     }
     switch (button.dataset.action) {
-      case "setup": setup = true; drawControls(); break;
+      case "setup":
+        setup = true;
+        drawControls();
+        controls.querySelector("select")?.focus();
+        break;
       case "start":
         if (session.queue) action("cancelQueue");
         unlockSound();
+        starting = true;
+        drawControls();
         action(fourPlayer ? "fourBot" : "bot", fourPlayer
           ? { ratings: { B: preferences.B, Y: preferences.Y, G: preferences.G } }
           : { rating: preferences.w });
@@ -333,8 +342,11 @@ export function renderMatch(content, { title, fourPlayer }) {
   content.addEventListener("click", click);
   content.addEventListener("change", change);
   slot.addEventListener("dragstart", event => {
-    dragged = event.target.closest("[data-square]")?.dataset.square;
-    if (!dragged) return;
+    const piece = event.target.closest(".chess-piece[draggable=true]");
+    if (!piece) return;
+    dragged = piece.closest("[data-square]").dataset.square;
+    clearDragImage?.();
+    clearDragImage = setPieceDragImage(piece, event.dataTransfer);
     event.dataTransfer.effectAllowed = "move";
     event.dataTransfer.setData("text/plain", dragged);
   });
@@ -349,7 +361,10 @@ export function renderMatch(content, { title, fourPlayer }) {
     dropped = to;
     action("legal", { from: selected });
   });
-  slot.addEventListener("dragend", () => { dragged = null; });
+  slot.addEventListener("dragend", () => {
+    dragged = null;
+    clearDragImage?.();
+  });
 
   const subscription = subscribe(kind => {
     if (kind === "legal") {
@@ -361,6 +376,7 @@ export function renderMatch(content, { title, fourPlayer }) {
       } else drawBoard();
       return;
     }
+    if (kind === "state" || kind === "error") starting = false;
     if (kind === "state") {
       queued = false;
       const data = match();
@@ -393,6 +409,7 @@ export function renderMatch(content, { title, fourPlayer }) {
   drawStatus();
   return () => {
     subscription();
+    clearDragImage?.();
     clearInterval(clock);
     content.removeEventListener("click", click);
     content.removeEventListener("change", change);
