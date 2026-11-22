@@ -104,3 +104,43 @@ button.square:focus-visible { z-index: 2; outline: 2px solid var(--square-focus)
 .board-status.in-check { border-color: #ffb2be; color: var(--warning-text); }
 
 .square.drag-source .chess-piece { opacity: .18; }
+
+.board-and-eval {
+  display: flex;
+  align-items: stretch;
+  gap: .4rem;
+  inline-size: min(100%, 44.5rem);
+}
+.board-and-eval .board-slot { flex: 1; }
+.bot-eval {
+  display: flex;
+  flex-direction: column;
+  inline-size: clamp(2.25rem, 5vw, 3rem);
+  text-align: center;
+  flex: none;
+  gap: .25rem;
+}
+.bot-eval[hidden] { display: none; }
+.eval-meter {
+  display: flex;
+  flex: 1;
+  flex-direction: column-reverse;
+  background: #111c2d;
+  border: 1px solid var(--stroke);
+  border-radius: .35rem;
+  overflow: hidden;
+}
+.eval-meter.white-on-top { flex-direction: column; }
+.eval-white {
+  block-size: 50%;
+  background: #f4f8ff;
+  transition: block-size 180ms ease-out;
+}
+.bot-eval output {
+  min-block-size: 2.8em;
+  font-size: .64rem;
+  line-height: 1.15;
+  font-weight: 700;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}

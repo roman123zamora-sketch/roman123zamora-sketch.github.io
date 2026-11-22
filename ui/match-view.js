@@ -1,3 +1,4 @@
+import { createEvaluationBar } from "./evaluation-bar.js";
 import { bindTouchBoard } from "../game/touch-board.js";
 import { board } from "./chessboard.js";
 import { getTheme } from "./board-themes.js";
@@ -52,7 +53,13 @@ export function renderMatch(content, { title, fourPlayer }) {
       </aside>
       <section class="board-area" aria-label="${title} board">
         <button class="quick-play primary" type="button" data-action="start">Play a bot game</button>
-        <div class="board-slot"></div>
+        <div class="board-and-eval">
+          <div class="bot-eval" hidden aria-label="Engine estimate, in pawns" title="Engine estimate, in pawns">
+            <div class="eval-meter" aria-hidden="true"><div class="eval-white"></div></div>
+            <output></output>
+          </div>
+          <div class="board-slot"></div>
+        </div>
         <p class="board-status" aria-live="polite"></p>
       </section>
       <aside class="panel match-info">
@@ -75,6 +82,7 @@ export function renderMatch(content, { title, fourPlayer }) {
     </dialog>`;
   const controls = content.querySelector(".match-controls");
   const slot = content.querySelector(".board-slot");
+  const evaluation = createEvaluationBar(content.querySelector(".bot-eval"));
   const status = content.querySelector(".board-status");
   const quickPlay = content.querySelector(".quick-play");
   const dialog = content.querySelector("dialog");
@@ -195,6 +203,7 @@ export function renderMatch(content, { title, fourPlayer }) {
     const origin = move && slot.querySelector(`[data-square="${move.from}"]`)?.getBoundingClientRect();
     const focused = document.activeElement?.dataset.square;
     const data = match();
+    evaluation.update(data);
     slot.replaceChildren(board(getTheme(), fourPlayer, false, {
       state: data?.state, side: data?.side, selected, targets: selected ? currentTargets() : [],
       select: active() ? select : undefined, marks,
@@ -605,6 +614,7 @@ export function renderMatch(content, { title, fourPlayer }) {
   drawStatus();
   return () => {
     subscription();
+    evaluation.close();
     clearBoardInput();
     touch.destroy();
     cancelAnimationFrame(scrollFrame);

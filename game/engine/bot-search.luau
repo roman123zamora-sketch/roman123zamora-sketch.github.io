@@ -323,4 +323,19 @@ function Bot.choose(engine,state,rating,options)
  return {from=best.from,to=best.to,promotion=best.promotion,special=best.special},
   {depth=completed,nodes=search.nodes,score=completedScore}
 end
+-- Position analysis is read-only and uses the same scoring as bot play.
+function Bot.analyze(engine,state)
+ local sign=state.turn=="w" and 1 or -1
+ local status=engine.status(state)
+ if status=="checkmate" then
+  return {kind="mate",side=sign==1 and "b" or "w",moves=0}
+ end
+ if status=="stalemate" or status=="draw" then return {kind="cp",value=0} end
+ local _,details=Bot.choose(engine,state,1000,{timeMs=90,depth=3,nodes=5000})
+ local score=details and details.score or evaluate(state)
+ if math.abs(score)>MATE-1000 then
+  return {kind="mate",side=score*sign>0 and "w" or "b",moves=math.ceil((MATE-math.abs(score))/2)}
+ end
+ return {kind="cp",value=score*sign}
+end
 return Bot

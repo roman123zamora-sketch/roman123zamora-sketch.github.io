@@ -113,6 +113,9 @@ end
 local function pair(m,recipient,terminal)
  if not recipient then m.revision=(m.revision or 0)+1 end
  local state=publicState(m); local players,ratings=matchPlayersPayload(m)
+ if m.mode=="bot" then
+  state.analysis={castling=m.state.castling,ep=m.state.ep,positions=m.state.positions}
+ end
  state.terminal=terminal or state.status=="checkmate" or state.status=="stalemate" or state.status=="draw"
  for _,p in ipairs(recipient and {recipient} or m.players) do
   if not (m.resultsSent and m.resultsSent[p.UserId]) then send(p,"state",{matchId=m.id,revision=m.revision,mode=m.mode,variant=fourMode(m) and "four" or "chess",level=m.botRating,botRatings=m.botRatings,ratings=ratings,clocks=m.clocks,increment=m.increment,turnStarted=m.turnStarted,serverTime=workspace:GetServerTimeNow(),side=m.sides[p.UserId],players=players,state=state,opponent=m.mode=="bot" and "Exalted Bot" or "Opponent"}) end

@@ -100,6 +100,15 @@ end
 
 return function(op, time, id, first, second)
  if op == "catalog" then return boardCatalog end
+ if op == "analysis" then return modules.BotEngine.analyze(modules.ChessEngine,first) end
+ if op == "lesson" then
+  local results={}
+  for _,example in ipairs(first) do
+   local state={board=example.board,turn="w",castling={},halfmove=0,fullmove=1}
+   table.insert(results,modules.ChessEngine.legalMoves(state,example.from))
+  end
+  return results
+ end
  -- Invalidate a bot turn before resuming due search coroutines.
  if op=="action" and (first=="reset" or first=="undo" or first=="leave" or first=="resign") then
   now=time

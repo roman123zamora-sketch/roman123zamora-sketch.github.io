@@ -5,13 +5,15 @@ import fourPlayerChess from "../tabs/four-player-chess.js";
 import shop from "../tabs/shop.js";
 import boards from "../tabs/boards.js";
 import profile from "../tabs/profile.js";
+import learn from "../tabs/learn.js";
 
 const pages = new Map([
   ["chess", chess],
   ["4-player-chess", fourPlayerChess],
   ["shop", shop],
   ["boards", boards],
-  ["profile", profile]
+  ["profile", profile],
+  ["learn", learn]
 ]);
 const content = document.querySelector("#content");
 const links = document.querySelectorAll("nav a");

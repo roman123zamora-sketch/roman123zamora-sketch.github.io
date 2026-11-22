@@ -153,3 +153,5 @@ main { width: min(100%, 100rem); margin-inline: auto; padding: var(--space); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
 }
+
+.brand img { inline-size: 95%; block-size: 95%; display: block; }
