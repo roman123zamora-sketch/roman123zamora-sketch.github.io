@@ -26,6 +26,7 @@ function writeSetting(name, value) {
 }
 
 export const session = {
+  catalog: null,
   profile: { chessElo: 1000, fourElo: 1000, league: "Soil", leaguePoints: 0, pieceStorage: 0, ownedBoards: ["classic"], equippedBoard: "classic" },
   match: null,
   result: null,
@@ -61,6 +62,7 @@ function receive({ kind, data, requestId }) {
     writeSetting(key, JSON.stringify(data));
     return;
   }
+  if (kind === "catalog") session.catalog = data;
   if (kind === "profile") session.profile = data;
   if (kind === "legal") session.legal = data;
   if (kind === "state") {
@@ -125,6 +127,7 @@ export async function connect() {
       token = data.token;
       writeSetting("exalted-server-token", token);
       session.network = true;
+      if (data.catalog) receive({ kind: "catalog", data: data.catalog });
       notify("network");
       poll();
       return;

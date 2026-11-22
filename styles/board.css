@@ -23,7 +23,7 @@
   padding: clamp(.2rem, .5vw, .4rem);
   border: 1px solid var(--stroke);
   border-radius: var(--radius);
-  background: linear-gradient(155deg, #1a3657, var(--recess));
+  background: linear-gradient(155deg, var(--board-frame-gloss), var(--recess));
   box-shadow: var(--shadow);
 }
 .board-coordinates {
@@ -56,7 +56,7 @@
 .square.dark { background: var(--dark); }
 .square.cutout { background: transparent; }
 button.square { padding: 0; border: 0; border-radius: 0; }
-button.square:focus-visible { z-index: 2; outline: 2px solid #08264b; outline-offset: -3px; }
+button.square:focus-visible { z-index: 2; outline: 2px solid var(--square-focus); outline-offset: -3px; }
 .square.selected { box-shadow: inset 0 0 0 3px var(--selected); }
 .square.last-move { background-image: linear-gradient(var(--last-move), var(--last-move)); }
 .square.marked { background-image: linear-gradient(#b83048a6, #b83048a6); }
@@ -70,7 +70,7 @@ button.square:focus-visible { z-index: 2; outline: 2px solid #08264b; outline-of
 }
 .square.target:has(.chess-piece)::after { inset: 5%; border: 3px solid var(--legal); background: transparent; }
 @media (hover: hover) {
-  button.square:hover { box-shadow: inset 0 0 0 2px #173c6799; }
+  button.square:hover { box-shadow: inset 0 0 0 2px var(--square-hover); }
   button.square.selected:hover { box-shadow: inset 0 0 0 3px var(--selected); }
 }
 .chess-piece { display: block; inline-size: 88%; aspect-ratio: 1; user-select: none; }

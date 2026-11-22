@@ -1,4 +1,4 @@
-import { renderMatch } from "../Match Layout.js";
+import { renderMatch } from "../ui/match-view.js";
 
 export default function chess(content) {
   return renderMatch(content, {

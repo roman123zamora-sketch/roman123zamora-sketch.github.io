@@ -1,9 +1,10 @@
-import { connect, soundEnabled, toggleSound, unlockSound, subscribe } from "./game/session.js";
-import chess from "./tabs/Chess.js";
-import fourPlayerChess from "./tabs/4-Player Chess.js";
-import shop from "./tabs/Shop.js";
-import boards from "./tabs/Boards.js";
-import profile from "./tabs/Profile.js";
+import { applyEquippedTheme } from "./board-themes.js";
+import { connect, soundEnabled, toggleSound, unlockSound, subscribe } from "../game/session.js";
+import chess from "../tabs/chess.js";
+import fourPlayerChess from "../tabs/four-player-chess.js";
+import shop from "../tabs/shop.js";
+import boards from "../tabs/boards.js";
+import profile from "../tabs/profile.js";
 
 const pages = new Map([
   ["chess", chess],
@@ -42,6 +43,7 @@ audio.addEventListener("click", () => audio.setAttribute("aria-pressed", String(
 document.addEventListener("pointerdown", unlockSound, { once: true });
 let previousMatch;
 subscribe((kind, match) => {
+  if (kind === "profile" || kind === "catalog") applyEquippedTheme();
   if (kind !== "state" || match.matchId === previousMatch) return;
   previousMatch = match.matchId;
   const page = match.variant === "four" ? "#4-player-chess" : "#chess";

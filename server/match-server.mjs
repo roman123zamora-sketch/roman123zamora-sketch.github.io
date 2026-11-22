@@ -4,19 +4,20 @@ import { createServer } from "node:http";
 import { homedir } from "node:os";
 import { dirname, extname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createRuntime } from "../game/runtime.js";
+import { createRuntime } from "../game/luau-runtime.js";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const dataFile = resolve(process.env.EXALTED_DATA ?? resolve(homedir(), ".exalted-chess", "profiles.json"));
 const publicOrigin = process.env.EXALTED_SITE_ORIGIN;
-const files = /^(?:index\.html|styles\.css|styles\/[^/]+\.css|site\.js|Board Themes\.js|Match Layout\.js|Chess Pieces\.js|tabs\/[^/]+\.js|game\/(?:[^/]+\.(?:js|luau)|roblox\/[^/]+\.luau|vendor\/(?:index\.js|lib\/[^/]+\.js)))$/;
+const files = /^(?:index\.html|assets\/[a-z0-9-]+\.svg|styles\/[a-z0-9-]+\.css|(?:ui|tabs)\/[a-z0-9-]+\.js|game\/(?:[a-z0-9-]+\.(?:js|luau)|(?:rules|engine)\/[a-z0-9-]+\.luau|vendor\/(?:luau-web\.js|lib\/[a-z0-9-]+\.js)))$/;
 const actions = new Set([
   "profile", "buyBoard", "equipBoard", "bot", "fourBot", "queue", "queueFour", "challenge",
   "challengeRespond", "move", "claimDraw", "reset", "legal", "undo", "resign", "abort", "leave", "cancelQueue",
   "rematch", "rematchRespond", "rematchCancel"
 ]);
-const types = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8" };
+const types = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml" };
 const runtime = await createRuntime(path => readFile(resolve(root, "game", path), "utf8"));
+const catalog = await runtime("catalog");
 
 let saved = {};
 try { saved = JSON.parse(await readFile(dataFile, "utf8")); } catch (error) {
@@ -130,7 +131,7 @@ async function serve(request, response) {
         await dispatch("action", user.id, "profile");
       }
       if (!previous) await persist();
-      return { token };
+      return { token, catalog };
     });
     return respond(response, 200, result);
   }

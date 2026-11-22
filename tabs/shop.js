@@ -1,4 +1,5 @@
-import { board, themes } from "../Board Themes.js";
+import { board } from "../ui/chessboard.js";
+import { getThemes } from "../ui/board-themes.js";
 import { action, session, subscribe } from "../game/session.js";
 
 export default function shop(content) {
@@ -16,7 +17,7 @@ export default function shop(content) {
     const balance = content.querySelector(".balance");
     balance.textContent = `${pieceStorage} stored pieces${session.notice ? " · " + session.notice : ""}`;
     grid.replaceChildren();
-    for (const theme of themes) {
+    for (const theme of getThemes()) {
       const card = document.createElement("article");
       card.className = "theme-card";
       const title = document.createElement("h2");
@@ -34,6 +35,6 @@ export default function shop(content) {
   }
   draw();
   return subscribe(kind => {
-    if (kind === "profile" || kind === "boardPurchase" || kind === "error") draw();
+    if (kind === "catalog" || kind === "profile" || kind === "boardPurchase" || kind === "error") draw();
   });
 }

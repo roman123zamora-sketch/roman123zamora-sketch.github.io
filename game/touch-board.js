@@ -1,4 +1,4 @@
-import { createChessPiece } from "../Chess Pieces.js";
+import { createChessPiece } from "../ui/chess-pieces.js";
 
 export function bindTouchBoard(board, { begin, drop }) {
   let gesture;

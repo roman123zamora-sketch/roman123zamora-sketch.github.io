@@ -1,9 +1,9 @@
 let InternalLuauWasmModule
 
 if ('Suspending' in WebAssembly && 'promising' in WebAssembly) {
-    InternalLuauWasmModule = (await import('./lib/Luau.Web.JSPI.js')).default
+    InternalLuauWasmModule = (await import('./lib/luau-jspi.js')).default
 } else {
-    InternalLuauWasmModule = (await import('./lib/Luau.Web.Asyncify.js'))
+    InternalLuauWasmModule = (await import('./lib/luau-asyncify.js'))
         .default
 }
 

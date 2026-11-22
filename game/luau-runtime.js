@@ -1,6 +1,11 @@
-import { LuauState } from "./vendor/index.js";
+import { LuauState } from "./vendor/luau-web.js";
 
-const modules = ["ChessEngine", "FourPlayerEngine", "BotEngine", "ThemeLibrary"];
+const modules = {
+  ChessEngine: "rules/standard-chess.luau",
+  FourPlayerEngine: "rules/four-player-chess.luau",
+  BotEngine: "engine/bot-search.luau",
+  ThemeLibrary: "board-catalog.luau"
+};
 
 function literal(value) {
   if (value == null) return "nil";
@@ -28,13 +33,14 @@ function plain(value) {
 }
 
 export async function createRuntime(read) {
+  const names = Object.keys(modules);
   const [adapter, service, ...sources] = await Promise.all([
-    read("adapter.luau"),
-    read("roblox/GameService.luau"),
-    ...modules.map(name => read("roblox/" + name + ".luau"))
+    read("web-adapter.luau"),
+    read("match-service.luau"),
+    ...names.map(name => read(modules[name]))
   ]);
   const definitions = sources.map((source, index) => `
-    modules.${modules[index]} = (function()
+    modules.${names[index]} = (function()
       ${source}
     end)()
   `).join("\n");

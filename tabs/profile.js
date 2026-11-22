@@ -1,4 +1,5 @@
-import { board, getTheme } from "../Board Themes.js";
+import { board } from "../ui/chessboard.js";
+import { getTheme } from "../ui/board-themes.js";
 import { replay, session, subscribe } from "../game/session.js";
 
 export default function profile(content) {

@@ -1,11 +1,12 @@
-import { board, themes } from "../Board Themes.js";
+import { board } from "../ui/chessboard.js";
+import { getThemes } from "../ui/board-themes.js";
 import { action, session, subscribe } from "../game/session.js";
 
 export default function boards(content) {
   content.innerHTML = `
     <section class="panel page">
       <h1>My Boards</h1>
-      <p>Choose an owned theme to equip it on both chess boards.</p>
+      <p>Equip an owned board to change both chess boards and the site colors.</p>
       <div class="theme-grid"></div>
     </section>`;
   const grid = content.querySelector(".theme-grid");
@@ -13,7 +14,7 @@ export default function boards(content) {
   function draw() {
     const { equippedBoard, ownedBoards } = session.profile;
     grid.replaceChildren();
-    for (const theme of themes.filter(theme => Object.values(ownedBoards).includes(theme.id))) {
+    for (const theme of getThemes().filter(theme => Object.values(ownedBoards).includes(theme.id))) {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "theme-card";
@@ -31,5 +32,5 @@ export default function boards(content) {
     }
   }
   draw();
-  return subscribe(kind => { if (kind === "profile") draw(); });
+  return subscribe(kind => { if (kind === "catalog" || kind === "profile") draw(); });
 }

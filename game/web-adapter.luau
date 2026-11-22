@@ -80,7 +80,25 @@ end
 
 -- GAME_SERVICE
 
+local function cssColor(color)
+ return string.format("#%02x%02x%02x", math.round(color.R*255), math.round(color.G*255), math.round(color.B*255))
+end
+
+local boardCatalog={}
+for _,theme in ipairs(modules.ThemeLibrary.themes) do
+ local entry={id=theme.id,name=theme.name,price=theme.price}
+ for _,key in ipairs({"light","dark","frame","stroke"}) do
+  entry[key]=cssColor(theme.board[key])
+ end
+ if theme.ui then
+  entry.ui={}
+  for key,color in pairs(theme.ui) do entry.ui[key]=cssColor(color) end
+ end
+ table.insert(boardCatalog,entry)
+end
+
 return function(op, time, id, first, second)
+ if op == "catalog" then return boardCatalog end
  tick(time)
  if op == "join" then
   local player = {UserId = id, Name = "WebPlayer" .. tostring(id), DisplayName = first, Parent = players}

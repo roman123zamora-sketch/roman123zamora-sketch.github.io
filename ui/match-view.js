@@ -1,7 +1,8 @@
-import { bindTouchBoard } from "./game/touch-board.js";
-import { board, getTheme } from "./Board Themes.js";
-import { createChessPiece, setPieceDragImage } from "./Chess Pieces.js";
-import { action, session, subscribe, unlockSound } from "./game/session.js";
+import { bindTouchBoard } from "../game/touch-board.js";
+import { board } from "./chessboard.js";
+import { getTheme } from "./board-themes.js";
+import { createChessPiece, setPieceDragImage } from "./chess-pieces.js";
+import { action, session, subscribe, unlockSound } from "../game/session.js";
 
 const timeGroups = [
   ["Bullet", ["1 | 0", "1 | 1", "2 | 1"]],
@@ -448,7 +449,7 @@ export function renderMatch(content, { title, fourPlayer }) {
       dropped = null;
       claiming = false;
     }
-    if (kind === "state" || kind === "result" || kind === "profile" || kind === "leave") {
+    if (kind === "state" || kind === "result" || kind === "profile" || kind === "catalog" || kind === "leave") {
       drawBoard();
       drawPlayers();
       drawHistory();
