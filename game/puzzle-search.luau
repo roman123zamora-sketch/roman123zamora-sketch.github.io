@@ -143,7 +143,7 @@ local function checkmate(engine,state,moves,rating,stop,bot,deadline)
   if forcing(state,move,givesCheck) then
    local line,unique=mateInTwo(engine,state,move,stop)
    if line then
-    if proven or not unique then return nil end
+    if rating>1200 or proven or not unique then return nil end
     proven=line
    end
   else
@@ -282,19 +282,33 @@ local function exchange(engine,state,owner,depth,stop,alpha,beta,score)
  stop()
  local maximize=state.turn==owner
  local checked=engine.inCheck(state,state.turn)
- local moves=checked and engine.allLegal(state) or engine.tacticalMoves(state)
- if not checked and not maximize then
+ local moves
+ local legalCount
+ local hasQuiet
+ if not maximize and not checked then
+  local legal=engine.allLegal(state)
   local givesCheck=engine.checkingMoveTester(state)
-  for _,move in ipairs(engine.allLegal(state)) do
-   if potential(state,move)==0 and givesCheck(move) then table.insert(moves,move) end
+  moves={}
+  legalCount=#legal
+  hasQuiet=false
+  for _,move in ipairs(legal) do
+   local tactical=state.board[move.to]~=nil or move.special=="enpassant" or move.promotion~=nil
+   if not tactical then hasQuiet=true end
+   if tactical or givesCheck(move) then table.insert(moves,move) end
   end
+ else
+  moves=checked and engine.allLegal(state) or engine.tacticalMoves(state)
  end
- if #moves==0 and (checked or not engine.hasLegal(state)) then error("Terminal exchange",0) end
+ if #moves==0 and (checked or legalCount==0 or (legalCount==nil and not engine.hasLegal(state))) then
+  error("Terminal exchange",0)
+ end
  if engine.insufficientMaterial(state) or (state.turn~=owner and claimable(engine,state)) then error("Draw exchange",0) end
  score=score or balance(state,owner)
  local best=score
  local line={}
- if checked or (#moves>0 and not engine.hasQuiet(state)) then best=maximize and -math.huge or math.huge end
+ if checked or (#moves>0 and (hasQuiet==false or (hasQuiet==nil and not engine.hasQuiet(state)))) then
+  best=maximize and -math.huge or math.huge
+ end
  if #moves==0 then return best,line end
  if depth==0 then error("Unsettled exchange",0) end
  if maximize then alpha=math.max(alpha,best) else beta=math.min(beta,best) end

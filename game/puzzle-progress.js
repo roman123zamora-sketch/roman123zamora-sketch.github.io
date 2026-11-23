@@ -97,7 +97,7 @@ export function resolvePuzzle(practice, outcome) {
   const { puzzle } = practice.active;
   const prior = practice.rating;
   practice.rated ??= [];
-  const firstCompletion = outcome !== "skipped" && !practice.rated.includes(puzzle.id);
+  const firstCompletion = outcome !== "skipped" && !puzzle.unrated && !practice.rated.includes(puzzle.id);
   if (firstCompletion) {
     if (puzzle.targetRating === prior) practice.rating = puzzleRating(prior, practice.active, outcome);
     practice.rated.push(puzzle.id);

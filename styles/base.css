@@ -160,3 +160,7 @@ main { width: min(100%, 100rem); margin-inline: auto; padding: var(--space); }
 @media (max-width: 22rem) {
   main { padding-inline: .25rem; }
 }
+
+/* Keep controls inside narrow cards and allow long labels to wrap. */
+.action-row > * { min-inline-size: 0; max-inline-size: 100%; }
+.action-row > button { overflow-wrap: anywhere; }

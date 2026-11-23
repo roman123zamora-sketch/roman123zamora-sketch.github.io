@@ -41,6 +41,7 @@ export default function puzzles(content) {
           <button type="button" data-solution aria-expanded="false">See solution</button>
           <button type="button" data-skip>Skip</button>
           <button type="button" data-next hidden>Next puzzle</button>
+          <button type="button" data-unrated hidden>Play unrated puzzle</button>
           <button type="button" data-replay hidden>Replay last puzzle</button>
         </div>
         <ol class="puzzle-solution" hidden></ol>
@@ -65,6 +66,7 @@ export default function puzzles(content) {
   const instructions = content.querySelector(".puzzle-solution");
   const next = content.querySelector("[data-next]");
   const replay = content.querySelector("[data-replay]");
+  const unrated = content.querySelector("[data-unrated]");
   const controller = new AbortController();
   const listeners = { signal: controller.signal };
   let selected;
@@ -72,6 +74,8 @@ export default function puzzles(content) {
   let generation = 0;
   let disposed = false;
   let generating = false;
+  let offerPractice = false;
+  let slowSearchTimer;
   let tools;
   let prefetch;
   let pendingPool;
@@ -140,7 +144,7 @@ export default function puzzles(content) {
     heartLabel.innerHTML = `<span aria-hidden="true">${"♥".repeat(hearts)}${"♡".repeat(3 - hearts)}</span>`;
     content.querySelector(".puzzle-objective").textContent = transition
       ? `${colors[position.turn]} replies · ${categories[puzzle.category]}`
-      : active ? `${colors[puzzle.side]} to move · ${retry || puzzle.targetRating !== practice.rating ? "Unrated practice" : categories[puzzle.category]}`
+      : active ? `${colors[puzzle.side]} to move · ${retry || puzzle.unrated || puzzle.targetRating !== practice.rating ? "Unrated practice" : categories[puzzle.category]}`
       : puzzle ? categories[puzzle.category] : "";
     status.textContent = message;
     status.dataset.outcome = outcome ?? "";
@@ -174,7 +178,8 @@ export default function puzzles(content) {
     skip.disabled = Boolean(transition);
     next.hidden = Boolean(practice.active || generating);
     next.disabled = Boolean(transition);
-    next.textContent = finished ? "Next puzzle" : "Try again";
+    next.textContent = offerPractice ? "Search again" : finished ? "Next puzzle" : "Try again";
+    unrated.hidden = !offerPractice || Boolean(active);
   }
 
   let attemptStarted;
@@ -212,8 +217,10 @@ export default function puzzles(content) {
     drag.cancel();
   }
 
-  async function generate(prefix = "", usePrefetch = true) {
+  async function generate(prefix = "", usePrefetch = true, practiceOnly = false) {
     const request = ++generation;
+    clearTimeout(slowSearchTimer);
+    offerPractice = false;
     tools?.close();
     pendingPool?.close();
     const pool = prefetch;
@@ -227,7 +234,16 @@ export default function puzzles(content) {
     retry = null;
     outcome = null;
     generating = true;
-    message = prefix ? `${prefix} Generating a fresh puzzle…` : "Generating a verified puzzle…";
+    const target = practiceOnly ? 400 : practice.rating;
+    message = prefix ? `${prefix} Generating a fresh puzzle…` : practiceOnly
+      ? "Generating a verified practice puzzle…" : "Generating a verified puzzle…";
+    if (!practiceOnly && practice.rating >= 600) {
+      slowSearchTimer = setTimeout(() => {
+        offerPractice = true;
+        message = "Still looking for a rated puzzle. You can switch to unrated practice.";
+        render();
+      }, 3500);
+    }
     render();
     try {
       let candidate = await prepared;
@@ -241,22 +257,30 @@ export default function puzzles(content) {
           savePractice(practice);
           return seed;
         };
-        while (!candidate && !disposed && request === generation) {
-          candidate = await findPuzzle(tools, practice, takeSeed);
-          if (!candidate && !disposed && request === generation) {
-            message = "Still searching for a verified puzzle. You can switch categories while we search.";
-            render();
-          }
+        const search = { ...practice, rating: target };
+        candidate = await findPuzzle(tools, search, takeSeed, 3);
+        // Beginner and practice searches are cheap enough for one more pass.
+        if (!candidate && target < 600 && !disposed && request === generation) {
+          message = "Still searching for a verified puzzle…";
+          render();
+          candidate = await findPuzzle(tools, search, takeSeed, 3);
         }
       }
       if (disposed || request !== generation) return;
       if (candidate) {
+        if (practiceOnly) candidate.unrated = true;
+        offerPractice = false;
         finished = null;
         practice.active = { puzzle: candidate, step: 0, hearts: 3 };
         startAttemptClock();
         savePractice(practice);
         message = prefix;
-        prefetch = createPuzzlePrefetch(practice);
+        if (!practiceOnly) prefetch = createPuzzlePrefetch(practice);
+      } else {
+        offerPractice = !practiceOnly && practice.rating >= 600;
+        message = offerPractice
+          ? `No verified puzzle near ${target} was found in this search. Search again or play unrated practice.`
+          : "No verified puzzle was found in this search. Try again.";
       }
     } catch (error) {
       if (!disposed && request === generation) {
@@ -265,6 +289,7 @@ export default function puzzles(content) {
       }
     } finally {
       if (!disposed && request === generation) {
+        clearTimeout(slowSearchTimer);
         tools?.close();
         generating = false;
         render();
@@ -418,6 +443,7 @@ export default function puzzles(content) {
     resolve("skipped");
     generate(message);
   }, listeners);
+  unrated.addEventListener("click", () => generate("", false, true), listeners);
   next.addEventListener("click", () => generate(outcome === "solved" ? message : ""), listeners);
   for (const button of content.querySelectorAll("[data-category]")) {
     button.addEventListener("click", () => {
@@ -435,13 +461,14 @@ export default function puzzles(content) {
   if (practice.active) {
     startAttemptClock();
     render();
-    prefetch = createPuzzlePrefetch(practice);
+    if (!practice.active.puzzle.unrated) prefetch = createPuzzlePrefetch(practice);
   }
   else generate();
   return () => {
     pauseAttemptClock();
     disposed = true;
     generation++;
+    clearTimeout(slowSearchTimer);
     controller.abort();
     stopAnimation();
     drag.destroy();

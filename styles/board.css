@@ -141,9 +141,8 @@ button.square:focus-visible { z-index: 2; outline: 2px solid var(--square-focus)
 .eval-meter {
   margin-inline: .1875rem;
   position: relative;
-  display: flex;
   flex: 1;
-  flex-direction: column-reverse;
+  min-block-size: 0;
   background: #111c2d;
   border: 1px solid var(--stroke);
   border-radius: .35rem;
@@ -159,11 +158,13 @@ button.square:focus-visible { z-index: 2; outline: 2px solid var(--square-focus)
     linear-gradient(#8ca0b4, #8ca0b4) center 25% / 45% 1px no-repeat,
     linear-gradient(#8ca0b4, #8ca0b4) center 75% / 45% 1px no-repeat;
 }
-.eval-meter.white-on-top { flex-direction: column; }
+.eval-meter.white-on-top .eval-white { inset-block: 0 auto; }
 .eval-white {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
   block-size: 50%;
   background: #f4f8ff;
-  transition: block-size 180ms ease-out;
 }
 .bot-eval output { display: contents; }
 .eval-score {

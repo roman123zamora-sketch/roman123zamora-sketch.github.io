@@ -143,7 +143,7 @@ local replyFixture=fixture({
  c7="bP",h2="wR",g2="wP",f7="bP",g7="bP",e4="wP",f2="wP",e5="bN",
  e1="wK",b1="wR",c1="wB",b7="bP"
 },"w")
-local verified=assert(Puzzle.validate(Chess,Bot,replyFixture,Chess.allLegal(replyFixture),"checkmate",1250,os.clock()+2))
+local verified=assert(Puzzle.validate(Chess,Bot,replyFixture,Chess.allLegal(replyFixture),"checkmate",1200,os.clock()+2))
 assert(#verified==3)
 local black=apply(replyFixture,verified[1])
 local selected=assert(Puzzle.bestBlackMove(Chess,Bot,black,Chess.allLegal(black),os.clock()+1,true))

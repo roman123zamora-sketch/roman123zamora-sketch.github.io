@@ -40,7 +40,17 @@
 }
 .learn-board-meta { margin-block-end: .55rem; }
 .learn-picker select { flex: 1 1 10rem; min-inline-size: 0; max-inline-size: 100%; }
-.learn-context, .learn-practice { display: grid; gap: .75rem; padding: clamp(.85rem, 2vw, 1.25rem); }
+.learn-context, .learn-practice {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-inline-size: 0;
+  gap: .75rem;
+  padding: clamp(.85rem, 2vw, 1.25rem);
+  overflow-wrap: anywhere;
+}
+.learn-position { min-inline-size: 0; }
+.learn-example-controls button { padding-inline: clamp(.35rem, 2vw, .75rem); }
+.learn-answers button, .learn-next button { flex: 1 1 auto; }
 .learn-practice .action-row:empty { display: none; }
 .learn-context p, .learn-practice p { line-height: 1.55; }
 .learn-context .replay-heading, .learn-context h1 { margin-block-end: 0; }
@@ -64,9 +74,9 @@
   .learn-position button.square:hover { box-shadow: none; }
 }
 .learn-fade { position: fixed; z-index: 4; pointer-events: none; }
-@media (max-width: 64rem) {
+@media (max-width: 72rem) {
   .learn-workspace {
-    grid-template-columns: minmax(0, 29rem) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
   }
   .learn-context { grid-column: 1 / -1; }
 }
