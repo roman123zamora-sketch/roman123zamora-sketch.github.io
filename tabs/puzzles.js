@@ -11,34 +11,40 @@ const colors = { w: "White", b: "Black" };
 
 export default function puzzles(content) {
   content.innerHTML = `
-    <section class="panel page puzzle-page">
-      <h1>Puzzles</h1>
-      <div class="puzzle-layout">
-        <div class="puzzle-stage">
-          <div class="puzzle-hud">
-            <p class="puzzle-objective"></p>
-            <p class="puzzle-hearts"></p>
-          </div>
-          <div class="puzzle-board-slot"></div>
-          <p class="puzzle-message" role="status"></p>
+    <div class="match">
+      <aside class="panel setup">
+        <h1>Puzzles</h1>
+        <div class="action-row puzzle-categories" aria-label="Puzzle category">
+          <button type="button" data-category="checkmate">Checkmate</button>
+          <button type="button" data-category="material">Material</button>
         </div>
-        <div class="puzzle-controls">
-          <div class="action-row puzzle-categories" aria-label="Puzzle category">
-            <button type="button" data-category="checkmate">Checkmate</button>
-            <button type="button" data-category="material">Material</button>
-          </div>
-          <dl class="puzzle-stats"><div><dt>Your Puzzle Rating</dt><dd data-rating></dd></div>
-            <div><dt>Puzzle Difficulty</dt><dd data-difficulty></dd></div></dl>
-          <div class="action-row puzzle-actions">
-            <button type="button" data-hint>Hint</button>
-            <button type="button" data-solution aria-expanded="false">See solution</button>
-            <button type="button" data-skip>Skip</button>
-            <button type="button" data-next hidden>Next puzzle</button>
-          </div>
-          <ol class="puzzle-solution" hidden></ol>
-          <p class="help">Active puzzles and ratings are saved in this browser.</p>
+        <div class="divider"></div>
+        <dl class="puzzle-stats">
+          <div><dt>Your Puzzle Rating</dt><dd data-rating></dd></div>
+          <div><dt>Puzzle Difficulty</dt><dd data-difficulty></dd></div>
+        </dl>
+      </aside>
+      <section class="board-area" aria-label="Puzzle board">
+        <div class="board-and-eval">
+          <div class="board-slot puzzle-board-slot"></div>
         </div>
-      </div>
+        <div class="puzzle-hud">
+          <p class="puzzle-objective"></p>
+          <p class="puzzle-hearts"></p>
+        </div>
+        <p class="puzzle-message" role="status"></p>
+      </section>
+      <aside class="panel match-info">
+        <h2>Practice controls</h2>
+        <div class="action-row">
+          <button type="button" data-hint>Hint</button>
+          <button type="button" data-solution aria-expanded="false">See solution</button>
+          <button type="button" data-skip>Skip</button>
+          <button type="button" data-next hidden>Next puzzle</button>
+        </div>
+        <ol class="puzzle-solution" hidden></ol>
+        <p class="help">Active puzzles and ratings are saved in this browser.</p>
+      </aside>
       <dialog class="promotion-dialog">
         <form method="dialog"><h2>Promote pawn</h2><div class="action-row">
           <button value="Q">Queen</button><button value="R">Rook</button>
@@ -46,7 +52,7 @@ export default function puzzles(content) {
           <button value="">Cancel</button>
         </div></form>
       </dialog>
-    </section>`;
+    </div>`;
 
   const practice = loadPractice();
   const slot = content.querySelector(".puzzle-board-slot");

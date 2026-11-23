@@ -1,32 +1,21 @@
-.puzzle-page { max-inline-size: 68rem; }
-.puzzle-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(14rem, .55fr);
-  gap: var(--space);
-  align-items: start;
-  margin-block-start: 1rem;
+.puzzle-hud {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  column-gap: .65rem;
+  text-align: center;
 }
-.puzzle-stage, .puzzle-board-slot { min-inline-size: 0; }
-.puzzle-hud { display: flex; align-items: center; justify-content: space-between; gap: .65rem; max-inline-size: 42rem; }
 .puzzle-hud p:empty { display: none; }
-.puzzle-controls {
-  padding: clamp(.8rem, 2vw, 1.3rem);
-  background: var(--recess);
-  border: 1px solid var(--stroke);
-  border-radius: var(--panel-radius);
-}
 .puzzle-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; font-size: .8rem; }
 .puzzle-stats dd { color: var(--ice); font-size: 1.35rem; }
 .puzzle-hearts { color: #ffb2bc; font-size: 1.25rem; letter-spacing: .16em; flex: none; }
 .puzzle-objective, .puzzle-message { margin-block: .6rem; }
 .puzzle-objective { font-weight: 700; }
-.puzzle-message { color: var(--muted); }
+.puzzle-message { color: var(--muted); text-align: center; }
+.puzzle-message:empty { display: none; }
 .puzzle-message[data-outcome="wrong"], .puzzle-message[data-outcome="failed"] { color: var(--warning-text); }
 .puzzle-message[data-outcome="correct"], .puzzle-message[data-outcome="solved"] { color: var(--ice); }
 .square.puzzle-wrong { box-shadow: inset 0 0 0 3px var(--warning-line); }
-.puzzle-actions { margin-block-start: .75rem; }
-@media (max-width: 45rem) {
-  .puzzle-layout { grid-template-columns: minmax(0, 1fr); }
-}
 .puzzle-solution { padding-inline-start: 1.5rem; margin-block: .75rem 0; }
 .puzzle-solution li + li { margin-block-start: .4rem; }
