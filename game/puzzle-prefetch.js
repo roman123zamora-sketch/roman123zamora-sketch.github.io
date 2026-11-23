@@ -2,12 +2,13 @@ import { createPositionTools } from "./position-tools.js";
 import { nextSeed, possibleRatings, savePractice } from "./puzzle-progress.js";
 
 export async function findPuzzle(worker, { category, rating, recent }, takeSeed) {
+  const targetRating = Math.min(rating, 2400);
   let candidate;
   for (let attempt = 0; attempt < 3; attempt++) {
-    const puzzle = await worker.run("puzzle", { category, rating, recent, seed: takeSeed() });
+    const puzzle = await worker.run("puzzle", { category, rating: targetRating, recent, seed: takeSeed() });
     if (!puzzle.retry && (!candidate ||
-        Math.abs(puzzle.difficulty - rating) < Math.abs(candidate.difficulty - rating))) candidate = puzzle;
-    if (candidate && Math.abs(candidate.difficulty - rating) <= 200) break;
+        Math.abs(puzzle.difficulty - targetRating) < Math.abs(candidate.difficulty - targetRating))) candidate = puzzle;
+    if (candidate && Math.abs(candidate.difficulty - targetRating) <= 200) break;
   }
   return candidate;
 }

@@ -88,9 +88,9 @@ end
 }
 
 globalThis.localStorage = { getItem: () => null, setItem() {} };
-const { loadPractice, possibleRatings, resolvePuzzle } = await import("../game/puzzle-progress.js");
+const { loadPractice, possibleRatings, puzzleRating, resolvePuzzle } = await import("../game/puzzle-progress.js");
 for (const [result, hearts, delta] of [
-  ["solved", 3, 16], ["solved", 2, 8], ["solved", 1, -8], ["failed", 0, -16], ["skipped", 3, 0]
+  ["solved", 3, 50], ["solved", 2, 30], ["solved", 1, 20], ["failed", 0, -16], ["skipped", 3, 0]
 ]) {
   const practice = { rating: 400, recent: [], active: { puzzle: { id: "used", difficulty: 400 }, hearts } };
   const assisted = { ...practice, active: { ...practice.active, assisted: true } };
@@ -105,7 +105,17 @@ for (const [result, hearts, delta] of [
 }
 assert.deepEqual([...possibleRatings({
   rating: 400, active: { puzzle: { difficulty: 400 }, hearts: 3 }
-})].sort((a, b) => a - b), [384, 392, 400, 408, 416]);
+})].sort((a, b) => a - b), [384, 400, 420, 430, 450]);
+for (const [rating, rewards] of [
+  [100, [50, 30, 20]], [1200, [30, 20, 15]], [1999, [11, 11, 11]],
+  [2000, [10, 10, 10]], [2399, [10, 10, 10]], [2400, [10, 10, 10]]
+]) {
+  for (const [index, reward] of rewards.entries()) {
+    for (const difficulty of [400, 1400]) {
+      assert.equal(puzzleRating(rating, { puzzle: { difficulty }, hearts: 3 - index }, "solved"), rating + reward);
+    }
+  }
+}
 localStorage.getItem = () => JSON.stringify({
   rating: 567, category: "checkmate", recent: ["last-puzzle"], seed: 0, active: { step: 5, hearts: 2 }
 });

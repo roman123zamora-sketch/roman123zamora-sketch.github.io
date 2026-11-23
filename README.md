@@ -162,14 +162,14 @@ to the verified tactical exchange.
 
 Difficulty is estimated from line length and tactical choices. Generation
 prefers the closest verified candidate to the player's rating within the time
-budget. Puzzle rating starts at 400. The clean solve reward is the nearest
-even integer to `32 × (1 − expected)`, with a minimum of 2, where
-`expected = 1 / (1 + 10^((difficulty − rating) / 400))`. One wrong move halves
-the reward, two wrong moves cost half the reward, and three cost the full
-reward. Skip, hints, and revealing the solution are rating-neutral. The
-first hint highlights the piece and the second adds its destination. See
-solution gives written instructions for playing the moves yourself. Rating
-stays between 100 and 2400.
+budget. Puzzle rating starts at 400. At that rating, an unassisted solve
+earns 50 points with no mistakes, 30 with one mistake, or 20 with two.
+Rewards taper linearly to 10 points at 2000 and above. Three wrong moves
+still incur the existing difficulty-based failure penalty. Skipping, hints,
+and revealing the solution are rating-neutral. The first hint highlights
+the piece and the second adds its destination. See solution gives written
+instructions for playing the moves yourself. Rating has a floor of 100.
+The generator’s targeting remains capped at 2400.
 
 While a puzzle is active, workers prepare candidates for up to five possible
 resulting ratings. Only the matching candidate is used and the rest are

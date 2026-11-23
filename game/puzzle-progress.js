@@ -46,12 +46,15 @@ export function nextSeed(practice) {
 }
 
 export function puzzleRating(rating, { puzzle, hearts, assisted }, outcome) {
-  const expected = 1 / (1 + 10 ** ((puzzle.difficulty - rating) / 400));
-  // An even reward keeps all half results exact. L = R.
-  const reward = Math.max(2, 2 * Math.round(16 * (1 - expected)));
-  const delta = assisted || outcome === "skipped" ? 0 : outcome === "failed" ? -reward :
-    hearts === 3 ? reward : hearts === 2 ? reward / 2 : -reward / 2;
-  return Math.max(100, Math.min(2400, rating + delta));
+  if (assisted || outcome === "skipped") return rating;
+  if (outcome === "failed") {
+    const expected = 1 / (1 + 10 ** ((puzzle.difficulty - rating) / 400));
+    const penalty = Math.max(2, 2 * Math.round(16 * (1 - expected)));
+    return Math.max(100, rating - penalty);
+  }
+  const startingReward = hearts === 3 ? 50 : hearts === 2 ? 30 : 20;
+  const remaining = 1 - Math.max(0, Math.min(1, (rating - 400) / 1600));
+  return rating + 10 + Math.ceil((startingReward - 10) * remaining);
 }
 
 export function possibleRatings(practice) {
