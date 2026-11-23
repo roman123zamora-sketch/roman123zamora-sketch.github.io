@@ -34,7 +34,7 @@ game/
   session.js                   Browser state, storage, audio, and match commands
   local-worker.js              Browser worker for local matches and replays
   puzzle-prefetch.js           Background puzzle generation for possible rating outcomes
-  touch-board.js               Touch dragging
+  board-drag.js                Pointer-based piece dragging
   luau-runtime.js              Loads Luau modules and exchanges data with JavaScript
   web-adapter.luau             Browser and server bridge to the original game modules
   match-service.luau           Match lifecycle, rewards, profiles, and matchmaking

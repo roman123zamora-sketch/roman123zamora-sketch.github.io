@@ -1,10 +1,10 @@
 import { createBestMoveControl } from "./review-best-move.js";
 import { createPositionTools } from "../game/position-tools.js";
 import { createEvaluationBar } from "./evaluation-bar.js";
-import { bindTouchBoard } from "../game/touch-board.js";
+import { bindBoardDrag } from "../game/board-drag.js";
 import { board } from "./chessboard.js";
 import { getTheme } from "./board-themes.js";
-import { createChessPiece, setPieceDragImage } from "./chess-pieces.js";
+import { createChessPiece } from "./chess-pieces.js";
 import { action, serverNow, session, subscribe, unlockSound } from "../game/session.js";
 
 const offlineNotice = "Online play requires a connected match server. This site currently supports bot games.";
@@ -37,9 +37,7 @@ export function renderMatch(content, { title, fourPlayer }) {
   let resetting = false;
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   let queued = false;
-  let dragged;
   let dropped;
-  let clearDragImage;
   let starting = false;
   let claiming = false;
   let shownResult;
@@ -251,8 +249,7 @@ export function renderMatch(content, { title, fourPlayer }) {
       if (boardAcceptsInput() && data?.state.board[square.dataset.square]?.[0] === data?.side) {
         const piece = square.querySelector(".chess-piece");
         if (piece) {
-          piece.draggable = true;
-          square.classList.add("touch-source");
+          square.classList.add("drag-enabled");
         }
       }
     }
@@ -621,27 +618,7 @@ export function renderMatch(content, { title, fourPlayer }) {
 
   content.addEventListener("click", click);
   content.addEventListener("change", change);
-  slot.addEventListener("dragstart", event => {
-    const piece = event.target.closest(".chess-piece[draggable=true]");
-    if (!piece || !boardAcceptsInput()) { event.preventDefault(); return; }
-    dragged = piece.closest("[data-square]").dataset.square;
-    clearDragImage?.();
-    clearDragImage = setPieceDragImage(piece, event.dataTransfer);
-    event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData("text/plain", dragged);
-  });
-  slot.addEventListener("dragover", event => {
-    if (dragged && event.target.closest("[data-square]")) event.preventDefault();
-  });
-  slot.addEventListener("drop", event => {
-    if (!dragged) return;
-    event.preventDefault();
-    const from = dragged;
-    dragged = null;
-    clearDragImage?.();
-    chooseDestination(from, event.target.closest("[data-square]")?.dataset.square);
-  });
-  const touch = bindTouchBoard(slot, {
+  const drag = bindBoardDrag(slot, {
     begin(from) {
       if (!boardAcceptsInput()) return false;
       dragSource = from;
@@ -656,19 +633,12 @@ export function renderMatch(content, { title, fourPlayer }) {
     },
     drop: chooseDestination
   });
-  slot.addEventListener("dragend", () => {
-    dragged = null;
-    clearDragImage?.();
-  });
-
   function clearBoardInput() {
     clearSelection();
     dragSource = null;
-    dragged = null;
     promotion = null;
     if (dialog.open) dialog.close();
-    clearDragImage?.();
-    touch.cancel();
+    drag.cancel();
   }
 
   const subscription = subscribe(kind => {
@@ -763,9 +733,8 @@ export function renderMatch(content, { title, fourPlayer }) {
     evaluation.close();
     bestMove.close();
     clearBoardInput();
-    touch.destroy();
+    drag.destroy();
     cancelAnimationFrame(scrollFrame);
-    clearDragImage?.();
     clearInterval(clock);
     content.removeEventListener("click", click);
     content.removeEventListener("change", change);

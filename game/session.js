@@ -248,10 +248,56 @@ const notes = {
   hover: [560], button: [420], wrong: [240, 185], solved: [440, 550, 660]
 };
 
+const fallbackSounds = new Map();
+
+function cueSettings(name) {
+  return name === "hover" ? { duration: .09, level: .12 }
+    : name === "button" ? { duration: .13, level: .24 }
+    : { duration: .19, level: .34 };
+}
+
+function playFallback(name) {
+  let player = fallbackSounds.get(name);
+  if (!player) {
+    const { duration, level } = cueSettings(name);
+    const sampleRate = 22050;
+    const samples = Math.ceil((duration + (notes[name].length - 1) * .1) * sampleRate);
+    const bytes = new Uint8Array(44 + samples * 2);
+    const wav = new DataView(bytes.buffer);
+    for (const [offset, label] of [[0, "RIFF"], [8, "WAVE"], [12, "fmt "], [36, "data"]]) {
+      bytes.set([...label].map(character => character.charCodeAt(0)), offset);
+    }
+    for (const [offset, value] of [[4, bytes.length - 8], [16, 16], [24, sampleRate], [28, sampleRate * 2], [40, samples * 2]]) {
+      wav.setUint32(offset, value, true);
+    }
+    for (const [offset, value] of [[20, 1], [22, 1], [32, 2], [34, 16]]) wav.setUint16(offset, value, true);
+    for (let index = 0; index < samples; index++) {
+      const time = index / sampleRate;
+      let sample = 0;
+      for (const [note, frequency] of notes[name].entries()) {
+        const age = time - note * .1;
+        if (age >= 0 && age < duration) {
+          const phase = (age * frequency) % 1;
+          const envelope = Math.min(age / .008, 1) * Math.exp(-5 * age / duration);
+          sample += (1 - 4 * Math.abs(phase - .5)) * level * envelope;
+        }
+      }
+      wav.setInt16(44 + index * 2, Math.round(sample * 32767), true);
+    }
+    player = new Audio("data:audio/wav;base64," + btoa(String.fromCharCode(...bytes)));
+    fallbackSounds.set(name, player);
+  }
+  player.currentTime = 0;
+  return player.play();
+}
+
 export function playSound(name) {
-  if (!sound || !audio || audio.state !== "running") return;
-  const duration = name === "hover" ? .065 : name === "button" ? .11 : .18;
-  const level = name === "hover" ? .065 : name === "button" ? .13 : .24;
+  if (!sound) return;
+  if (audio?.state !== "running") {
+    playFallback(name).catch(() => {});
+    return;
+  }
+  const { duration, level } = cueSettings(name);
   notes[name].forEach((frequency, index) => {
     const tone = audio.createOscillator();
     const volume = audio.createGain();
@@ -272,16 +318,27 @@ export function toggleSound() {
   sound = !sound;
   writeSetting(settings, sound ? "on" : "off");
   if (sound) unlockSound("button");
+  else for (const player of fallbackSounds.values()) player.pause();
   return sound;
 }
 export function unlockSound(cue) {
   if (!sound) return;
-  const Audio = globalThis.AudioContext ?? globalThis.webkitAudioContext;
-  if (!Audio) return;
-  audio ??= new Audio();
-  if (audio.state === "running") {
+  const AudioContext = globalThis.AudioContext ?? globalThis.webkitAudioContext;
+  try {
+    if (AudioContext && (!audio || audio.state === "closed")) audio = new AudioContext();
+  } catch {
+    // Some browsers expose Web Audio even when they cannot start an audio device.
+  }
+  if (audio?.state === "running") {
     if (cue) playSound(cue);
-  } else {
-    audio.resume().then(() => { if (cue) playSound(cue); }).catch(() => {});
+    return;
+  }
+  const resumed = audio?.resume().catch(() => {});
+  if (cue) {
+    // Try media playback while the click still counts as a user gesture.
+    playFallback(cue).catch(async () => {
+      await resumed;
+      if (audio?.state === "running") playSound(cue);
+    });
   }
 }

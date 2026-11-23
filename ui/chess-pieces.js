@@ -9,7 +9,6 @@ const palettes = {
   green: ["#c7f6d5", "#57b783", "#266548", "#204633", "#dcf9e6"]
 };
 
-const dragArt = new Map();
 let nextId = 0;
 
 // Every profile meets the pedestal at the same plane so ranks align visually.
@@ -108,33 +107,7 @@ export function createChessPiece(type, side) {
   wrapper.className = "chess-piece";
   wrapper.dataset.art = `${piece}-${side}`;
   wrapper.innerHTML = artwork(piece, side, `piece-${++nextId}`);
-  if (!dragArt.has(wrapper.dataset.art)) {
-    const image = new Image();
-    image.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(artwork(piece, side, `piece-${++nextId}`));
-    dragArt.set(wrapper.dataset.art, image);
-  }
   return wrapper;
-}
-
-export function setPieceDragImage(piece, transfer) {
-  const image = dragArt.get(piece.dataset.art);
-  const size = Math.max(1, Math.round(piece.getBoundingClientRect().width));
-  let ghost;
-  if (image?.complete && image.naturalWidth) {
-    ghost = document.createElement("canvas");
-    ghost.width = ghost.height = size;
-    ghost.getContext("2d").drawImage(image, 0, 0, size, size);
-  } else {
-    ghost = piece.cloneNode(true);
-    ghost.draggable = false;
-    const [type, side] = piece.dataset.art.split("-");
-    ghost.innerHTML = artwork(type, side, `piece-${++nextId}`);
-  }
-  ghost.classList.add("piece-drag-image");
-  ghost.style.width = ghost.style.height = size + "px";
-  document.body.append(ghost);
-  transfer.setDragImage(ghost, size / 2, size / 2);
-  return () => ghost.remove();
 }
 
 export function pieceName(type) {

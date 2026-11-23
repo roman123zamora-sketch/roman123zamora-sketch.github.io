@@ -83,14 +83,13 @@ button.square:focus-visible { z-index: 2; outline: 2px solid var(--square-focus)
 }
 .chess-piece { display: block; inline-size: 88%; aspect-ratio: 1; user-select: none; }
 .chess-piece svg { display: block; inline-size: 100%; block-size: 100%; filter: drop-shadow(0 1px 1px #07142755); pointer-events: none; }
-.chess-piece[draggable="true"] { cursor: grab; }
-.chess-piece[draggable="true"]:active { cursor: grabbing; }
+.square.drag-enabled .chess-piece { cursor: grab; }
+.piece-dragging, .piece-dragging .square, .piece-dragging .chess-piece { cursor: grabbing; }
 .eliminated { filter: grayscale(1); opacity: .64; }
-.piece-drag-image { position: fixed; top: 0; left: -100vw; pointer-events: none; }
 .sample { grid-area: auto; border: 1px solid var(--stroke); box-shadow: none; }
 
-.square.touch-source { touch-action: none; -webkit-touch-callout: none; }
-.touch-piece {
+.square.drag-enabled { touch-action: none; -webkit-touch-callout: none; }
+.pointer-piece {
   position: fixed;
   top: 0;
   left: 0;
@@ -120,11 +119,12 @@ button.square:focus-visible { z-index: 2; outline: 2px solid var(--square-focus)
   inline-size: min(100%, 44.5rem);
 }
 .board-and-eval .board-slot { flex: 1; }
-.board-and-eval:has(.bot-eval:not([hidden])) { padding-block-end: 1.45rem; }
 .bot-eval {
   display: flex;
   flex-direction: column;
-  inline-size: clamp(.85rem, 2.5vw, 1.35rem);
+  position: relative;
+  inline-size: 2.25rem;
+  padding-block: 1rem;
   flex: none;
   margin-block: calc(var(--board-padding) + 1px);
 }
@@ -155,19 +155,31 @@ button.square:focus-visible { z-index: 2; outline: 2px solid var(--square-focus)
   background: #f4f8ff;
   transition: block-size 180ms ease-out;
 }
-.bot-eval output {
+.bot-eval output { display: contents; }
+.eval-score {
   position: absolute;
   inset-inline: 0;
   inset-block-end: 0;
   text-align: center;
-  font-size: .75rem;
-  line-height: 1.15;
-  font-weight: 700;
+  font-size: .66rem;
+  line-height: 1.2;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
   color: var(--text);
-  overflow-wrap: anywhere;
 }
+.eval-score[data-side="b"], .bot-eval[data-flipped] .eval-score[data-side="w"] {
+  inset-block: 0 auto;
+}
+.bot-eval[data-flipped] .eval-score[data-side="b"] { inset-block: auto 0; }
 
 .square.best-move-from { outline: 2px dashed #ffcf71; outline-offset: -3px; }
 .square.best-move-to { outline: 2px solid #ffcf71; outline-offset: -3px; }
 .best-move-status:empty { display: none; }
 .replay-best-move { text-align: center; }
+.eval-score {
+  padding-block: .1rem;
+  border-radius: .25rem;
+}
+.eval-score[data-side="w"] { background: #f4f8ff; color: #142335; }
+.eval-score[data-side="b"] { background: #111c2d; color: #f4f8ff; }

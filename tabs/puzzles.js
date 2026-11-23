@@ -2,9 +2,8 @@ import { createPuzzlePrefetch, findPuzzle } from "../game/puzzle-prefetch.js";
 import { createPositionTools } from "../game/position-tools.js";
 import { loadPractice, nextSeed, resolvePuzzle, savePractice } from "../game/puzzle-progress.js";
 import { playSound, subscribe } from "../game/session.js";
-import { bindTouchBoard } from "../game/touch-board.js";
+import { bindBoardDrag } from "../game/board-drag.js";
 import { getTheme } from "../ui/board-themes.js";
-import { setPieceDragImage } from "../ui/chess-pieces.js";
 import { board } from "../ui/chessboard.js";
 
 const categories = { checkmate: "Force checkmate.", material: "Win material through the best trade." };
@@ -61,8 +60,6 @@ export default function puzzles(content) {
   const controller = new AbortController();
   const listeners = { signal: controller.signal };
   let selected;
-  let dragged;
-  let clearGhost;
   let promotion;
   let generation = 0;
   let disposed = false;
@@ -116,8 +113,7 @@ export default function puzzles(content) {
     if (canMove()) {
       for (const cell of slot.querySelectorAll("[data-square]")) {
         if (position.board[cell.dataset.square]?.[0] === puzzle.side && legalFrom(cell.dataset.square).length) {
-          cell.classList.add("touch-source");
-          cell.querySelector(".chess-piece").draggable = true;
+          cell.classList.add("drag-enabled");
         }
       }
     }
@@ -174,11 +170,9 @@ export default function puzzles(content) {
     wrong = null;
     animationPosition = null;
     selected = null;
-    dragged = null;
-    clearGhost?.();
     promotion = null;
     if (dialog.open) dialog.close();
-    touch.cancel();
+    drag.cancel();
   }
 
   async function generate(prefix = "", usePrefetch = true) {
@@ -331,29 +325,16 @@ export default function puzzles(content) {
     promotion = null;
     if (move) attempt(move);
   }, listeners);
-  const touch = bindTouchBoard(slot, {
-    begin(from) { selected = from; return Boolean(canMove()); },
-    end() {},
+  const drag = bindBoardDrag(slot, {
+    begin(from) {
+      if (!canMove()) return false;
+      selected = from;
+      slot.querySelector(`[data-square="${from}"]`)?.classList.add("drag-source");
+      return true;
+    },
+    end() { slot.querySelector(".drag-source")?.classList.remove("drag-source"); },
     drop: choose
   });
-  slot.addEventListener("dragstart", event => {
-    const piece = event.target.closest(".chess-piece[draggable=true]");
-    if (!piece || !canMove()) { event.preventDefault(); return; }
-    dragged = piece.closest("[data-square]").dataset.square;
-    clearGhost?.();
-    clearGhost = setPieceDragImage(piece, event.dataTransfer);
-    event.dataTransfer.setData("text/plain", dragged);
-  }, listeners);
-  slot.addEventListener("dragover", event => { if (dragged) event.preventDefault(); }, listeners);
-  slot.addEventListener("drop", event => {
-    if (!dragged) return;
-    event.preventDefault();
-    const from = dragged;
-    dragged = null;
-    clearGhost?.();
-    choose(from, event.target.closest("[data-square]")?.dataset.square);
-  }, listeners);
-  slot.addEventListener("dragend", () => { dragged = null; clearGhost?.(); }, listeners);
   hint.addEventListener("click", () => {
     if (!canMove()) return;
     const active = playable();
@@ -402,7 +383,7 @@ export default function puzzles(content) {
     generation++;
     controller.abort();
     stopAnimation();
-    touch.destroy();
+    drag.destroy();
     tools?.close();
     prefetch?.close();
     pendingPool?.close();

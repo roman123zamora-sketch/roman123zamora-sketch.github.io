@@ -1,8 +1,9 @@
 import { createChessPiece } from "../ui/chess-pieces.js";
 
-export function bindTouchBoard(board, { begin, end: finish, drop }) {
+export function bindBoardDrag(board, { begin, end: finish, drop }) {
   let gesture;
   let returning;
+  let suppressClick = false;
   const controller = new AbortController();
   const options = { signal: controller.signal };
 
@@ -14,15 +15,17 @@ export function bindTouchBoard(board, { begin, end: finish, drop }) {
     if (!gesture) return;
     const { id, ghost } = gesture;
     gesture = null;
+    board.classList.remove("piece-dragging");
     ghost?.remove();
     if (ghost) finish();
     if (board.hasPointerCapture(id)) board.releasePointerCapture(id);
   }
 
   board.addEventListener("pointerdown", event => {
-    if (event.pointerType === "mouse" || !event.isPrimary || gesture) return;
+    if (!event.isPrimary || event.button !== 0 || gesture) return;
+    suppressClick = false;
     clear();
-    const square = event.target.closest(".touch-source");
+    const square = event.target.closest(".drag-enabled");
     if (!square) return;
     const piece = square.querySelector(".chess-piece");
     if (!piece) return;
@@ -33,13 +36,15 @@ export function bindTouchBoard(board, { begin, end: finish, drop }) {
     };
   }, options);
 
-  board.addEventListener("pointermove", event => {
+  window.addEventListener("pointermove", event => {
     if (gesture?.id !== event.pointerId) return;
     if (!gesture.ghost) {
       if (Math.hypot(event.clientX - gesture.x, event.clientY - gesture.y) < 7) return;
       board.setPointerCapture(event.pointerId);
+      suppressClick = true;
+      board.classList.add("piece-dragging");
       const ghost = createChessPiece(gesture.type, gesture.color);
-      ghost.classList.add("touch-piece");
+      ghost.classList.add("pointer-piece");
       ghost.setAttribute("aria-hidden", "true");
       ghost.style.inlineSize = gesture.size + "px";
       document.body.append(ghost);
@@ -58,6 +63,7 @@ export function bindTouchBoard(board, { begin, end: finish, drop }) {
     if (!ghost || event.type !== "pointerup") { clear(); return; }
 
     gesture = null;
+    board.classList.remove("piece-dragging");
     if (board.hasPointerCapture(id)) board.releasePointerCapture(id);
     const accepted = destination && board.contains(destination) && drop(from, destination.dataset.square);
     if (accepted || matchMedia("(prefers-reduced-motion: reduce)").matches) {
@@ -78,9 +84,13 @@ export function bindTouchBoard(board, { begin, end: finish, drop }) {
     };
   }
 
-  for (const type of ["pointerup", "pointercancel", "lostpointercapture"]) {
-    board.addEventListener(type, end, options);
-  }
+  for (const type of ["pointerup", "pointercancel"]) window.addEventListener(type, end, options);
+  board.addEventListener("lostpointercapture", end, options);
+  board.addEventListener("click", event => {
+    if (!suppressClick || !event.detail) return;
+    suppressClick = false;
+    event.stopPropagation();
+  }, { ...options, capture: true });
   return {
     cancel: clear,
     destroy() { clear(); controller.abort(); }

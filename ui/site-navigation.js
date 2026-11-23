@@ -45,6 +45,7 @@ const audio = document.querySelector("#audio");
 function showSoundSetting(enabled) {
   audio.setAttribute("aria-pressed", String(enabled));
   audio.title = enabled ? "Mute game sounds" : "Enable game sounds";
+  audio.textContent = enabled ? "Sound" : "Sound off";
 }
 showSoundSetting(soundEnabled());
 audio.addEventListener("click", () => showSoundSetting(toggleSound()));

@@ -4,6 +4,9 @@ export function createEvaluationBar(element) {
   const meter = element.querySelector(".eval-meter");
   const white = element.querySelector(".eval-white");
   const caption = element.querySelector("output");
+  caption.innerHTML = '<span class="eval-score" data-side="b"></span><span class="eval-score" data-side="w"></span>';
+  const whiteScore = caption.querySelector('[data-side="w"]');
+  const blackScore = caption.querySelector('[data-side="b"]');
   let tools;
   let matchId;
   let revision;
@@ -19,17 +22,14 @@ export function createEvaluationBar(element) {
     const share = score?.kind === "mate" ? (score.side === "w" ? 100 : 0) :
       50 + 48 * Math.tanh((score?.value ?? 0) / 480);
     white.style.blockSize = share + "%";
-    caption.removeAttribute("title");
-    if (!score) caption.textContent = "…";
-    else if (score.kind === "mate") {
-      const side = score.side === "w" ? "White" : "Black";
-      caption.textContent = score.moves ? `${side} · M${score.moves}` : `${side} · Checkmate`;
-      caption.title = score.moves ? `${side} can force mate in ${score.moves}` : `${side} delivered checkmate`;
-    } else {
-      const pawns = (score.value / 100).toFixed(2);
-      caption.textContent = Number(pawns) === 0 ? "0.00 · Equal" : `${score.value > 0 ? "+" : ""}${pawns.replace("-", "−")}`;
-      const whiteShare = Math.round(share);
-      caption.title = `Engine estimate in pawns from White’s perspective. Bar split: White ${whiteShare}%, Black ${100 - whiteShare}%.`;
+    const format = value => value === 0 ? "0.00" : (value > 0 ? "+" : "−") + (Math.abs(value) / 100).toFixed(2);
+    const mate = score?.kind === "mate";
+    const winning = mate ? `M${score.moves}` : null;
+    whiteScore.textContent = !score ? "…" : mate ? (score.side === "w" ? winning : "−" + winning) : format(score.value);
+    blackScore.textContent = !score ? "…" : mate ? (score.side === "b" ? winning : "−" + winning) : format(-score.value);
+    for (const [side, label] of [["White", whiteScore], ["Black", blackScore]]) {
+      label.title = `${side} evaluation: ${label.textContent}`;
+      label.setAttribute("aria-label", label.title);
     }
   }
 
@@ -53,6 +53,7 @@ export function createEvaluationBar(element) {
       if (review || match.matchId !== matchId) display(null);
       matchId = match.matchId;
       revision = key;
+      element.toggleAttribute("data-flipped", match.side === "b");
       meter.classList.toggle("white-on-top", match.side === "b");
       const current = ++generation;
       async function getScore(frame, frameKey) {
@@ -68,7 +69,7 @@ export function createEvaluationBar(element) {
         const previous = await getScore(review.positions[review.ply - 1], `review:${review.ply - 1}`);
         if (generation === current) onChange(score, previous);
       }).catch(() => {
-        if (generation === current) caption.textContent = "Unavailable";
+        if (generation === current) display(null);
       });
     },
     close() {
