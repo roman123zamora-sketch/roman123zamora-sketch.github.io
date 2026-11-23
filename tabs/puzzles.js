@@ -24,7 +24,7 @@ export default function puzzles(content) {
           <div><dt>Puzzle Difficulty</dt><dd data-difficulty></dd></div>
         </dl>
       </aside>
-      <section class="board-area" aria-label="Puzzle board">
+      <section class="board-area aligned-board-area" aria-label="Puzzle board">
         <div class="board-and-eval">
           <div class="board-slot puzzle-board-slot"></div>
         </div>

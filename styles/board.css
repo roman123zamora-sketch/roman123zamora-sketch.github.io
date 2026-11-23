@@ -119,6 +119,15 @@ button.square:focus-visible { z-index: 2; outline: 2px solid var(--square-focus)
   inline-size: min(100%, 44.5rem);
 }
 .board-and-eval .board-slot { flex: 1; }
+
+/* Keep the same board track whether the evaluation rail is visible or absent. */
+.aligned-board-area .board-and-eval {
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr);
+}
+.aligned-board-area .board-slot { grid-column: 2; grid-row: 1; }
+.aligned-board-area .bot-eval { grid-column: 1; grid-row: 1; }
+.aligned-board-area .quick-play { order: 1; margin-block: .65rem 0; }
 .bot-eval {
   display: flex;
   flex-direction: column;

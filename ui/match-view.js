@@ -54,7 +54,7 @@ export function renderMatch(content, { title, fourPlayer }) {
         <dl class="ratings"></dl>
         <p class="match-notice help" aria-live="polite"></p>
       </aside>
-      <section class="board-area" aria-label="${title} board">
+      <section class="board-area${fourPlayer ? "" : " aligned-board-area"}" aria-label="${title} board">
         <button class="quick-play primary" type="button" data-action="start">Play a bot game</button>
         <div class="board-and-eval">
           <div class="bot-eval" hidden aria-label="Engine estimate, in pawns" title="Engine estimate, in pawns">
