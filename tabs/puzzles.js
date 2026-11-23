@@ -77,6 +77,8 @@ export default function puzzles(content) {
   let wrongTimer;
   let animationPosition;
   let finished;
+  let retry;
+  const playable = () => practice.active ?? retry;
   let message = "";
   let outcome;
 
@@ -85,16 +87,17 @@ export default function puzzles(content) {
   }
 
   function legalFrom(from) {
-    return Object.values(practice.active?.puzzle.steps[practice.active.step]?.legal ?? {})
+    const active = playable();
+    return Object.values(active?.puzzle.steps[active.step]?.legal ?? {})
       .filter(move => move.from === from);
   }
 
   function canMove() {
-    return practice.active && !transition && !promotion;
+    return playable() && !transition && !promotion;
   }
 
   function render() {
-    const active = practice.active;
+    const active = playable();
     const puzzle = active?.puzzle ?? finished?.puzzle;
     const hearts = active?.hearts ?? finished?.hearts ?? 0;
     const position = animationPosition ?? (active ? currentPosition(active) : finished?.position);
@@ -126,12 +129,12 @@ export default function puzzles(content) {
     content.querySelector("[data-rating]").textContent = practice.rating;
     content.querySelector("[data-difficulty]").textContent = puzzle?.difficulty ?? "—";
     const heartLabel = content.querySelector(".puzzle-hearts");
-    heartLabel.hidden = !puzzle;
+    heartLabel.hidden = !puzzle || Boolean(retry);
     heartLabel.setAttribute("aria-label", `${hearts} of 3 hearts remaining`);
     heartLabel.innerHTML = `<span aria-hidden="true">${"♥".repeat(hearts)}${"♡".repeat(3 - hearts)}</span>`;
     content.querySelector(".puzzle-objective").textContent = transition
       ? `${colors[position.turn]} replies · ${categories[puzzle.category]}`
-      : active ? `${colors[puzzle.side]} to move · ${categories[puzzle.category]}`
+      : active ? `${colors[puzzle.side]} to move · ${retry ? "Unrated practice" : categories[puzzle.category]}`
       : puzzle ? categories[puzzle.category] : "";
     status.textContent = message;
     status.dataset.outcome = outcome ?? "";
@@ -156,9 +159,9 @@ export default function puzzles(content) {
         instructions.append(item);
       }
     }
-    skip.hidden = !active;
+    skip.hidden = !practice.active;
     skip.disabled = Boolean(transition);
-    next.hidden = Boolean(active || generating);
+    next.hidden = Boolean(practice.active || generating);
     next.disabled = Boolean(transition);
     next.textContent = finished ? "Next puzzle" : "Try again";
   }
@@ -190,6 +193,7 @@ export default function puzzles(content) {
     showSolution = false;
     stopAnimation();
     finished = null;
+    retry = null;
     outcome = null;
     generating = true;
     message = prefix ? `${prefix} Generating a fresh puzzle…` : "Generating a verified puzzle…";
@@ -235,21 +239,24 @@ export default function puzzles(content) {
     finished = { puzzle: active.puzzle, hearts: active.hearts, position: result === "solved"
       ? active.puzzle.steps[active.step - 1].afterMove ?? currentPosition(active)
       : currentPosition(active) };
+    if (result === "failed") retry = { ...active, hint: 0 };
     message = delta > 0 ? `Solved. Rating +${delta}.`
       : `${result === "solved" ? "Solved" : result === "skipped" ? "Skipped" : "Out of hearts"}. Rating ${delta < 0 ? "−" + Math.abs(delta) : "unchanged"}.`;
+    if (retry) message += " Keep trying in unrated practice.";
   }
 
   function attempt(move) {
-    const active = practice.active;
+    const active = playable();
     if (!active) return;
     const step = active.puzzle.steps[active.step];
     selected = null;
     if (step.move.from !== move.from || step.move.to !== move.to || step.move.promotion !== move.promotion) {
-      active.hearts--;
+      if (!retry) active.hearts--;
       playSound("wrong");
       wrong = move.from;
       clearTimeout(wrongTimer);
-      if (!active.hearts) resolve("failed");
+      if (retry) message = "That move misses the tactic. Keep trying.";
+      else if (!active.hearts) resolve("failed");
       else {
         outcome = "wrong";
         message = "That move misses the tactic. Try again.";
@@ -264,7 +271,13 @@ export default function puzzles(content) {
     active.step++;
     active.hint = 0;
     const solved = active.step === active.puzzle.steps.length;
-    if (solved) {
+    if (solved && retry) {
+      finished.position = step.afterMove ?? step.position;
+      retry = null;
+      outcome = "solved";
+      message = "Practice complete. Rating unchanged.";
+      playSound("solved");
+    } else if (solved) {
       resolve("solved");
       playSound("solved");
       const resultMessage = message;
@@ -273,7 +286,7 @@ export default function puzzles(content) {
       playSound("move");
       outcome = "correct";
       message = "Correct. Find the next move.";
-      savePractice(practice);
+      if (!retry) savePractice(practice);
     }
     if (!solved && step.afterMove && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       animationPosition = step.afterMove;
@@ -305,8 +318,9 @@ export default function puzzles(content) {
 
   function select(square) {
     if (!canMove()) return;
-    const position = currentPosition(practice.active);
-    if (position.board[square]?.[0] === practice.active.puzzle.side) {
+    const active = playable();
+    const position = currentPosition(active);
+    if (position.board[square]?.[0] === active.puzzle.side) {
       selected = selected === square ? null : square;
       render();
     } else if (selected) choose(selected, square);
@@ -342,12 +356,12 @@ export default function puzzles(content) {
   slot.addEventListener("dragend", () => { dragged = null; clearGhost?.(); }, listeners);
   hint.addEventListener("click", () => {
     if (!canMove()) return;
-    const active = practice.active;
+    const active = playable();
     active.hint = Math.min(2, (active.hint ?? 0) + 1);
     active.assisted = true;
     const { from, to } = active.puzzle.steps[active.step].move;
     message = `${active.hint === 1 ? `Move the piece on ${from}.` : `Move from ${from} to ${to}.`} Rating stays unchanged.`;
-    savePractice(practice);
+    if (!retry) savePractice(practice);
     render();
   }, listeners);
   solution.addEventListener("click", () => {

@@ -3,7 +3,7 @@ const settings = "exalted-chess-audio";
 const listeners = new Set();
 const replays = new Map();
 let replayId = 0;
-let sound = readSetting(settings) === "on";
+let sound = readSetting(settings) !== "off";
 let audio;
 let worker;
 let ready = false;
@@ -82,9 +82,9 @@ function receive({ kind, data, requestId }) {
       session.legal = null;
       session.movePending = false;
     }
-    const moves = Object.values(data.state.history).length;
-    if (moves > Object.values(prior?.state.history ?? {}).length) {
-      playSound(data.state.status === "check" ? "check" : data.state.history[moves - 1]?.captured ? "capture" : "move");
+    const moves = Object.values(data.state.history);
+    if (prior?.matchId === data.matchId && moves.length > Object.values(prior.state.history).length) {
+      playSound(data.state.status === "check" ? "check" : moves.at(-1)?.captured ? "capture" : "move");
     }
     session.match = data;
     session.notice = "";
@@ -250,14 +250,16 @@ const notes = {
 
 export function playSound(name) {
   if (!sound || !audio || audio.state !== "running") return;
-  const duration = name === "hover" ? .045 : name === "button" ? .075 : .14;
-  const level = name === "hover" ? .018 : name === "button" ? .04 : .08;
+  const duration = name === "hover" ? .065 : name === "button" ? .11 : .18;
+  const level = name === "hover" ? .065 : name === "button" ? .13 : .24;
   notes[name].forEach((frequency, index) => {
     const tone = audio.createOscillator();
     const volume = audio.createGain();
     const start = audio.currentTime + index * .1;
+    tone.type = "triangle";
     tone.frequency.value = frequency;
-    volume.gain.setValueAtTime(level, start);
+    volume.gain.setValueAtTime(.001, start);
+    volume.gain.exponentialRampToValueAtTime(level, start + .008);
     volume.gain.exponentialRampToValueAtTime(.001, start + duration - .01);
     tone.connect(volume).connect(audio.destination);
     tone.start(start);

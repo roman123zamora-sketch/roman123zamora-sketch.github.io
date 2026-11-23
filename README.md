@@ -163,7 +163,9 @@ While a puzzle is active, workers prepare candidates for up to five possible
 resulting ratings. Only the matching candidate is used and the rest are
 discarded. If that candidate is still being verified, the game waits for
 verification and can retry generation. A solve stops on the player’s final
-move, then advances automatically.
+move, then advances automatically. After three misses, the rating result is
+recorded once and the player can keep trying the same position as unrated
+practice, with or without the written solution.
 
 Browser storage holds the rating, selected category, generator seed, up to
 128 recent fingerprints, and the active puzzle with its exact progress. It

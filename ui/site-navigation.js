@@ -42,10 +42,22 @@ window.addEventListener("hashchange", navigate);
 navigate();
 
 const audio = document.querySelector("#audio");
-audio.setAttribute("aria-pressed", String(soundEnabled()));
-audio.addEventListener("click", () => audio.setAttribute("aria-pressed", String(toggleSound())));
+function showSoundSetting(enabled) {
+  audio.setAttribute("aria-pressed", String(enabled));
+  audio.title = enabled ? "Mute game sounds" : "Enable game sounds";
+}
+showSoundSetting(soundEnabled());
+audio.addEventListener("click", () => showSoundSetting(toggleSound()));
 const soundControl = 'button:not(:disabled):not([data-square]):not([aria-disabled="true"]), a[href]:not([aria-disabled="true"])';
-document.addEventListener("pointerdown", () => unlockSound(), { once: true });
+document.addEventListener("pointerdown", event => {
+  if (event.isTrusted && event.pointerType === "mouse" && !audio.contains(event.target)) unlockSound();
+}, { capture: true });
+document.addEventListener("pointerup", event => {
+  if (event.isTrusted && event.pointerType !== "mouse" && !audio.contains(event.target)) unlockSound();
+}, { capture: true });
+document.addEventListener("keydown", event => {
+  if (event.isTrusted && !audio.contains(event.target)) unlockSound();
+}, { capture: true });
 document.addEventListener("pointerover", event => {
   if (event.pointerType !== "mouse") return;
   const control = event.target.closest(soundControl);
