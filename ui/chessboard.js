@@ -88,6 +88,14 @@ export function board(theme, fourPlayer = false, sample = false, options = {}) {
       if (!corner && !sample) {
         const last = options.state?.lastMove;
         square.classList.toggle("last-move", [last?.from, last?.to].includes(address));
+        const suggestion = options.bestMove;
+        if (suggestion && (address === suggestion.from || address === suggestion.to)) {
+          const target = address === suggestion.to;
+          square.classList.add(target ? "best-move-to" : "best-move-from");
+          square.setAttribute("aria-label", square.getAttribute("aria-label") +
+            (target ? ", best move destination" : ", best move origin"));
+          if (target) square.append(marker("best-move-marker", "→"));
+        }
       }
       if (options.select && !corner) {
         square.type = "button";

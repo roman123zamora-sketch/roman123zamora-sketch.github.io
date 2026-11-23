@@ -60,7 +60,7 @@ export function createEvaluationBar(element) {
       getScore(state, key).then(async score => {
         if (generation !== current) return;
         display(score);
-        if (!review?.ply) return;
+        if (!onChange || !review?.ply) return;
         const previous = await getScore(review.positions[review.ply - 1], `review:${review.ply - 1}`);
         if (generation === current) onChange(score, previous);
       }).catch(() => {

@@ -1,3 +1,6 @@
+import { createPositionTools } from "../game/position-tools.js";
+import { createEvaluationBar } from "../ui/evaluation-bar.js";
+import { createBestMoveControl } from "../ui/review-best-move.js";
 import { board } from "../ui/chessboard.js";
 import { getTheme } from "../ui/board-themes.js";
 import { replay, session, subscribe } from "../game/session.js";
@@ -5,11 +8,15 @@ import { replay, session, subscribe } from "../game/session.js";
 export default function profile(content) {
   let disposed = false;
   let opening = false;
+  let replayTools;
+  let closeReplay;
   const panel = document.createElement("section");
   panel.className = "panel page";
   content.append(panel);
 
   function history() {
+    closeReplay?.();
+    closeReplay = undefined;
     opening = false;
     const data = session.profile;
     const stars = Object.values(data.botStars ?? {}).reduce((sum, value) => sum + value, 0);
@@ -38,7 +45,20 @@ export default function profile(content) {
         item.setAttribute("aria-busy", "true");
         item.textContent = "Loading replay…";
         try {
-          const positions = await replay(record);
+          let positions;
+          if (record.v === "four") positions = (await replay(record)).map(board => ({ board }));
+          else {
+            const worker = createPositionTools();
+            replayTools = worker;
+            try {
+              positions = Object.values(await worker.run("review", {
+                variant: "chess", moves: Object.values(record.moves)
+              }));
+            } finally {
+              worker.close();
+              if (replayTools === worker) replayTools = undefined;
+            }
+          }
           if (!disposed) showReplay(record, positions);
         } catch {
           opening = false;
@@ -60,19 +80,34 @@ export default function profile(content) {
         <h1 tabindex="-1">Match replay</h1>
         <button type="button" class="return-history">Back to history</button>
       </div>
-      <div class="replay-board"></div>
+      <div class="board-and-eval replay-board">
+        <div class="bot-eval" hidden aria-label="Engine estimate, in pawns">
+          <div class="eval-meter" aria-hidden="true"><div class="eval-white"></div></div>
+          <output></output>
+        </div>
+        <div class="board-slot"></div>
+      </div>
       <div class="action-row replay-actions">
         <button type="button" data-step="-1">Previous</button>
         <output aria-live="polite"></output>
         <button type="button" data-step="1">Next</button>
-      </div>`;
+        <button type="button" data-best-move>Show best move</button>
+      </div>
+      <p class="help best-move-status replay-best-move" role="status"></p>`;
     panel.querySelector(".return-history").addEventListener("click", history);
-    const output = panel.querySelector("output");
-    const holder = panel.querySelector(".replay-board");
+    const evaluation = createEvaluationBar(panel.querySelector(".bot-eval"));
+    const bestMove = createBestMoveControl(panel.querySelector("[data-best-move]"),
+      panel.querySelector(".best-move-status"), draw);
+    closeReplay = () => { evaluation.close(); bestMove.close(); };
+    const output = panel.querySelector(".replay-actions output");
+    const holder = panel.querySelector(".board-slot");
+    const match = { variant: record.v, side: record.side };
     const buttons = [...panel.querySelectorAll("[data-step]")];
     function draw() {
+      evaluation.update(match, { positions, ply });
+      bestMove.update(record.v === "chess" ? positions[ply] : undefined, record.v);
       holder.replaceChildren(board(getTheme(), record.v === "four", false, {
-        state: { board: positions[ply] }, side: record.side
+        state: positions[ply], side: record.side, bestMove: bestMove.move
       }));
       output.textContent = `Move ${ply} of ${positions.length - 1}`;
       buttons[0].disabled = ply === 0;
@@ -88,5 +123,5 @@ export default function profile(content) {
 
   history();
   const stop = subscribe(kind => { if (kind === "profile" && !opening) history(); });
-  return () => { disposed = true; stop(); };
+  return () => { disposed = true; replayTools?.close(); closeReplay?.(); stop(); };
 }

@@ -18,6 +18,38 @@ local function sq(file,rank)
  local column=squares[file]
  return column and column[rank]
 end
+local straight={{1,0},{-1,0},{0,1},{0,-1}}
+local diagonal={{1,1},{1,-1},{-1,1},{-1,-1}}
+local directions={table.unpack(straight)}
+for _,offset in ipairs(diagonal) do table.insert(directions,offset) end
+local offsets={{1,2},{2,1},{2,-1},{1,-2},{-1,-2},{-2,-1},{-2,1},{-1,2}}
+local filesByRank, knightTargets, rays = {}, {}, {}
+for rank=1,8 do
+ for file=1,8 do
+  local square=sq(file,rank)
+  table.insert(filesByRank,square)
+  local targets={}
+  for _,offset in ipairs(offsets) do
+   local target=sq(file+offset[1],rank+offset[2])
+   if target then table.insert(targets,target) end
+  end
+  knightTargets[square]=targets
+  local lines={}
+  for _,offset in ipairs(directions) do
+   local line={}
+   for distance=1,7 do
+    local target=sq(file+distance*offset[1],rank+distance*offset[2])
+    if not target then break end
+    table.insert(line,target)
+   end
+   table.insert(lines,line)
+  end
+  rays[square]=lines
+ end
+end
+local rights={"wK","wQ","bK","bQ"}
+local pawnOffsets={-1,1}
+
 function Engine.initial()
  local b={}; for x=1,8 do b[sq(x,2)]="wP"; b[sq(x,7)]="bP" end
  local row={"R","N","B","Q","K","B","N","R"}; for x=1,8 do b[sq(x,1)]="w"..row[x]; b[sq(x,8)]="b"..row[x] end
@@ -28,25 +60,33 @@ end
 local function attacked(board,target,by)
  local tx,ty=xy(target)
  local pawnY=ty+(by=="w" and -1 or 1)
- for _,dx in ipairs({-1,1}) do if board[sq(tx+dx,pawnY)]==by.."P" then return true end end
- for _,d in ipairs({{1,2},{2,1},{2,-1},{1,-2},{-1,-2},{-2,-1},{-2,1},{-1,2}}) do if board[sq(tx+d[1],ty+d[2])]==by.."N" then return true end end
- for _,d in ipairs({{1,0},{-1,0},{0,1},{0,-1},{1,1},{1,-1},{-1,1},{-1,-1}}) do
-  local x,y=tx+d[1],ty+d[2]; local distance=1
-  while sq(x,y) do local p=board[sq(x,y)]; if p then if string.sub(p,1,1)==by then local typ=string.sub(p,2,2); if typ=="Q" or (distance==1 and typ=="K") or (distance>=1 and ((d[1]==0 or d[2]==0) and typ=="R" or (d[1]~=0 and d[2]~=0 and typ=="B"))) then return true end end; break end; x+=d[1]; y+=d[2]; distance+=1 end
+ local pawn,knight,queen,king,rook,bishop=by.."P",by.."N",by.."Q",by.."K",by.."R",by.."B"
+ if board[sq(tx-1,pawnY)]==pawn or board[sq(tx+1,pawnY)]==pawn then return true end
+ for _,square in ipairs(knightTargets[target]) do if board[square]==knight then return true end end
+ for direction,line in ipairs(rays[target]) do
+  local slider=direction<=4 and rook or bishop
+  for distance,square in ipairs(line) do
+   local piece=board[square]
+   if piece then
+    if piece==slider or piece==queen or (distance==1 and piece==king) then return true end
+    break
+   end
+  end
  end
  return false
 end
 function Engine.inCheck(state,color)
- local king; for s,p in pairs(state.board) do if p==color.."K" then king=s; break end end
+ local king; local encoded=color.."K"; for s,p in pairs(state.board) do if p==encoded then king=s; break end end
  if not king then return true end
  return attacked(state.board,king,color=="w" and "b" or "w")
 end
-local function pseudo(state,from)
+local function pseudo(state,from,tacticalOnly)
  local p=state.board[from]; if not p then return {} end
  local color,typ=string.sub(p,1,1),string.sub(p,2,2); local x,y=xy(from); local out={}
  local function add(to,promotion,special)
   if not to then return end
   local target=state.board[to]
+  if tacticalOnly and not target and not promotion and special~="enpassant" then return end
   if target and (string.sub(target,1,1)==color or string.sub(target,2,2)=="K") then return end
   if promotion then
    for _,kind in ipairs({"Q","R","B","N"}) do table.insert(out,{from=from,to=to,promotion=kind}) end
@@ -57,12 +97,19 @@ local function pseudo(state,from)
  if typ=="P" then
   local dir=color=="w" and 1 or -1; local ny=y+dir
   if sq(x,ny) and not state.board[sq(x,ny)] then add(sq(x,ny),ny==(color=="w" and 8 or 1) and "Q" or nil); if y==(color=="w" and 2 or 7) and not state.board[sq(x,y+2*dir)] then add(sq(x,y+2*dir),nil,"double") end end
-  for _,dx in ipairs({-1,1}) do local to=sq(x+dx,ny); if to and state.board[to] and string.sub(state.board[to],1,1)~=color then add(to,ny==(color=="w" and 8 or 1) and "Q" or nil) elseif to and to==state.ep and state.board[sq(x+dx,y)]==(color=="w" and "bP" or "wP") then add(to,nil,"enpassant") end end
- elseif typ=="N" then for _,d in ipairs({{1,2},{2,1},{2,-1},{1,-2},{-1,-2},{-2,-1},{-2,1},{-1,2}}) do add(sq(x+d[1],y+d[2])) end
+  for _,dx in ipairs(pawnOffsets) do local to=sq(x+dx,ny); if to and state.board[to] and string.sub(state.board[to],1,1)~=color then add(to,ny==(color=="w" and 8 or 1) and "Q" or nil) elseif to and to==state.ep and state.board[sq(x+dx,y)]==(color=="w" and "bP" or "wP") then add(to,nil,"enpassant") end end
+ elseif typ=="N" then
+  for _,target in ipairs(knightTargets[from]) do add(target) end
  else
-  local dirs={}; if typ=="R" or typ=="Q" or typ=="K" then for _,d in ipairs({{1,0},{-1,0},{0,1},{0,-1}}) do table.insert(dirs,d) end end; if typ=="B" or typ=="Q" or typ=="K" then for _,d in ipairs({{1,1},{1,-1},{-1,1},{-1,-1}}) do table.insert(dirs,d) end end
-  for _,d in ipairs(dirs) do local nx,ny=x+d[1],y+d[2]; while sq(nx,ny) do local to=sq(nx,ny); if state.board[to] then add(to); break else add(to) end; if typ=="K" then break end; nx+=d[1]; ny+=d[2] end end
-  if typ=="K" and not Engine.inCheck(state,color) then local rank=color=="w" and 1 or 8
+  local first=typ=="B" and 5 or 1
+  local last=typ=="R" and 4 or 8
+  for direction=first,last do
+   for _,target in ipairs(rays[from][direction]) do
+    add(target)
+    if state.board[target] or typ=="K" then break end
+   end
+  end
+  if typ=="K" and not tacticalOnly and not Engine.inCheck(state,color) then local rank=color=="w" and 1 or 8
    for _,side in ipairs({"K","Q"}) do local rookFile=side=="K" and 8 or 1; if x==5 and y==rank and state.castling[color..side] and state.board[sq(rookFile,rank)]==color.."R" then local step=side=="K" and 1 or -1; local clear=true; for fx=x+step,rookFile-step,step do if state.board[sq(fx,rank)] then clear=false end end; local safe=true; for fx=x+step,x+2*step,step do if attacked(state.board,sq(fx,rank),color=="w" and "b" or "w") then safe=false end end; if clear and safe then add(sq(x+2*step,rank),nil,"castle"..side) end end end
   end
  end
@@ -90,7 +137,7 @@ local function legalForColor(state,color,tactical,firstOnly)
  local out={}
  for from,piece in pairs(state.board) do
   if string.sub(piece,1,1)==color then
-   for _,move in ipairs(pseudo(state,from)) do
+   for _,move in ipairs(pseudo(state,from,tactical==true)) do
     local isTactical=state.board[move.to]~=nil or move.promotion~=nil or move.special=="enpassant"
     if not tactical or (tactical=="quiet" and not isTactical) or (tactical==true and isTactical) then
      local child=applyPosition(state,move)
@@ -124,14 +171,14 @@ end
 -- A repetition includes en passant only when the side to move can legally capture.
 function Engine.positionKey(state)
  local parts={state.turn}
- for _,right in ipairs({"wK","wQ","bK","bQ"}) do
+ for _,right in ipairs(rights) do
   table.insert(parts,state.castling[right] and right or "-")
  end
  local ep="-"
  if state.ep then
   local x,y=xy(state.ep)
   local rank=y+(state.turn=="w" and -1 or 1)
-  for _,dx in ipairs({-1,1}) do
+  for _,dx in ipairs(pawnOffsets) do
    local from=sq(x+dx,rank)
    if from and state.board[from]==state.turn.."P" then
     for _,move in ipairs(Engine.legalMoves(state,from)) do
@@ -141,9 +188,7 @@ function Engine.positionKey(state)
   end
  end
  table.insert(parts,ep)
- for rank=1,8 do
-  for file=1,8 do table.insert(parts,state.board[sq(file,rank)] or "-") end
- end
+ for _,square in ipairs(filesByRank) do table.insert(parts,state.board[square] or "-") end
  return table.concat(parts,"/")
 end
 

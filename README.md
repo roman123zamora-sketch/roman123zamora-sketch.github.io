@@ -130,7 +130,9 @@ this sample only.
 
 Finished matches offer a rematch and a move-by-move review. In standard
 chess, review reconstructs the position after each move and uses the original
-engine to estimate how the balance changed. During live play, the evaluation
+engine to estimate how the balance changed. Show best move highlights the
+engine’s recommendation for the side to move. Standard matches opened from
+Profile history also show the evaluation bar. During live play, the evaluation
 bar is available only in standard bot games. Four-player review uses recorded
 board positions. Online New Game queues for a different opponent through the
 optional match server.

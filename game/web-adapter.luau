@@ -102,6 +102,17 @@ return function(op, time, id, first, second)
  if op == "catalog" then return boardCatalog end
  if op == "puzzle" then return modules.PuzzleSearch.generate(modules.ChessEngine,modules.BotEngine,first) end
  if op == "analysis" then return modules.BotEngine.analyze(modules.ChessEngine,first) end
+ if op == "bestMove" then
+  local state=first.state
+  local engine=first.variant=="four" and modules.FourPlayerEngine or modules.ChessEngine
+  if state.analysis then
+   state.castling=state.analysis.castling
+   state.ep=state.analysis.ep
+   state.positions=state.analysis.positions
+  end
+  local move=modules.BotEngine.choose(engine,state,1200,{timeMs=220,depth=5,nodes=18000})
+  return {move=move}
+ end
  if op == "lesson" then
   local results={}
   for _,example in ipairs(first) do

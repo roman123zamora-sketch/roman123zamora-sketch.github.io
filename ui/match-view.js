@@ -1,3 +1,4 @@
+import { createBestMoveControl } from "./review-best-move.js";
 import { createPositionTools } from "../game/position-tools.js";
 import { createEvaluationBar } from "./evaluation-bar.js";
 import { bindTouchBoard } from "../game/touch-board.js";
@@ -76,8 +77,10 @@ export function renderMatch(content, { title, fourPlayer }) {
             <button type="button" data-action="reviewPrevious" aria-label="Previous move">←</button>
             <output aria-live="polite"></output>
             <button type="button" data-action="reviewNext" aria-label="Next move">→</button>
+            <button type="button" data-best-move>Show best move</button>
             <button type="button" data-action="reviewExit">Exit review</button>
           </div>
+          <p class="help best-move-status" role="status"></p>
           <p class="help review-analysis" aria-live="polite"></p>
         </div>
         <div class="match-actions"></div>
@@ -111,6 +114,8 @@ export function renderMatch(content, { title, fourPlayer }) {
   const dialog = content.querySelector("dialog:not(.result-dialog)");
   const resultDialog = content.querySelector(".result-dialog");
   const reviewControls = content.querySelector(".review-controls");
+  const bestMove = createBestMoveControl(reviewControls.querySelector("[data-best-move]"),
+    reviewControls.querySelector(".best-move-status"), drawBoard);
   const reviewAnalysis = content.querySelector(".review-analysis");
   const match = () => session.match?.variant === variant ? session.match : null;
   const result = () => match()?.matchId === session.result?.matchId ? session.result : null;
@@ -237,6 +242,7 @@ export function renderMatch(content, { title, fourPlayer }) {
     });
     slot.replaceChildren(board(getTheme(), fourPlayer, false, {
       state: review?.positions[review.ply] ?? data?.state, side: data?.side, selected, targets: selected ? currentTargets() : [],
+      bestMove: review ? bestMove.move : undefined,
       select: active() ? select : undefined, marks: review ? undefined : marks,
       mark: address => { if (marks.has(address)) marks.delete(address); else marks.add(address); }
     }));
@@ -266,6 +272,8 @@ export function renderMatch(content, { title, fourPlayer }) {
 
   function drawReview() {
     reviewControls.hidden = !review;
+    bestMove.update(review?.positions[review.ply], variant);
+    if (!review) bestMove.close();
     if (!review) return;
     const { ply, positions, history } = review;
     const move = history[ply - 1];
@@ -753,6 +761,7 @@ export function renderMatch(content, { title, fourPlayer }) {
     reviewTools = undefined;
     subscription();
     evaluation.close();
+    bestMove.close();
     clearBoardInput();
     touch.destroy();
     cancelAnimationFrame(scrollFrame);

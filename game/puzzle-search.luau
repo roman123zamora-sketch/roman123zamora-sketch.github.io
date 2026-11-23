@@ -77,6 +77,7 @@ local function checkmate(engine,state,moves,rating,stop)
  if #mates==1 then return {mates[1]}, nil, 400 end
  if #mates~=0 or rating<600 then return nil end
  local proven
+ local quiet={}
  -- Establish at least one forcing candidate before comparing quiet alternatives.
  for _,move in ipairs(moves) do
   if forcing(engine,state,move,engine.searchApply(state,move)) then
@@ -85,11 +86,13 @@ local function checkmate(engine,state,moves,rating,stop)
     if proven or not unique then return nil end
     proven=line
    end
+  else
+   table.insert(quiet,move)
   end
  end
  if not proven then return nil end
- for _,move in ipairs(moves) do
-  if not forcing(engine,state,move,engine.searchApply(state,move)) and mateInTwo(engine,state,move,stop) then
+ for _,move in ipairs(quiet) do
+  if mateInTwo(engine,state,move,stop) then
    return nil
   end
  end
@@ -193,16 +196,25 @@ local function material(engine,state,moves,rating,stop)
  end)
  if potential(state,moves[1])<300 then return nil end
  local choice,score,tail
+ local tested={}
+ local qualifying=initial+300
  for _,move in ipairs(moves) do
   if potential(state,move)<300 then break end
-  local value,line=defense(engine,state,move,owner,stop,initial+300)
-  if value>=initial+300 and (not score or value>score) then choice,score,tail=move,value,line end
+  local value,line=defense(engine,state,move,owner,stop,qualifying)
+  tested[move]=value
+  if value>=qualifying and (not score or value>score) then choice,score,tail=move,value,line end
  end
  if not choice then return nil end
  local threshold=score-100
  for _,move in ipairs(moves) do
-  if moveID(move)~=moveID(choice) and defense(engine,state,move,owner,stop,threshold)>=threshold then
-   return nil
+  if move~=choice then
+   local value=tested[move]
+   -- Below the qualifying cutoff, a stopped search gives an upper bound.
+   -- Reuse it only when it already rules this alternative out.
+   if value==nil or (value<qualifying and value>=threshold) then
+    value=defense(engine,state,move,owner,stop,threshold)
+   end
+   if value>=threshold then return nil end
   end
  end
  local line=prepend(choice,tail)

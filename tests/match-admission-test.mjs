@@ -63,3 +63,19 @@ assert.equal((await action(black, "queue"))[0].kind, "queued");
 const newGame = (await action(3, "queue")).filter(event => event.kind === "state");
 assert.deepEqual(new Set(newGame.map(event => event.user)), new Set([white, 3]));
 console.log("Review snapshots and New Game opponent exclusion passed.");
+
+const suggestion = await dispatch("bestMove", time, 0, { variant: "chess", state: reviewed[1] });
+assert.equal(reviewed[1].board[suggestion.move.from][0], "b");
+const replyFrames = await dispatch("review", time, 0, { variant: "chess", moves: [
+  { f: "e2", t: "e4", c: "w" },
+  { f: suggestion.move.from, t: suggestion.move.to, p: suggestion.move.promotion, c: "b" }
+] });
+assert.equal(replyFrames.at(-1).turn, "w");
+const mateFrames = await dispatch("review", time, 0, { variant: "chess", moves: [
+  { f: "f2", t: "f3", c: "w" }, { f: "e7", t: "e5", c: "b" },
+  { f: "g2", t: "g4", c: "w" }, { f: "d8", t: "h4", c: "b" }
+] });
+const winningMove = await dispatch("bestMove", time, 0, { variant: "chess", state: mateFrames[3] });
+assert.deepEqual(winningMove.move, { from: "d8", to: "h4" });
+assert.deepEqual(await dispatch("bestMove", time, 0, { variant: "chess", state: mateFrames[4] }), {});
+console.log("Best-move analysis returns a legal reply or forced mate, and handles game over.");

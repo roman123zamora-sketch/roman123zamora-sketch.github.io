@@ -155,3 +155,19 @@ button.square:focus-visible { z-index: 2; outline: 2px solid var(--square-focus)
   color: var(--text);
   overflow-wrap: anywhere;
 }
+
+.square.best-move-from { outline: 2px dashed #ffcf71; outline-offset: -3px; }
+.square.best-move-to { outline: 2px solid #ffcf71; outline-offset: -3px; }
+.best-move-marker {
+  position: absolute;
+  inset-block-start: .1em;
+  inset-inline-end: .15em;
+  z-index: 2;
+  color: #172841;
+  background: #ffcf71;
+  border-radius: .25em;
+  padding-inline: .2em;
+  line-height: 1;
+}
+.best-move-status:empty { display: none; }
+.replay-best-move { text-align: center; }
