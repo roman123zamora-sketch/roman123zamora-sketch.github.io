@@ -426,7 +426,7 @@ export function renderMatch(content, { title, fourPlayer }) {
     const selector = ratings.map(side => `
       <label class="rating-choice">${side === "w" ? "Bot rating" : sides[side] + " bot rating"}
         <select data-rating="${side}">
-          ${Array.from({ length: 11 }, (_, i) => 400 + 200 * i).map(rating =>
+          ${Array.from({ length: 14 }, (_, i) => 400 + 200 * i).map(rating =>
             `<option${rating === preferences[side] ? " selected" : ""}>${rating}</option>`).join("")}
         </select>
       </label>`).join("");

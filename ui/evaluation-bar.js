@@ -19,13 +19,17 @@ export function createEvaluationBar(element) {
     const share = score?.kind === "mate" ? (score.side === "w" ? 100 : 0) :
       50 + 48 * Math.tanh((score?.value ?? 0) / 480);
     white.style.blockSize = share + "%";
+    caption.removeAttribute("title");
     if (!score) caption.textContent = "…";
     else if (score.kind === "mate") {
       const side = score.side === "w" ? "White" : "Black";
-      caption.textContent = score.moves ? `${side} · Mate in ${score.moves}` : `${side} · Checkmate`;
+      caption.textContent = score.moves ? `${side} · M${score.moves}` : `${side} · Checkmate`;
+      caption.title = score.moves ? `${side} can force mate in ${score.moves}` : `${side} delivered checkmate`;
     } else {
-      const rounded = Number((score.value / 100).toFixed(1));
-      caption.textContent = rounded === 0 ? "Equal" : `${rounded > 0 ? "White" : "Black"} +${Math.abs(rounded).toFixed(1)}`;
+      const pawns = (score.value / 100).toFixed(2);
+      caption.textContent = Number(pawns) === 0 ? "0.00 · Equal" : `${score.value > 0 ? "+" : ""}${pawns.replace("-", "−")}`;
+      const whiteShare = Math.round(share);
+      caption.title = `Engine estimate in pawns from White’s perspective. Bar split: White ${whiteShare}%, Black ${100 - whiteShare}%.`;
     }
   }
 

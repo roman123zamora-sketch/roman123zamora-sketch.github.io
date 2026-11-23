@@ -127,3 +127,11 @@
 .result-dialog .action-row { gap: .65rem; margin-block-start: 1.35rem; }
 .result-dialog .action-row button { min-block-size: 2.85rem; padding: .6rem 1rem; flex: 1 0 auto; }
 .result-close { min-inline-size: 2.75rem; min-block-size: 2.75rem; font-size: 1.25rem; }
+
+/* Give the board room on short landscape screens without changing portrait sizing. */
+@media (orientation: landscape) and (max-height: 48rem) {
+  .match .board-and-eval {
+    max-inline-size: max(17rem, calc(100svh - 8rem));
+  }
+  .match .board-status { margin-block-start: .45rem; }
+}

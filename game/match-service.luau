@@ -238,7 +238,7 @@ local function newMatch(players,mode,setting)
   local control=type(setting)=="table" and setting or {}; local base=math.clamp(tonumber(control.baseSeconds) or 180,60,900); local increment=math.clamp(tonumber(control.increment) or 0,0,10)
   m.clocks={R=base,B=base,Y=base,G=base}; m.increment=increment; m.turnStarted=workspace:GetServerTimeNow()+20; m.rematchControl={baseSeconds=base,increment=increment}
  end
- if mode=="fourBot" then local requested=setting or {}; for _,c in ipairs({"B","Y","G"}) do m.botRatings[c]=tonumber(requested[c]) or 1000 end end
+ if mode=="fourBot" then local requested=setting or {}; for _,c in ipairs({"B","Y","G"}) do m.botRatings[c]=Bot.clampRating(requested[c]) end end
  matches[id]=m; for _,p in ipairs(players) do playerMatch[p.UserId]=id end; pair(m); return m
 end
 local function snapshot(m) table.insert(m.snapshots,fourMode(m) and copy(m.state) or m.state) end
@@ -344,7 +344,7 @@ end
 
 local function searchBot(m,engine,generation,rating)
  local position=m.state
- local options={}
+ local options={gameplay=true}
  if task.cooperativeSearch then
   options.checkpoint=function()
    task.wait(0)
@@ -544,7 +544,7 @@ Action.OnServerEvent:Connect(function(p,kind,data)
    return
   end
   local settings
-  if kind=="bot" then settings=tonumber(data and data.rating) or 1000
+  if kind=="bot" then settings=Bot.clampRating(data and data.rating)
   else settings=data and data.ratings or {} end
   newMatch({p},kind,settings)
  elseif kind=="queue" then

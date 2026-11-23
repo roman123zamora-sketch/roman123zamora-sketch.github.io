@@ -130,6 +130,7 @@ button.square:focus-visible { z-index: 2; outline: 2px solid var(--square-focus)
 }
 .bot-eval[hidden] { display: none; }
 .eval-meter {
+  position: relative;
   display: flex;
   flex: 1;
   flex-direction: column-reverse;
@@ -137,6 +138,16 @@ button.square:focus-visible { z-index: 2; outline: 2px solid var(--square-focus)
   border: 1px solid var(--stroke);
   border-radius: .35rem;
   overflow: hidden;
+}
+.eval-meter::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(#8ca0b4, #8ca0b4) center / 100% 2px no-repeat,
+    linear-gradient(#8ca0b4, #8ca0b4) center 25% / 45% 1px no-repeat,
+    linear-gradient(#8ca0b4, #8ca0b4) center 75% / 45% 1px no-repeat;
 }
 .eval-meter.white-on-top { flex-direction: column; }
 .eval-white {
@@ -158,16 +169,5 @@ button.square:focus-visible { z-index: 2; outline: 2px solid var(--square-focus)
 
 .square.best-move-from { outline: 2px dashed #ffcf71; outline-offset: -3px; }
 .square.best-move-to { outline: 2px solid #ffcf71; outline-offset: -3px; }
-.best-move-marker {
-  position: absolute;
-  inset-block-start: .1em;
-  inset-inline-end: .15em;
-  z-index: 2;
-  color: #172841;
-  background: #ffcf71;
-  border-radius: .25em;
-  padding-inline: .2em;
-  line-height: 1;
-}
 .best-move-status:empty { display: none; }
 .replay-best-move { text-align: center; }

@@ -83,7 +83,7 @@ function respond(response, code, body) {
 function selectData(kind, data) {
   const input = data && typeof data === "object" ? data : {};
   const address = value => typeof value === "string" && /^[a-n](?:[1-9]|1[0-4])$/.test(value) ? value : undefined;
-  const rating = value => Number.isFinite(value) ? Math.max(400, Math.min(2400, value)) : 1000;
+  const rating = value => Number.isFinite(value) ? Math.max(400, Math.min(3000, value)) : 1000;
   const number = value => Number.isSafeInteger(value) ? value : undefined;
   const context = {
     matchId: typeof input.matchId === "string" ? input.matchId.slice(0, 64) : undefined,

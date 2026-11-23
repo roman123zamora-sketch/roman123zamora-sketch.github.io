@@ -34,6 +34,16 @@ assert(legal(Chess,start,mover))
 assert(Chess.positionKey(start)==key and #start.history==0 and start.positions[key]==1)
 assert(Chess.allLegal(start,"b")[1] and start.turn=="w")
 
+-- Live difficulty can choose a weaker legal move without weakening analysis.
+local function fixedRandom() return 0 end
+local best,bestInfo=Bot.choose(Chess,start,400,{depth=1,timeMs=350})
+local beginner,beginnerInfo=Bot.choose(Chess,start,400,{depth=1,timeMs=350,gameplay=true,random=fixedRandom})
+assert(legal(Chess,start,beginner) and beginnerInfo.score<bestInfo.score)
+assert(beginner.from~=best.from or beginner.to~=best.to)
+local strongest=Bot.choose(Chess,start,3000,{depth=1,timeMs=350,gameplay=true,random=fixedRandom})
+assert(strongest.from==best.from and strongest.to==best.to)
+assert(Bot.clampRating(4000)==3000 and Bot.ratings[#Bot.ratings]==3000)
+
 local four=Four.initial()
 local order={"R","B","Y","G"}
 for _,side in ipairs(order) do

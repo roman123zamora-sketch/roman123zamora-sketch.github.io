@@ -94,7 +94,6 @@ export function board(theme, fourPlayer = false, sample = false, options = {}) {
           square.classList.add(target ? "best-move-to" : "best-move-from");
           square.setAttribute("aria-label", square.getAttribute("aria-label") +
             (target ? ", best move destination" : ", best move origin"));
-          if (target) square.append(marker("best-move-marker", "→"));
         }
       }
       if (options.select && !corner) {

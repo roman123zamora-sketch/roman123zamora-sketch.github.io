@@ -106,12 +106,14 @@ The persistent file stores player profiles and results.
 
 ## Engine limits and comparison
 
-The bots search deterministically. The bot rating selector changes search effort.
-The default wall-clock ceiling in `game/engine/bot-search.luau` is 220 ms per bot
-turn, with a level-dependent depth and node cap. The existing `Bot.choose`
-function also accepts optional `timeMs`, `depth`, and `nodes` overrides. Browser
-search runs in the match worker, yielding at checkpoints so reset, undo and
-leave can invalidate outstanding work.
+The bot selector ranges from 400 to 3000 in 200-point steps. These settings
+are approximate difficulty labels. Lower levels sometimes choose a weaker
+legal move, with the frequency and tolerance decreasing as difficulty rises.
+The 2600, 2800 and 3000 levels increase search time, depth and node caps
+above the usual 220 ms ceiling. The 3000 level has a 700 ms default ceiling.
+Analysis and puzzle verification use the original move selection. Browser
+bot search runs in the match worker, yielding at checkpoints so reset, undo
+and leave can invalidate outstanding work.
 
 To compare standard-chess search against the previous implementation, use a
 checkout with commit `e4b8329` available:

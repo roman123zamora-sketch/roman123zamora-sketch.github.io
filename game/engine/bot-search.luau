@@ -1,8 +1,8 @@
--- Exalted Chess search. Rating preferences select effort, without random moves.
+-- Exalted Chess search. Live bot difficulty controls effort and how consistently it finds strong moves.
 local Bot={}
 local MATE=100000
 local values={P=100,N=310,B=330,R=500,Q=900,K=20000}
-local levels={400,600,800,1000,1200,1400,1600,1800,2000,2200,2400}
+local levels={400,600,800,1000,1200,1400,1600,1800,2000,2200,2400,2600,2800,3000}
 Bot.ratings=levels
 Bot.limits={timeMs=220,depth=7,nodes=24000}
 local files="abcdefgh"
@@ -271,14 +271,43 @@ local function fourVisit(engine,state,depth,alpha,beta,search,ply)
  return best
 end
 
+function Bot.clampRating(rating)
+ return math.clamp(tonumber(rating) or 1000,400,levels[#levels])
+end
+
+local function pickImperfect(candidates,bestScore,rating,random)
+ local weakness=math.clamp((1800-rating)/1400,0,1)
+ if #candidates<=1 or random()>=weakness*.92 then return nil end
+ local alternatives={}
+ local total=0
+ local tolerance=60+370*weakness
+ for _,candidate in ipairs(candidates) do
+  local loss=math.min(bestScore,950)-candidate.score
+  if loss>0 and loss<=tolerance then
+   local weight=1-loss/(tolerance+1)
+   total+=weight
+   table.insert(alternatives,{candidate=candidate,limit=total})
+  end
+ end
+ local roll=random()*total
+ for _,alternative in ipairs(alternatives) do
+  if roll<alternative.limit then return alternative.candidate end
+ end
+end
+
 function Bot.choose(engine,state,rating,options)
  options=options or {}
  local clock=options.clock or os.clock
- local effort=math.clamp(((tonumber(rating) or 1000)-400)/2000,0,1)
+ rating=Bot.clampRating(rating)
+ local effort=math.min((rating-400)/2000,1)
+ local extra=options.gameplay and math.max(0,(rating-2400)/600) or 0
+ local candidates=options.gameplay and rating<1800 and {} or nil
+ local baseDepth=2+effort*(Bot.limits.depth-2)+3*extra
+ if candidates then baseDepth-=math.max(0,(1000-rating)/600) end
  local limits=Bot.limits
- local maxDepth=math.floor(math.clamp(options.depth or (2+effort*(limits.depth-2)),1,12))
- local search={deadline=clock()+(options.timeMs or limits.timeMs)/1000,clock=clock,
-  checkpoint=options.checkpoint,lastYield=clock(),maxNodes=options.nodes or math.floor(3200+effort*(limits.nodes-3200)),
+ local maxDepth=math.floor(math.clamp(options.depth or baseDepth,1,12))
+ local search={deadline=clock()+(options.timeMs or (limits.timeMs+480*extra))/1000,clock=clock,
+  checkpoint=options.checkpoint,lastYield=clock(),maxNodes=options.nodes or math.floor(3200+effort*(limits.nodes-3200)+48000*extra),
   nodes=0,entries=0,table={},history={},killers={},path={},root=state.turn,rootPositions=state.positions or {}}
  local moves=engine.allLegal(state)
  if #moves==0 then return nil end
@@ -298,19 +327,22 @@ function Bot.choose(engine,state,rating,options)
   orderMoves(state,moves,best.searchId,search,0)
   local iterationBest
   local alpha=-MATE
+  local collect=candidates and depth==1
   for _,move in ipairs(moves) do
    local score
+   local lower=collect and -MATE or alpha
    if standard then
     local child=engine.searchApply(state,move)
     local key=engine.positionKey(child)
     search.path[key]=1
-    local reply=standardVisit(engine,child,depth-1,-MATE,-alpha,search,1,0,key)
+    local reply=standardVisit(engine,child,depth-1,-MATE,-lower,search,1,0,key)
     search.path[key]=nil
     if reply~=nil then score=-reply end
    else
-    score=fourVisit(engine,advanceFour(engine,state,move),depth-1,alpha,MATE,search,1)
+    score=fourVisit(engine,advanceFour(engine,state,move),depth-1,lower,MATE,search,1)
    end
    if score==nil then iterationBest=nil; break end
+   if collect then table.insert(candidates,{move=move,score=score}) end
    if not iterationBest or score>alpha then alpha=score; iterationBest=move end
   end
   if not iterationBest then break end
@@ -319,6 +351,12 @@ function Bot.choose(engine,state,rating,options)
   if math.abs(alpha)>MATE-1000 then break end
  end
  if search.cancelled then return nil end
+ if candidates and #candidates==#moves and completed>0 then
+  local strongest=candidates[1].score
+  for _,candidate in ipairs(candidates) do strongest=math.max(strongest,candidate.score) end
+  local picked=pickImperfect(candidates,strongest,rating,options.random or math.random)
+  if picked then best,completedScore=picked.move,picked.score end
+ end
  -- The order key is private; preserve the move contract for all callers.
  return {from=best.from,to=best.to,promotion=best.promotion,special=best.special},
   {depth=completed,nodes=search.nodes,score=completedScore}
