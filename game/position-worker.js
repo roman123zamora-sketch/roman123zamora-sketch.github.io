@@ -15,4 +15,6 @@ self.onmessage = async ({ data: { op, payload, id } }) => {
   }
 };
 
-self.postMessage({ ready: true });
+runtime.then(() => self.postMessage({ ready: true })).catch(error => {
+  self.postMessage({ startupError: String(error) });
+});

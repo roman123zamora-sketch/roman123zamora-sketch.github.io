@@ -157,8 +157,16 @@ local function recordHistory(m,p,side,result,reason,place)
  if m.mode=="bot" then opp={"Exalted Bot"}
  elseif m.mode=="fourBot" then opp={"Bots"}
  else for _,o in ipairs(m.players) do if o~=p then table.insert(opp,o.DisplayName or o.Name) end end end
+ local fourStates
+ if fourMode(m) then
+  fourStates={}
+  for _,state in ipairs(m.snapshots) do
+   table.insert(fourStates,{turn=state.turn,eliminated=state.eliminated})
+  end
+  table.insert(fourStates,{turn=m.state.turn,eliminated=m.state.eliminated})
+ end
  prof.history=prof.history or {}
- table.insert(prof.history,1,{v=fourMode(m) and "four" or "chess",mode=m.mode,result=result,reason=reason,ts=os.time(),side=side,place=place,opp=table.concat(opp,", "),moves=moves})
+ table.insert(prof.history,1,{v=fourMode(m) and "four" or "chess",mode=m.mode,result=result,reason=reason,ts=os.time(),side=side,place=place,opp=table.concat(opp,", "),moves=moves,fourStates=fourStates})
  while #prof.history>20 do table.remove(prof.history,#prof.history) end
  saveProfile(p); send(p,"profile",profileView(p))
 end
@@ -219,6 +227,12 @@ local function newMatch(players,mode,setting)
   occupied[p.UserId]=true
  end
  for _,p in ipairs(players) do
+  local priorId=lastMatchId[p.UserId]
+  local prior=matches[priorId]
+  if prior and (prior.mode=="bot" or prior.mode=="fourBot") then
+   matches[priorId]=nil
+   lastMatchId[p.UserId]=nil
+  end
   clearQueue(p,queue); clearQueue(p,queueFour); queueControls[p.UserId]=nil
  end
  local id=HttpService:GenerateGUID(false); local sides={}
@@ -674,7 +688,7 @@ Action.OnServerEvent:Connect(function(p,kind,data)
    m.resultsSent[p.UserId]=true; playerMatch[p.UserId]=nil
    normalizeFour(m); pair(m)
   else
-   m.over=true; m.botGeneration+=1; playerMatch[p.UserId]=nil
+   m.over=true; m.botGeneration+=1; playerMatch[p.UserId]=nil; matches[id]=nil
   end
  elseif kind=="cancelQueue" then
   clearQueue(p,queue); clearQueue(p,queueFour); queueControls[p.UserId]=nil

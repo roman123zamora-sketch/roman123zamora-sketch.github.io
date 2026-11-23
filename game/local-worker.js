@@ -49,5 +49,9 @@ function scheduleTick() {
 }
 
 onmessage = ({ data }) => run(data.op, data.first, data.second, data.requestId);
-scheduleTick();
-postMessage({ kind: "ready" });
+runtime.then(() => {
+  scheduleTick();
+  postMessage({ kind: "ready" });
+}).catch(error => {
+  postMessage({ kind: "workerFailed", data: String(error) });
+});

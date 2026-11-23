@@ -88,7 +88,7 @@ end
 }
 
 globalThis.localStorage = { getItem: () => null, setItem() {} };
-const { possibleRatings, resolvePuzzle } = await import("../game/puzzle-progress.js");
+const { loadPractice, possibleRatings, resolvePuzzle } = await import("../game/puzzle-progress.js");
 for (const [result, hearts, delta] of [
   ["solved", 3, 16], ["solved", 2, 8], ["solved", 1, -8], ["failed", 0, -16], ["skipped", 3, 0]
 ]) {
@@ -106,4 +106,10 @@ for (const [result, hearts, delta] of [
 assert.deepEqual([...possibleRatings({
   rating: 400, active: { puzzle: { difficulty: 400 }, hearts: 3 }
 })].sort((a, b) => a - b), [384, 392, 400, 408, 416]);
+localStorage.getItem = () => JSON.stringify({
+  rating: 567, category: "checkmate", recent: ["last-puzzle"], seed: 0, active: { step: 5, hearts: 2 }
+});
+assert.deepEqual(loadPractice(), {
+  rating: 567, category: "checkmate", recent: ["last-puzzle"], seed: 1, active: null
+});
 console.log("Legal histories, one- and two-move mates, all mate defenses, settled material, fresh seeds, and every rating outcome passed.");

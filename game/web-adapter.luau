@@ -142,26 +142,35 @@ return function(op, time, id, first, second)
  elseif op == "replay" or op == "review" then
   local reviewing=op=="review"
   local variant,moves=first,second
-  if reviewing then variant,moves=first.variant,first.moves end
+  local fourStates
+  if reviewing then variant,moves,fourStates=first.variant,first.moves,first.fourStates end
   local engine=variant=="four" and modules.FourPlayerEngine or modules.ChessEngine
   local state=engine.initial()
-  local function snapshot()
+  local function snapshot(ply)
+   local recorded=fourStates and fourStates[ply]
+   if recorded then state.turn=recorded.turn; state.eliminated=recorded.eliminated end
    if not reviewing then return state.board end
    local view=engine.public(state)
    view.history=nil
    if variant=="chess" then
     view.analysis={castling=state.castling,ep=state.ep,positions=state.positions}
+   else
+    view.checkedColors={}
+    for _,color in ipairs(engine.colors) do
+     if not state.eliminated[color] and engine.inCheck(state,color) then table.insert(view.checkedColors,color) end
+    end
    end
    return view
   end
-  local positions={snapshot()}
-  for _,entry in ipairs(moves) do
+  local positions={snapshot(1)}
+  for index,entry in ipairs(moves) do
+   if reviewing and (variant=="chess" or fourStates) and state.turn~=entry.c then error("Match history is out of turn.") end
    local found=false
    for _,move in ipairs(engine.legalMoves(state,entry.f,entry.c)) do
     if move.to==entry.t then
      if move.promotion then move.promotion=entry.p or "Q" end
      state=engine.apply(state,move)
-     table.insert(positions,snapshot())
+     table.insert(positions,snapshot(index+1))
      found=true
      break
     end

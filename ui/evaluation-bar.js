@@ -69,7 +69,13 @@ export function createEvaluationBar(element) {
         const previous = await getScore(review.positions[review.ply - 1], `review:${review.ply - 1}`);
         if (generation === current) onChange(score, previous);
       }).catch(() => {
-        if (generation === current) display(null);
+        if (generation !== current) return;
+        display(null);
+        for (const label of [whiteScore, blackScore]) {
+          label.textContent = "—";
+          label.title = "Evaluation unavailable";
+          label.setAttribute("aria-label", label.title);
+        }
       });
     },
     close() {

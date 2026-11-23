@@ -22,7 +22,7 @@ ui/
   site-navigation.js           Tab routing and site-wide event wiring
   match-view.js                Shared interface for both chess modes
   chessboard.js                Board rendering and square interactions
-  chess-pieces.js              SVG piece artwork and desktop drag previews
+  chess-pieces.js              SVG piece artwork
   board-themes.js              Equipped board lookup and interface color tokens
 tabs/
   chess.js                     Standard chess tab
@@ -30,9 +30,13 @@ tabs/
   shop.js                      Board purchases
   inventory.js                 Owned boards and equipping
   profile.js                   Ratings, match history, and replay controls
+  learn.js                     Illustrated piece movement lessons
+  puzzles.js                   Rated practice and solution review
 game/
   session.js                   Browser state, storage, audio, and match commands
   local-worker.js              Browser worker for local matches and replays
+  position-worker.js           Browser worker for evaluation, lessons, and puzzles
+  puzzle-progress.js           Browser-local puzzle progress and rating
   puzzle-prefetch.js           Background puzzle generation for possible rating outcomes
   board-drag.js                Pointer-based piece dragging
   luau-runtime.js              Loads Luau modules and exchanges data with JavaScript
@@ -58,6 +62,7 @@ tests/
   engine-benchmark.mjs         Runs color-swapped standard games against a Git revision
   standard-chess-test.mjs      Runs the rules tests through the Luau runtime
   standard-chess-cases.luau    Positions and assertions for the rules tests
+  puzzles-test.mjs             Tactical proofs, puzzle rating, and save recovery
 reference/
   roblox-client.luau           Original Roblox client retained for reference
 ```
@@ -76,6 +81,7 @@ Open `http://localhost:8080/`. Use Node.js 22 or newer to run the rules tests:
 node tests/standard-chess-test.mjs
 node tests/match-admission-test.mjs
 node tests/engine-search-test.mjs
+node tests/puzzles-test.mjs
 ```
 
 ## Online matches

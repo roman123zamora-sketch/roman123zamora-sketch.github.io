@@ -56,13 +56,17 @@ export default function profile(content) {
         item.textContent = "Loading replay…";
         try {
           let positions;
-          if (record.v === "four") positions = (await replay(record)).map(board => ({ board }));
+          if (record.v === "four" && !record.fourStates) {
+            positions = (await replay(record)).map(board => ({ board }));
+            if (positions.length !== Object.values(record.moves).length + 1) throw new Error("Replay is incomplete.");
+          }
           else {
             const worker = createPositionTools();
             replayTools = worker;
             try {
               positions = Object.values(await worker.run("review", {
-                variant: "chess", moves: Object.values(record.moves)
+                variant: record.v, moves: Object.values(record.moves),
+                fourStates: record.fourStates && Object.values(record.fourStates)
               }));
             } finally {
               worker.close();
@@ -115,7 +119,7 @@ export default function profile(content) {
     const buttons = [...panel.querySelectorAll("[data-step]")];
     function draw() {
       evaluation.update(match, { positions, ply });
-      bestMove.update(record.v === "chess" ? positions[ply] : undefined, record.v);
+      bestMove.update(positions[ply].turn ? positions[ply] : undefined, record.v);
       holder.replaceChildren(board(getTheme(), record.v === "four", false, {
         state: positions[ply], side: record.side, bestMove: bestMove.move
       }));

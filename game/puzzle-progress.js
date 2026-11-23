@@ -4,11 +4,26 @@ const key = "exalted-chess-puzzles-v1";
 const modulus = 2147483647;
 const historyLimit = 128;
 
+function validActive(active, category) {
+  if (active == null) return true;
+  const { puzzle, step, hearts } = active;
+  return puzzle?.category === category && typeof puzzle.id === "string" &&
+    Number.isFinite(puzzle.difficulty) && puzzle.origin?.board &&
+    ["w", "b"].includes(puzzle.side) && Array.isArray(puzzle.steps) &&
+    Number.isInteger(step) && step >= 0 && step < puzzle.steps.length &&
+    Number.isInteger(hearts) && hearts >= 1 && hearts <= 3 &&
+    puzzle.steps.every(frame => frame?.move?.from && frame.move.to && frame.position?.board && frame.legal);
+}
+
 export function loadPractice() {
   try {
     const saved = JSON.parse(readSetting(key));
     if (saved && Array.isArray(saved.recent) && Number.isInteger(saved.seed) &&
-        Number.isFinite(saved.rating) && ["checkmate", "material"].includes(saved.category)) return saved;
+        Number.isFinite(saved.rating) && ["checkmate", "material"].includes(saved.category)) {
+      if (!validActive(saved.active, saved.category)) saved.active = null;
+      if (saved.seed <= 0 || saved.seed >= modulus) saved.seed = 1;
+      return saved;
+    }
   } catch {
     // Restart practice if the stored record cannot be read.
   }

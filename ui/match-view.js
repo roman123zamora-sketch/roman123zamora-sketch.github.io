@@ -173,6 +173,7 @@ export function renderMatch(content, { title, fourPlayer }) {
     if (!target) {
       clearSelection();
       drawBoard();
+      status.textContent = "That move is not legal.";
       if (!reduceMotion.matches) {
         slot.querySelector(`[data-square="${from}"] .chess-piece`)?.animate(
           [{ opacity: .68 }, { opacity: 1 }], { duration: 120 }

@@ -47,7 +47,10 @@ export function subscribe(listener) {
 }
 
 function notify(kind, data) {
-  for (const listener of listeners) listener(kind, data);
+  for (const listener of listeners) {
+    try { listener(kind, data); }
+    catch (error) { console.error("Exalted Chess view failed to update.", error); }
+  }
 }
 
 function receive({ kind, data, requestId }) {
@@ -196,20 +199,46 @@ export async function connect() {
       server = "";
     }
   }
+  startLocalWorker();
+}
+
+function startLocalWorker() {
   let profile;
   try { profile = JSON.parse(readSetting(key)); } catch { profile = null; }
-  worker = new Worker(new URL("./local-worker.js", import.meta.url), { type: "module" });
+  try {
+    worker = new Worker(new URL("./local-worker.js", import.meta.url), { type: "module" });
+  } catch {
+    failLocalWorker();
+    return false;
+  }
   worker.onmessage = ({ data }) => {
     if (data.kind === "ready") {
       worker.postMessage({ op: "join", first: "You", second: profile });
       ready = true;
       for (const message of pending.splice(0)) worker.postMessage(message);
+    } else if (data.kind === "workerFailed") {
+      console.warn("Chess engine initialization failed.", data.data);
+      failLocalWorker();
     } else receive(data);
   };
-  worker.onerror = () => receive({ kind: "error", data: "The chess engine failed to start." });
+  worker.onerror = failLocalWorker;
+  return true;
+}
+
+function failLocalWorker() {
+  worker?.terminate();
+  worker = null;
+  ready = false;
+  pending.length = 0;
+  const error = new Error("The local chess engine could not load. Try starting a game again.");
+  for (const replay of replays.values()) replay.reject(error);
+  replays.clear();
+  if (session.match) clearMatch();
+  receive({ kind: "error", data: error.message });
 }
 
 export function action(first, second) {
+  if (!session.network && !worker && !startLocalWorker()) return;
   if (first === "move" || first === "claimDraw") {
     if (!session.match || session.movePending) return;
     session.movePending = true;
@@ -236,6 +265,7 @@ export async function replay(game) {
     const result = await request("/replay", { method: "POST", body: JSON.stringify({ variant: game.v, moves: Object.values(game.moves) }) });
     return Object.values(result);
   }
+  if (!worker || !ready) throw new Error("The local chess engine is unavailable.");
   return new Promise((resolve, reject) => {
     const requestId = ++replayId;
     replays.set(requestId, { resolve, reject });

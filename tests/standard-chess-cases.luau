@@ -86,3 +86,15 @@ end
 status,reason=Chess.status(state)
 assert(status=="draw" and reason=="Fivefold repetition")
 assert(Chess.initial().positions[Chess.positionKey(start)]==1)
+
+-- Kiwipete exercises open lines, castling and tactical king-safety checks.
+local kiwiBoard={
+ a8="bR",e8="bK",h8="bR",
+ a7="bP",c7="bP",d7="bP",e7="bQ",f7="bP",g7="bB",
+ a6="bB",b6="bN",e6="bP",f6="bN",g6="bP",
+ d5="wP",e5="wN",b4="bP",e4="wP",c3="wN",f3="wQ",h3="bP",
+ a2="wP",b2="wP",c2="wP",d2="wB",e2="wB",f2="wP",g2="wP",h2="wP",
+ a1="wR",e1="wK",h1="wR"
+}
+local kiwi=position(kiwiBoard,{castling={wK=true,wQ=true,bK=true,bQ=true}})
+assert(perft(kiwi,1)==48 and perft(kiwi,2)==2039 and perft(kiwi,3)==97862)
