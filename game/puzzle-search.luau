@@ -124,6 +124,16 @@ local function probe(bot,engine,state,deadline)
  if status=="stalemate" or status=="draw" then return 0 end
 end
 
+function Puzzle.bestBlackMove(engine,bot,state,moves,deadline,defending)
+ if #moves==1 then return moves[1] end
+ if #moves==0 or os.clock()>=deadline then return nil end
+ local move,details=bot.choose(engine,state,2400,{
+  depth=defending and 3 or (#moves<=14 and 2 or 1),nodes=defending and 1800 or 1100,timeMs=math.min(35,math.max(0,(deadline-os.clock())*1000))
+ })
+ -- A move-ordering fallback is not a completed search.
+ if details and details.depth>0 then return move end
+end
+
 local function isAlreadyWon(engine,bot,state,moves,solution,category,lead,deadline)
  local positionScore=probe(bot,engine,state,deadline)
  if positionScore==nil then return true end
@@ -269,10 +279,7 @@ local function material(engine,state,moves,rating,stop)
  local line=prepend(choice,tail)
  if #line>2 and rating<600 then return nil end
  if not uniqueContinuation(engine,state,line,owner,score,stop) then return nil end
- local tempting=0
- for _,move in ipairs(moves) do if potential(state,move)>=200 then tempting+=1 end end
- local difficulty=#line<=2 and 400 or math.min(1400,650+math.floor((#line-1)/2)*150+math.min(4,tempting-1)*50)
- return line,score-initial,difficulty
+ return line,score-initial
 end
 
 local function randomSource(seed)
@@ -296,7 +303,7 @@ local function sensibleMove(engine,bot,state,moves,random,ply)
    end
    value-=exposure*.75
   end
-  value+=random()*(ply<12 and 65 or 125)
+  value+=random()*(ply<12 and 65 or 280)
   if not bestValue or value>bestValue then best,bestValue=move,value end
  end
  return best
@@ -327,6 +334,45 @@ local function serialize(engine,state,line,options,id,gain,difficulty)
   difficulty=difficulty,gain=gain,origin=origin,steps=steps,line=line}
 end
 
+local function verifyBlackReplies(engine,bot,state,line,category,gain,deadline,stop)
+ if state.turn~="w" or #line<2 then return line end
+ local owner=state.turn
+ local goal=balance(state,owner)+(gain or 0)
+ local position=state
+ local changed=false
+ local index=1
+ while index<=#line do
+  stop()
+  local move=line[index]
+  if position.turn=="b" then
+   local best=Puzzle.bestBlackMove(engine,bot,position,engine.allLegal(position),deadline,true)
+   if not best then return nil end
+   if moveID(best)~=moveID(move) then
+    changed=true
+    local nextState=engine.apply(position,best)
+    local tail
+    if category=="checkmate" then
+     local mates=tactics(engine,nextState,engine.allLegal(nextState),stop)
+     if #mates~=1 then return nil end
+     tail=mates
+    else
+     local score
+     score,tail=exchange(engine,nextState,owner,6,stop,-math.huge,math.huge)
+     if score~=goal then return nil end
+    end
+    for later=#line,index+1,-1 do line[later]=nil end
+    line[index]=best
+    for _,reply in ipairs(tail) do table.insert(line,reply) end
+    move=best
+   end
+  end
+  position=engine.apply(position,move)
+  index+=1
+ end
+ if changed and category=="material" and not uniqueContinuation(engine,state,line,owner,goal,stop) then return nil end
+ return line
+end
+
 function Puzzle.validate(engine,bot,state,moves,category,rating,deadline)
  local lead,opposing=balance(state,state.turn)
  if not hasResistance(lead,opposing) then return nil end
@@ -336,7 +382,16 @@ function Puzzle.validate(engine,bot,state,moves,category,rating,deadline)
  local ok,line,gain,difficulty=pcall(verify,engine,state,moves,rating,stop)
  if not ok or not line then return nil end
  if isAlreadyWon(engine,bot,state,moves,line[1],category,lead,deadline) then return nil end
- return line,gain,difficulty
+ local replyStop=limit(math.min(deadline,os.clock()+.34),2500)
+ local verified,finalLine=pcall(verifyBlackReplies,engine,bot,state,line,category,gain,deadline,replyStop)
+ if not verified or not finalLine then return nil end
+ if category=="material" then
+  if #finalLine>2 and rating<600 then return nil end
+  local tempting=0
+  for _,move in ipairs(moves) do if potential(state,move)>=200 then tempting+=1 end end
+  difficulty=#finalLine<=2 and 400 or math.min(1400,650+math.floor((#finalLine-1)/2)*150+math.min(4,tempting-1)*50)
+ end
+ return finalLine,gain,difficulty
 end
 
 function Puzzle.generate(engine,bot,options)
@@ -364,7 +419,13 @@ function Puzzle.generate(engine,bot,options)
      end
     end
    end
-   local move=sensibleMove(engine,bot,state,moves,random,ply)
+   local move
+   if state.turn=="b" then
+    move=Puzzle.bestBlackMove(engine,bot,state,moves,deadline)
+   else
+    move=sensibleMove(engine,bot,state,moves,random,ply)
+   end
+   if not move then break end
    state=engine.apply(state,move)
   end
  end

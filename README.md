@@ -152,8 +152,11 @@ optional match server.
 ## Puzzles
 
 Practice offers Checkmate and Material. The generator starts every candidate
-from the standard opening position and plays varied legal moves guided by
-Exalted Chess's own positional evaluator. Candidate analysis runs in a
+from the standard opening position. White plays varied legal moves guided by
+the positional evaluator. Black plays the only legal move or the strongest
+move from a completed, bounded engine search. Candidates with an unfinished
+Black search are discarded. When Black defends in a puzzle line, that engine
+reply must still satisfy the tactical proof. Candidate analysis runs in a
 separate worker. It checks unique mates in one or two moves against every
 legal defense. Material puzzles verify all immediate replies and search
 capture and promotion exchanges, including all evasions in check. Positions
