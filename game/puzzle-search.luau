@@ -74,9 +74,9 @@ end
 
 -- Maximum target lengths count solver moves, not individual plies.
 local mateTargets={1,2,2,3,3,4,4,5,5,6,7,8,9,10}
-local materialTargets={1,2,2,2,3,3,3,4,4,5,5,6,7,8}
-local mateRatings={400,600,1000,1400,1800,2200,2400,2600,2800,2800}
-local materialRatings={400,600,1200,1800,2200,2500,2700,2900}
+local materialTargets={2,2,2,2,3,3,3,4,4,5,5,6,7,8}
+local mateRatings={200,625,1125,1525,1925,2225,2425,2625,2800,2900}
+local materialRatings={200,575,1050,1500,1850,2200,2550,2800}
 local function ratingBand(rating)
  return math.clamp(math.floor((rating-400)/200)+1,1,14)
 end
@@ -107,6 +107,14 @@ local function mateProof(engine,state,remaining,attacking,stop,unique)
   table.insert(group,move)
  end
  for _,candidate in ipairs(quiet) do table.insert(preferred,candidate) end
+ if not attacking and #preferred>1 then
+  table.sort(preferred,function(a,b)
+   local left=state.board[a.to]
+   local right=state.board[b.to]
+   local value=(left and values[kind(left)] or 0)-(right and values[kind(right)] or 0)
+   return value>0 or (value==0 and moveID(a)<moveID(b))
+  end)
+ end
  local longest,unambiguous
  for _,candidate in ipairs(preferred) do
   local child=engine.apply(state,candidate,false)
@@ -143,12 +151,22 @@ local function checkmate(engine,state,moves,rating,stop,bot,deadline)
   if forcing(state,move,givesCheck) then
    local line,unique=mateInTwo(engine,state,move,stop)
    if line then
-    if rating>1200 or proven or not unique then return nil end
+    if proven or not unique then return nil end
     proven=line
    end
   else
    table.insert(quiet,move)
   end
+ end
+ if not proven and rating>=800 and rating<1250 then
+  for _,move in ipairs(quiet) do
+   local line,unique=mateInTwo(engine,state,move,stop)
+   if line then
+    if proven or not unique then return nil end
+    proven=line
+   end
+  end
+  if proven then return proven end
  end
  if not proven then
   if rating<1000 then return nil end
@@ -164,7 +182,7 @@ local function checkmate(engine,state,moves,rating,stop,bot,deadline)
   for horizon=3,distance do
    local solution,unique=mateProof(engine,state,horizon,true,stop,true)
    if solution then
-    if unique and forcing(state,solution[1],givesCheck) then return solution end
+    if unique and (rating>=1250 or forcing(state,solution[1],givesCheck)) then return solution end
     return nil
    end
   end
@@ -185,6 +203,24 @@ local function balance(state,owner)
   if color(piece)==owner then own+=value else opposing+=value end
  end
  return own-opposing,opposing
+end
+
+local function plausibleStructure(state)
+ local files={}
+ local counts={}
+ for square,piece in pairs(state.board) do
+  local role=kind(piece)
+  local count=(counts[piece] or 0)+1
+  counts[piece]=count
+  if role=="P" then
+   local file=color(piece)..string.sub(square,1,1)
+   files[file]=(files[file] or 0)+1
+   if count>8 or files[file]>3 then return false end
+  elseif (role=="Q" and count>2) or (role~="Q" and count>3) then
+   return false
+  end
+ end
+ return true
 end
 
 local function hasResistance(lead,opposing)
@@ -372,13 +408,13 @@ local function material(engine,state,moves,rating,stop)
   local delta=potential(state,a)-potential(state,b)
   return delta>0 or (delta==0 and moveID(a)<moveID(b))
  end)
- if rating<600 and potential(state,moves[1])<300 then return nil end
+ if rating<400 and potential(state,moves[1])<300 then return nil end
  local choice,score,tail
  local tested={}
- local qualifying=math.max(100,initial+300)
+ local qualifying=math.max(100,initial+(rating>=800 and 175 or 300))
  for _,move in ipairs(moves) do
   local capture=potential(state,move)>=300
-  if not capture and rating<600 then break end
+  if not capture and rating<400 then break end
   local setup=false
   if not capture then
    stop()
@@ -412,7 +448,7 @@ local function material(engine,state,moves,rating,stop)
   end
  end
  local line=prepend(choice,tail)
- if #line>2 and rating<600 then return nil end
+ if #line>2 and rating<400 then return nil end
  if not uniqueContinuation(engine,state,line,owner,score,stop) then return nil end
  return line,score-initial
 end
@@ -509,13 +545,13 @@ local function verifyBlackReplies(engine,bot,state,line,category,gain,deadline,s
  return line
 end
 
-function Puzzle.validate(engine,bot,state,moves,category,rating,deadline)
+function Puzzle.validate(engine,bot,state,moves,category,rating,deadline,offline)
  local lead,opposing=balance(state,state.turn)
- if not hasResistance(lead,opposing) then return nil end
+ if not hasResistance(lead,opposing) or not plausibleStructure(state) then return nil end
 
  local verify=category=="checkmate" and checkmate or material
  local advanced=rating>=1000
- local stop=limit(math.min(deadline,os.clock()+(advanced and .65 or .34)),advanced and 9500 or 2500)
+ local stop=limit(math.min(deadline,os.clock()+(offline and 4 or advanced and .65 or .34)),offline and 180000 or advanced and 9500 or 2500)
  local ok,line,gain,difficulty=pcall(verify,engine,state,moves,rating,stop,bot,deadline)
  if not ok or not line then return nil end
  if isAlreadyWon(engine,bot,state,moves,line[1],category,lead,deadline) then return nil end
@@ -525,6 +561,10 @@ function Puzzle.validate(engine,bot,state,moves,category,rating,deadline)
  local choices=math.ceil(#finalLine/2)
  local position=state
  local pressure=0
+ local competing=0
+ local defenses=0
+ local quietFirst=false
+ local forcingReply=false
  local afterSolver
  for index,move in ipairs(finalLine) do
   if index%2==1 then
@@ -535,8 +575,15 @@ function Puzzle.validate(engine,bot,state,moves,category,rating,deadline)
     if forcing(position,alternative,givesCheck) then forcingCount+=1 end
    end
    if forcingCount>=3 then pressure+=1 end
+   if index==1 then
+    competing=math.max(0,forcingCount-1)
+    quietFirst=not forcing(position,move,givesCheck)
+   end
   else
-   if #engine.allLegal(position)>=3 then pressure+=1 end
+   if index==2 then forcingReply=forcing(position,move,engine.checkingMoveTester(position)) end
+   local replies=#engine.allLegal(position)
+   if replies>=3 then pressure+=1 end
+   defenses+=math.min(5,math.max(0,replies-1))
   end
   position=engine.apply(position,move,false)
   if index%2==1 then afterSolver=position end
@@ -550,7 +597,7 @@ function Puzzle.validate(engine,bot,state,moves,category,rating,deadline)
   if settled<math.max(100,lead+gain) or balance(afterSolver,state.turn)<100 then return nil end
   if choices>materialTargets[ratingBand(rating)] then return nil end
   local quiet=potential(state,finalLine[1])==0
-  if rating<600 then
+  if rating<400 then
    local child=engine.apply(state,finalLine[1],false)
    if kind(state.board[finalLine[1].to] or "  ")=="K" or
       potential(state,finalLine[1])<300 or finalLine[1].promotion or
@@ -566,24 +613,27 @@ function Puzzle.validate(engine,bot,state,moves,category,rating,deadline)
     end
    end
   end
-  base=materialRatings[math.min(choices,#materialRatings)]+(quiet and (choices==1 and 400 or 100) or 0)
+  base=materialRatings[math.min(choices,#materialRatings)]+(quiet and 100 or 0)
  else
   base=mateRatings[choices]
  end
- local bonus=choices>1 and math.min(400,pressure*100) or (category=="checkmate" and pressure>0 and 200 or 0)
- if category=="material" and choices==1 and (closeAlternatives>0 or #finalLine>1) then bonus=200 end
- if choices>=3 and pressure==0 then bonus=-400 end
- difficulty=math.clamp(200*math.floor((base+bonus+100)/200),400,3000)
+ -- Estimate how much a solver must compare and calculate after the proof.
+ local bonus=math.min(180,competing*25)+math.min(250,defenses*30)
+ if quietFirst then bonus+=150 end
+ if category=="material" and choices==1 then
+  bonus=math.min(180,closeAlternatives*65)+(forcingReply and 110 or 0)
+ end
+ if choices>=3 and pressure==0 then bonus-=120 end
+ difficulty=math.clamp(5*math.floor((base+bonus+2.5)/5),200,3000)
  return finalLine,gain,difficulty
 end
 
 function Puzzle.generate(engine,bot,options)
- local rating=math.clamp(options.rating,400,3000)
- local deadline=os.clock()+math.clamp(options.timeMs or (rating>=1000 and 4500 or 2400),100,6000)/1000
+ local rating=math.clamp(options.rating,200,3000)
+ local deadline=os.clock()+math.clamp(options.timeMs or (rating>=1000 and 4500 or 2400),100,options.offline and 30000 or 6000)/1000
  local random=randomSource(options.seed)
  local seen={}
  for _,id in ipairs(options.recent or {}) do seen[id]=true end
- local minimumDifficulty=rating>=600 and 600 or 400
  while os.clock()<deadline do
   local state=engine.initial()
   local minimum=options.category=="checkmate" and 16 or 12
@@ -591,12 +641,12 @@ function Puzzle.generate(engine,bot,options)
    if os.clock()>=deadline then break end
    local moves=engine.allLegal(state)
    if #moves==0 or engine.insufficientMaterial(state) or state.halfmove>=100 then break end
-   if ply>=minimum and (options.category~="material" or rating>=600 or hasMaterialCapture(state,moves))
+   if ply>=minimum and (options.category~="material" or rating>=400 or hasMaterialCapture(state,moves))
      and not claimable(engine,state) then
     local id=fingerprint(engine,state)
     if not seen[id] then
-     local line,gain,difficulty=Puzzle.validate(engine,bot,state,moves,options.category,rating,deadline)
-     if line and difficulty>=minimumDifficulty and math.abs(difficulty-rating)<=200 then
+     local line,gain,difficulty=Puzzle.validate(engine,bot,state,moves,options.category,rating,deadline,options.offline)
+     if line and math.abs(difficulty-rating)<=200 then
       return serialize(engine,state,line,options,id,gain,difficulty)
      end
     end
@@ -612,6 +662,69 @@ function Puzzle.generate(engine,bot,options)
   end
  end
  return {retry=true}
+end
+
+-- Offline game imports replay SAN against the normal legal move generator.
+local function gameMove(engine,state,notation)
+ local token=string.gsub(notation,"[+#!?]+$","")
+ local castle=token=="O-O" and "castleK" or token=="O-O-O-O" and "castleQ"
+ local promotion=string.match(token,"=([QRBN])$")
+ if promotion then token=string.sub(token,1,-3) end
+ local destination=string.match(token,"([a-h][1-8])$")
+ local prefix=destination and string.sub(token,1,-3) or ""
+ local role=string.match(prefix,"^([KQRBN])") or "P"
+ if role~="P" then prefix=string.sub(prefix,2) end
+ local capture=string.find(prefix,"x",1,true)~=nil
+ local origin=string.gsub(prefix,"x","")
+ local selected
+ for _,move in ipairs(engine.allLegal(state)) do
+  if (castle and move.special==castle) or (not castle and move.to==destination and move.promotion==promotion
+     and kind(state.board[move.from])==role and string.find(move.from,origin,1,true)
+     and capture==(state.board[move.to]~=nil or move.special=="enpassant")) then
+   if selected then return nil end
+   selected=move
+  end
+ end
+ return selected
+end
+
+function Puzzle.fromGame(engine,bot,options)
+ local state=engine.initial()
+ local positions={}
+ for _,notation in ipairs(options.moves) do
+  local move=gameMove(engine,state,notation)
+  if not move then return {retry=true} end
+  table.insert(positions,state)
+  state=engine.apply(state,move)
+ end
+ local results={}
+ local deadline=os.clock()+8
+ local excluded={}
+ for _,id in ipairs(options.recent or {}) do excluded[id]=true end
+ local order={}
+ if options.forcingFinal then
+  for offset=4,12,2 do
+   if #positions-offset>=17 then table.insert(order,#positions-offset) end
+  end
+ else
+  for index=#positions,math.max(17,#positions-18),-1 do table.insert(order,index) end
+ end
+ for _,index in ipairs(order) do
+  if os.clock()>=deadline then break end
+  state=positions[index]
+  local id=fingerprint(engine,state)
+  if not excluded[id] and not claimable(engine,state) then
+   local moves=engine.allLegal(state)
+   local rating=options.rating
+   if #moves>0 then
+    local line,gain,difficulty=Puzzle.validate(engine,bot,state,moves,options.category,rating,deadline,true)
+    if line and math.abs(difficulty-rating)<=200 then
+     table.insert(results,serialize(engine,state,line,options,id,gain,difficulty))
+    end
+   end
+  end
+ end
+ return results
 end
 
 return Puzzle

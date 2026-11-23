@@ -15,12 +15,17 @@ async function generate(category, rating, seeds, length, recent = []) {
 const material = await generate("material", 400, [1, 17211, 3]);
 const mate = await generate("checkmate", 400, [3, 8, 4, 5, 7, 6, 2], 1);
 const different = await generate("checkmate", 400, [4, 5, 7, 8, 3, 6, 2], 1, [mate.id]);
-for (const category of ["material", "checkmate"]) {
-  const targeted = await generate(category, 600, [17211, 3, 2, 97, 11]);
-  assert.equal(targeted.targetRating, 600);
-  assert(targeted.difficulty >= 600 && targeted.difficulty <= 800);
-}
-const puzzles = [material, mate, different];
+const index = JSON.parse(await readFile(new URL("../assets/puzzles/index.json", import.meta.url), "utf8"));
+const published = await Promise.all(Object.entries(index).flatMap(([category, entries]) =>
+  entries.map(async entry => {
+    const puzzle = JSON.parse(await readFile(
+      new URL(`../assets/puzzles/${category}/${entry.id}.json`, import.meta.url), "utf8"));
+    assert.equal(puzzle.id, entry.id);
+    assert.equal(puzzle.difficulty, entry.difficulty);
+    assert.equal(puzzle.idea, entry.idea);
+    return puzzle;
+  })));
+const puzzles = [material, mate, different, ...published];
 assert(material.gain >= 300);
 assert.equal(material.materialProof, 2);
 assert.notEqual(different.id, mate.id);
@@ -42,12 +47,13 @@ try {
   await vm.loadstring(`
 local Chess=(function()\n${engine}\nend)()
 local Puzzle=(function()
-${generator.replace(/return Puzzle\s*$/, "Puzzle.proveForTest=mateProof; Puzzle.exchangeForTest=exchange; return Puzzle")}
+${generator.replace(/return Puzzle\s*$/, "Puzzle.proveForTest=mateProof; Puzzle.exchangeForTest=exchange; Puzzle.defenseForTest=defense; return Puzzle")}
 end)()
 local Bot=(function()
 ${bot}
 end)()
 local puzzles=${lua(puzzles)}
+local simulatedTestCount=3
 local function apply(state,move)
  for _,legal in ipairs(Chess.legalMoves(state,move.from)) do
   if legal.to==move.to and legal.promotion==move.promotion then return Chess.apply(state,legal) end
@@ -163,10 +169,10 @@ local recoveringEngine={choose=function(_,_,_,options)
 end}
 assert(Puzzle.bestBlackMove(Chess,recoveringEngine,blackStart,replies,os.clock()+1)==replies[2])
 assert(searches==2)
-for _,puzzle in ipairs(puzzles) do
+for index,puzzle in ipairs(puzzles) do
  local state=Chess.initial()
  for _,move in ipairs(puzzle.origin.history) do
-  if state.turn=="b" then
+  if index<=simulatedTestCount and state.turn=="b" then
    local best=assert(Puzzle.bestBlackMove(Chess,Bot,state,Chess.allLegal(state),os.clock()+1))
    assert(move.from==best.from and move.to==best.to and move.promotion==best.promotion)
   end
@@ -179,12 +185,17 @@ for _,puzzle in ipairs(puzzles) do
  if puzzle.category=="checkmate" then
   if #puzzle.line==1 then
    assert(mateCount(state)==1)
-  else
+  elseif #puzzle.line==3 then
    assert(mateCount(state)==0)
    local defended=Chess.apply(state,puzzle.line[1])
    for _,defense in ipairs(Chess.allLegal(defended)) do
     assert(mateCount(Chess.apply(defended,defense))==1)
    end
+  else
+   local length=math.ceil(#puzzle.line/2)
+   local proof,single=Puzzle.proveForTest(Chess,state,length,true,function() end,true)
+   assert(proof and single and #proof==#puzzle.line)
+   assert(not Puzzle.proveForTest(Chess,state,length-1,true,function() end,false))
   end
  end
  local final=state
@@ -192,7 +203,10 @@ for _,puzzle in ipairs(puzzles) do
  if puzzle.category=="checkmate" then assert(Chess.status(final)=="checkmate")
  else
   assert(balance(final,puzzle.side)>=100)
-  assert(balance(final,puzzle.side)-balance(state,puzzle.side)>=puzzle.gain)
+  local target=balance(state,puzzle.side)+puzzle.gain
+  assert(balance(final,puzzle.side)>=target)
+  assert(Puzzle.defenseForTest(Chess,state,puzzle.line[1],puzzle.side,function() end,target)>=target)
+
  end
 end
 `, "Puzzle proofs", true)();
@@ -237,70 +251,36 @@ assert.deepEqual(loadPractice(), {
 assert.equal(JSON.parse(storage.get("exalted-chess-puzzles-v1")).rating, 1925);
 console.log("Puzzle proofs, all rating outcomes, replay protection and migration passed.");
 
-const { matchesPuzzleTarget, puzzleSearchTier } = await import("../game/puzzle-prefetch.js");
-assert.equal(puzzleSearchTier(390), puzzleSearchTier(415));
-assert.notEqual(puzzleSearchTier(595), puzzleSearchTier(600));
-assert(matchesPuzzleTarget({ difficulty: 400 }, 415));
-assert(!matchesPuzzleTarget({ difficulty: 400 }, 600));
-assert(matchesPuzzleTarget({ difficulty: 600 }, 600));
-assert(!matchesPuzzleTarget({ difficulty: 1000 }, 795));
-
-const { findPuzzle } = await import("../game/puzzle-prefetch.js");
-const selected = await findPuzzle({ run: async (_, payload) => {
-  assert.equal(payload.rating, 415);
-  return { id: "verified", difficulty: 400 };
-} }, { category: "material", rating: 415, recent: [] }, () => 17211);
-assert.equal(selected.targetRating, 415);
-
-const { createPuzzlePrefetch } = await import("../game/puzzle-prefetch.js");
-const warmupRequests = [];
-let warmupReply = { difficulty: 400, id: "prepared" };
-globalThis.Worker = class {
-  constructor() {
-    queueMicrotask(() => this.onmessage({ data: { ready: true } }));
-  }
-  postMessage({ id, payload }) {
-    warmupRequests.push(payload);
-    queueMicrotask(() => this.onmessage({ data: { id, result: warmupReply } }));
-  }
-  terminate() {}
+const { eligiblePuzzles, matchesPuzzleTarget, puzzleIdea, rememberPuzzle, selectVerifiedPuzzle } =
+  await import("../game/puzzle-pool.js");
+assert(matchesPuzzleTarget({ difficulty: 200 }, 200));
+assert(!matchesPuzzleTarget({ difficulty: 600 }, 1510));
+assert(matchesPuzzleTarget({ difficulty: 1300 }, 1495));
+assert(!matchesPuzzleTarget({ difficulty: 1300 }, 1510));
+const practice = { rating: 400, category: "checkmate", recent: [], rated: [] };
+const near = { ...mate, difficulty: 405, idea: puzzleIdea(mate) };
+const farther = { ...different, difficulty: 420, idea: puzzleIdea(different) };
+assert.equal(eligiblePuzzles([farther, near], practice)[0].id, near.id);
+rememberPuzzle(practice, near);
+assert.equal(eligiblePuzzles([{ ...near, id: "copy" }, farther], practice)[0].id, farther.id);
+const fetches = [];
+globalThis.fetch = async url => {
+  fetches.push(url.pathname);
+  return { ok: true, json: async () => url.pathname.endsWith("index.json")
+    ? { checkmate: [{ id: farther.id, idea: farther.idea, difficulty: farther.difficulty }] } : farther };
 };
-const practice = {
-  category: "checkmate", rating: 400, recent: [], rated: [], seed: 5,
-  active: { puzzle: { id: "active", targetRating: 400 }, hearts: 3 }
-};
-let prefetch = createPuzzlePrefetch(practice);
-assert.equal((await prefetch.take(405)).targetRating, 405);
-assert.deepEqual(warmupRequests.map(request => request.rating), [415]);
-assert.deepEqual(warmupRequests[0].recent, ["active"]);
-prefetch.close();
-
-practice.rating = 595;
-practice.active.puzzle.targetRating = 595;
-prefetch = createPuzzlePrefetch(practice);
-assert.equal(prefetch.take(595), undefined, "A search started in the next tier cannot be reused");
-
-practice.rating = 400;
-practice.active.puzzle.targetRating = 400;
-warmupReply = { retry: true };
-const beforeMiss = warmupRequests.length;
-prefetch = createPuzzlePrefetch(practice);
-assert.equal(await prefetch.take(415), undefined);
-assert.equal(warmupRequests.length, beforeMiss + 1, "An empty speculative batch leaves the next search to the actual rating");
+assert.equal((await selectVerifiedPuzzle(practice)).puzzle.targetRating, 400);
+assert.equal(fetches.length, 2);
+practice.rating = 415;
+assert.equal((await selectVerifiedPuzzle(practice)).puzzle.targetRating, 415);
+assert.equal(fetches.filter(path => path.endsWith("index.json")).length, 1);
 
 const { findRatedPuzzle } = await import("../game/puzzle-prefetch.js");
-const searched = [];
-const wider = await findRatedPuzzle({
-  async run(_, payload) {
-    searched.push(payload.rating);
-    assert(payload.recent.includes("previously-rated"));
-    return payload.rating === 600 ? { difficulty: 600, id: "fresh" } : { retry: true };
-  }
-}, { category: "checkmate", rating: 1925, recent: [], rated: ["previously-rated"] },
-() => 17211, () => true, () => {});
-assert.deepEqual(searched, [1925, 1000, 600]);
-assert.equal(wider.targetRating, 1925);
-assert.equal(wider.difficulty, 600);
-const ladder = { rating: 1925, recent: [], active: { puzzle: wider, hearts: 3 } };
-assert.equal(resolvePuzzle(ladder, "solved"), 15);
-assert.equal(ladder.rating, 1940);
+let requests = 0;
+const missing = await findRatedPuzzle({ async run(_, payload) {
+  requests++;
+  assert.equal(payload.rating, 1510);
+  return { ...mate, difficulty: 400 };
+} }, { ...practice, rating: 1510 }, () => 17211, () => true, 1);
+assert.equal(missing, undefined);
+assert.equal(requests, 1);

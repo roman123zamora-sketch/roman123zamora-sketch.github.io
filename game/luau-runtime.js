@@ -48,7 +48,7 @@ export async function createRuntime(read, { cooperativeSearch = false, puzzleOnl
   `).join("\n");
   const shim = "local function color(r,g,b) return {R=r,G=g,B=b} end; local Color3 = { new=color, fromRGB = function(r,g,b) return color(r/255,g/255,b/255) end }\n";
   const dispatch = puzzleOnly
-    ? 'return function(op, _, _, options)\n  assert(op == "puzzle", "Puzzle worker operation")\n  return modules.PuzzleSearch.generate(modules.ChessEngine, modules.BotEngine, options)\nend'
+    ? 'return function(op, _, _, options)\n  if op == "puzzleFromGame" then return modules.PuzzleSearch.fromGame(modules.ChessEngine, modules.BotEngine, options) end\n  assert(op == "puzzle", "Puzzle worker operation")\n  return modules.PuzzleSearch.generate(modules.ChessEngine, modules.BotEngine, options)\nend'
     : adapter.replace("-- GAME_SERVICE", "\n" + service + "\n");
   const source = shim + `local cooperativeSearch = ${cooperativeSearch}\nlocal modules = {}\n` + definitions +
     "\nwebDispatch = (function()\n" + dispatch + "\nend)()";

@@ -1,4 +1,5 @@
-import { createPuzzlePrefetch, findRatedPuzzle } from "../game/puzzle-prefetch.js";
+import { findRatedPuzzle } from "../game/puzzle-prefetch.js";
+import { rememberPuzzle, saveVerifiedPuzzle, selectVerifiedPuzzle, warmPuzzlePool } from "../game/puzzle-pool.js";
 import { createPositionTools } from "../game/position-tools.js";
 import { loadPractice, nextSeed, resolvePuzzle, savePractice } from "../game/puzzle-progress.js";
 import { playSound, subscribe } from "../game/session.js";
@@ -74,8 +75,8 @@ export default function puzzles(content) {
   let disposed = false;
   let generating = false;
   let tools;
-  let prefetch;
-  let pendingPool;
+  let reserveJob;
+  let reserveTimer;
   let showSolution = false;
   let transition;
   let wrong;
@@ -196,7 +197,11 @@ export default function puzzles(content) {
   }
 
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden) pauseAttemptClock();
+    if (document.hidden) {
+      pauseAttemptClock();
+      reserveJob?.close();
+      reserveJob = undefined;
+    }
     else startAttemptClock();
   }, listeners);
   window.addEventListener("pagehide", pauseAttemptClock, listeners);
@@ -214,15 +219,41 @@ export default function puzzles(content) {
     drag.cancel();
   }
 
-  async function generate(prefix = "", usePrefetch = true) {
+  function takeSeed() {
+    const seed = nextSeed(practice);
+    savePractice(practice);
+    return seed;
+  }
+
+  function scheduleReserve(request) {
+    clearTimeout(reserveTimer);
+    reserveTimer = setTimeout(() => replenish(request), 450);
+  }
+
+  async function replenish(request) {
+    if (disposed || generation !== request || document.hidden || reserveJob) return;
+    const supply = await warmPuzzlePool(practice);
+    if (supply > 2 || disposed || generation !== request || document.hidden || reserveJob) return;
+    const worker = createPositionTools({ puzzleOnly: true });
+    reserveJob = worker;
+    try {
+      const candidate = await findRatedPuzzle(worker, practice, takeSeed,
+        () => !disposed && generation === request, 1);
+      if (candidate) saveVerifiedPuzzle(candidate);
+    } catch (error) {
+      if (!disposed && generation === request && reserveJob === worker) console.warn("Puzzle reserve search failed.", error);
+    } finally {
+      worker.close();
+      if (reserveJob === worker) reserveJob = undefined;
+    }
+  }
+
+  async function generate(prefix = "") {
     const request = ++generation;
+    clearTimeout(reserveTimer);
     tools?.close();
-    pendingPool?.close();
-    const pool = prefetch;
-    pendingPool = pool;
-    prefetch = undefined;
-    const prepared = usePrefetch && pool?.take(practice.rating);
-    if (!prepared) pool?.close();
+    reserveJob?.close();
+    reserveJob = undefined;
     showSolution = false;
     stopAnimation();
     if (!prefix) finished = null;
@@ -233,33 +264,25 @@ export default function puzzles(content) {
     message = `${prefix ? prefix + " " : ""} Searching for a verified puzzle near ${target}…`;
     render();
     try {
-      let candidate = await prepared;
-      pool?.close();
-      if (pendingPool === pool) pendingPool = undefined;
+      const selection = await selectVerifiedPuzzle(practice);
       if (disposed || request !== generation) return;
+      let candidate = selection.puzzle;
       if (!candidate) {
         tools = createPositionTools({ puzzleOnly: true });
-        const takeSeed = () => {
-          const seed = nextSeed(practice);
-          savePractice(practice);
-          return seed;
-        };
-        const current = () => !disposed && request === generation;
-        let widened = false;
-        candidate = await findRatedPuzzle(tools, practice, takeSeed, current, () => {
-          if (widened) return;
-          widened = true;
-          message = "Searching a wider difficulty range for a verified rated puzzle…";
-          render();
-        }, Boolean(prepared));
+        candidate = await findRatedPuzzle(tools, practice, takeSeed, () => !disposed && request === generation, 3);
       }
-      if (disposed || request !== generation || !candidate) return;
+      if (disposed || request !== generation) return;
+      if (!candidate) {
+        message = `No fresh verified puzzle within 200 points of ${target} was found. You can search again.`;
+        return;
+      }
       finished = null;
       practice.active = { puzzle: candidate, step: 0, hearts: 3 };
+      rememberPuzzle(practice, candidate);
       startAttemptClock();
       savePractice(practice);
       message = prefix;
-      prefetch = createPuzzlePrefetch(practice);
+      scheduleReserve(request);
     } catch (error) {
       if (!disposed && request === generation) {
         console.error("Puzzle generation failed.", error);
@@ -279,7 +302,6 @@ export default function puzzles(content) {
     const active = practice.active;
     if (result !== "skipped") lastCompleted = active.puzzle;
     const delta = resolvePuzzle(practice, result);
-    prefetch?.take(practice.rating);
     outcome = result;
     finished = { puzzle: active.puzzle, hearts: active.hearts, position: result === "solved"
       ? active.puzzle.steps[active.step - 1].afterMove ?? currentPosition(active)
@@ -428,7 +450,7 @@ export default function puzzles(content) {
       if (practice.active) resolve("skipped");
       practice.category = button.dataset.category;
       savePractice(practice);
-      generate("", false);
+      generate();
     }, listeners);
   }
   const unsubscribe = subscribe(kind => {
@@ -437,19 +459,22 @@ export default function puzzles(content) {
   if (practice.active) {
     startAttemptClock();
     render();
-    prefetch = createPuzzlePrefetch(practice);
+    rememberPuzzle(practice, practice.active.puzzle);
+    savePractice(practice);
+    const request = generation;
+    scheduleReserve(request);
   }
   else generate();
   return () => {
     pauseAttemptClock();
     disposed = true;
     generation++;
+    clearTimeout(reserveTimer);
     controller.abort();
     stopAnimation();
     drag.destroy();
     tools?.close();
-    prefetch?.close();
-    pendingPool?.close();
+    reserveJob?.close();
     unsubscribe();
   };
 }

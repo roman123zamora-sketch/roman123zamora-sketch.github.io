@@ -43,7 +43,8 @@ game/
   local-worker.js              Browser worker for local matches and replays
   position-worker.js           Browser worker for evaluation, lessons, and puzzles
   puzzle-progress.js           Browser-local puzzle progress and rating
-  puzzle-prefetch.js           Background puzzle generation for possible rating outcomes
+  puzzle-prefetch.js           Bounded exact-target worker searches
+  puzzle-pool.js               Verified pool lookup, freshness, and local reserves
   board-drag.js                Pointer-based piece dragging
   luau-runtime.js              Loads Luau modules and exchanges data with JavaScript
   web-adapter.luau             Browser and server bridge to the original game modules
@@ -164,47 +165,27 @@ node tests/learn-course-test.mjs
 
 ## Puzzles
 
-Practice offers Checkmate and Material. The generator starts every candidate
-from the standard opening position. White plays varied legal moves guided by
-the positional evaluator. Black plays the only legal move or the strongest
-move from a completed, bounded engine search. Candidates with an unfinished
-Black search are discarded. When Black defends in a puzzle line, that engine
-reply must still satisfy the tactical proof. Candidate analysis runs in a
-separate worker. It proves forced mates against every legal defense, and
-higher ratings can request searches up to mate in ten. Material puzzles
-start with undefended captures. At higher bands the generator also considers
-checking and quiet tactical setups, then verifies the legal replies and
-subsequent capture and promotion exchanges. A candidate that exceeds its
-proof budget is discarded.
+Puzzle selection reads the player's exact committed Elo and takes the closest
+unseen verified Checkmate or Material puzzle within 200 points. The published
+pool is shared by every visitor. It contains positions from recorded games
+and original legal simulations, with the full history of each position.
+A pool hit serves a playable board without running the chess engine.
 
-Difficulty is estimated in 200-point steps from 400 through 3000, taking
-into account solver moves, forcing alternatives, and defensive branching.
-Generation prefers the closest verified candidate within the time budget.
-It can return an easier puzzle with its original label or ask for a retry
-when deeper proofs are unavailable. Puzzle rating starts at 400. At that rating, an unassisted solve
-earns 50 points with no mistakes, 30 with one mistake, or 20 with two.
-Rewards taper linearly to 10 points at 2000 and above. Three wrong moves
-still incur the existing difficulty-based failure penalty. Skipping, hints,
-and revealing the solution are rating-neutral. The first hint highlights
-the piece and the second adds its destination. See solution gives written
-instructions for playing the moves yourself. Rating has a floor of 100.
-The generator targets up to 3000. This browser retains the latest 512
-puzzle attempts with fingerprint, starting rating band, outcome, hints,
-mistakes, and active time. This data supports later calibration and is not
-shared across players.
+Checkmate verification searches all legal defenses. Material verification
+checks the settled exchange, including recaptures and forcing counterplay.
+The generator estimates difficulty after verification using calculation
+length, plausible alternatives, quiet moves, and defensive branching.
+These estimates have yet to be calibrated against a sufficiently large
+sample of player attempts.
 
-While a puzzle is active, workers prepare candidates for up to five possible
-resulting ratings. Only the matching candidate is used and the rest are
-discarded. If that candidate is still being verified, the game waits for
-verification and can retry generation. A solve stops on the player’s final
-move, then advances automatically. After three misses, the rating result is
-recorded once and the player can keep trying the same position as unrated
-practice, with or without the written solution.
+An empty pool starts a bounded worker search at the same exact target. The
+browser can save a small verified reserve and starts at most one background
+search when nearby supply falls below three unseen positions. It persists
+presented puzzle identities and resumes the exact board of an unfinished
+attempt. The shared GitHub Pages pool is updated offline.
 
-Browser storage holds the rating, selected category, generator seed, up to
-128 recent fingerprints, and the active puzzle with its exact progress. It
-stores no puzzle archive and does not sync across devices. Solving, failing,
-or skipping clears the active record.
+See [the pool documentation](assets/puzzles/README.md) for publishing and
+supply details.
 
 ```sh
 node tests/puzzles-test.mjs
