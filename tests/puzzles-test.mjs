@@ -7,7 +7,7 @@ const read = path => readFile(new URL("../game/" + path, import.meta.url), "utf8
 const dispatch = await createRuntime(read);
 const puzzles = [];
 for (const [category, rating, seed] of [
-  ["material", 400, 1], ["checkmate", 400, 1], ["checkmate", 1250, 2]
+  ["material", 400, 1], ["checkmate", 400, 1], ["checkmate", 1250, 6]
 ]) {
   const puzzle = await dispatch("puzzle", 0, 0, { category, rating, seed, timeMs: 4500 });
   assert.equal(puzzle.category, category);
@@ -31,11 +31,19 @@ const lua = value => {
   if (typeof value === "object") return "{" + Object.entries(value).map(([key, item]) => "[" + lua(key) + "]=" + lua(item)).join(",") + "}";
   return JSON.stringify(value);
 };
-const engine = await read("rules/standard-chess.luau");
+const [engine, generator, bot] = await Promise.all([
+  read("rules/standard-chess.luau"), read("puzzle-search.luau"), read("engine/bot-search.luau")
+]);
 const vm = await LuauState.createAsync();
 try {
   await vm.loadstring(`
 local Chess=(function()\n${engine}\nend)()
+local Puzzle=(function()
+${generator}
+end)()
+local Bot=(function()
+${bot}
+end)()
 local puzzles=${lua(puzzles)}
 local function apply(state,move)
  for _,legal in ipairs(Chess.legalMoves(state,move.from)) do
@@ -59,6 +67,21 @@ local function mateCount(state)
  end
  return count
 end
+local function fixture(board,turn)
+ local state={board=board,turn=turn,castling={},halfmove=0,fullmove=1,history={},positions={}}
+ state.positions[Chess.positionKey(state)]=1
+ return state
+end
+local overwhelming=fixture({f7="wK",c1="wQ",d5="wQ",g7="wR",b4="bK",d2="bP"},"w")
+assert(mateCount(overwhelming)==1,"The old uniqueness check would accept this trivial mate")
+for _,category in ipairs({"checkmate","material"}) do
+ assert(not Puzzle.validate(Chess,Bot,overwhelming,Chess.allLegal(overwhelming),category,400,os.clock()+1))
+end
+local lowResistance=fixture({a1="wK",b1="wR",h8="bK",g7="bP",h7="bP"},"w")
+assert(not Puzzle.validate(Chess,Bot,lowResistance,Chess.allLegal(lowResistance),"material",400,os.clock()+1))
+local manyMates=fixture({f6="wK",f7="wQ",h8="bK",a8="bQ",a1="wR"},"w")
+assert(mateCount(manyMates)>1)
+assert(not Puzzle.validate(Chess,Bot,manyMates,Chess.allLegal(manyMates),"checkmate",400,os.clock()+1))
 for _,puzzle in ipairs(puzzles) do
  local state=Chess.initial()
  for _,move in ipairs(puzzle.origin.history) do state=apply(state,move) end

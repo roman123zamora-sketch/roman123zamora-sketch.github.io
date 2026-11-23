@@ -100,12 +100,61 @@ local function checkmate(engine,state,moves,rating,stop)
 end
 
 local function balance(state,owner)
- local total=0
+ local own,opposing=0,0
  for _,piece in pairs(state.board) do
   local value=values[kind(piece)] or 0
-  total+=color(piece)==owner and value or -value
+  if color(piece)==owner then own+=value else opposing+=value end
  end
- return total
+ return own-opposing,opposing
+end
+
+local function hasResistance(lead,opposing)
+ -- Compare against the solving side before any gain from the solution.
+ return opposing>=300 and lead<1100 and (opposing>=650 or lead<500)
+end
+
+local function probe(bot,engine,state,deadline)
+ if os.clock()>=deadline then return nil end
+ local _,details=bot.choose(engine,state,1000,{
+  depth=3,timeMs=math.min(50,math.max(0,(deadline-os.clock())*1000)),nodes=3500
+ })
+ if details and details.score~=nil then return details.score end
+ local status=engine.status(state)
+ if status=="checkmate" then return -100000 end
+ if status=="stalemate" or status=="draw" then return 0 end
+end
+
+local function isAlreadyWon(engine,bot,state,moves,solution,category,lead,deadline)
+ local positionScore=probe(bot,engine,state,deadline)
+ if positionScore==nil then return true end
+ -- In a material puzzle, a forced mate makes the material objective secondary.
+ if category=="material" and math.abs(positionScore)>99000 then return true end
+
+ local baseline=bot.evaluatePosition(state)
+ if lead<500 and baseline<500 and (category=="checkmate" or positionScore<700) then return false end
+
+ -- A high primary score can come entirely from the intended tactic. Check
+ -- other promising moves against defensive replies before calling it trivial.
+ local alternatives={}
+ for _,move in ipairs(moves) do
+  if moveID(move)~=moveID(solution) then
+   local child=engine.apply(state,move)
+   table.insert(alternatives,{state=child,estimate=-bot.evaluatePosition(child),id=moveID(move)})
+  end
+ end
+ table.sort(alternatives,function(a,b)
+  return a.estimate>b.estimate or (a.estimate==b.estimate and a.id<b.id)
+ end)
+ local wins=0
+ for index=1,math.min(#alternatives,4) do
+  local score=probe(bot,engine,alternatives[index].state,deadline)
+  if score==nil then return true end
+  if -score>=650 then
+   wins+=1
+   if wins>=2 or baseline>=800 then return true end
+  end
+ end
+ return false
 end
 
 local function potential(state,move)
@@ -278,6 +327,18 @@ local function serialize(engine,state,line,options,id,gain,difficulty)
   difficulty=difficulty,gain=gain,origin=origin,steps=steps,line=line}
 end
 
+function Puzzle.validate(engine,bot,state,moves,category,rating,deadline)
+ local lead,opposing=balance(state,state.turn)
+ if not hasResistance(lead,opposing) then return nil end
+
+ local verify=category=="checkmate" and checkmate or material
+ local stop=limit(math.min(deadline,os.clock()+.34),2500)
+ local ok,line,gain,difficulty=pcall(verify,engine,state,moves,rating,stop)
+ if not ok or not line then return nil end
+ if isAlreadyWon(engine,bot,state,moves,line[1],category,lead,deadline) then return nil end
+ return line,gain,difficulty
+end
+
 function Puzzle.generate(engine,bot,options)
  local rating=options.rating
  local deadline=os.clock()+math.clamp(options.timeMs or 2400,100,4500)/1000
@@ -295,15 +356,8 @@ function Puzzle.generate(engine,bot,options)
    if ply>=minimum and not claimable(engine,state) then
     local id=fingerprint(engine,state)
     if not seen[id] then
-     local verify=options.category=="checkmate" and checkmate or material
-     local stop=limit(math.min(deadline,os.clock()+.34),2500)
-     local ok,line,gain,difficulty=pcall(verify,engine,state,moves,rating,stop)
-     if ok and line and options.category=="material" then
-      -- Cross-check the tactic against the playing engine's positional search.
-      local _,details=bot.choose(engine,state,rating,{depth=3,timeMs=math.max(0,math.min(50,(deadline-os.clock())*1000)),nodes=3500})
-      if details and details.score and math.abs(details.score)>99000 then line=nil end
-     end
-     if ok and line then
+     local line,gain,difficulty=Puzzle.validate(engine,bot,state,moves,options.category,rating,deadline)
+     if line then
       local candidate=serialize(engine,state,line,options,id,gain,difficulty)
       if math.abs(difficulty-rating)<=200 then return candidate end
       if not fallback or math.abs(difficulty-rating)<math.abs(fallback.difficulty-rating) then fallback=candidate end
