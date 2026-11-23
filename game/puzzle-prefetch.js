@@ -2,7 +2,7 @@ import { createPositionTools } from "./position-tools.js";
 import { nextSeed, possibleRatings, savePractice } from "./puzzle-progress.js";
 
 export async function findPuzzle(worker, { category, rating, recent }, takeSeed) {
-  const targetRating = Math.min(rating, 2400);
+  const targetRating = Math.min(rating, 3000);
   let candidate;
   for (let attempt = 0; attempt < 3; attempt++) {
     const puzzle = await worker.run("puzzle", { category, rating: targetRating, recent, seed: takeSeed() });

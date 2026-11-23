@@ -3,6 +3,8 @@ import { readSetting, writeSetting } from "./session.js";
 const key = "exalted-chess-puzzles-v1";
 const modulus = 2147483647;
 const historyLimit = 128;
+const attemptsKey = "exalted-chess-puzzle-attempts-v1";
+const attemptsLimit = 512;
 
 function validActive(active, category) {
   if (active == null) return true;
@@ -66,12 +68,34 @@ export function possibleRatings(practice) {
   return ratings;
 }
 
+function recordAttempt(rating, active, outcome) {
+  let recent;
+  try { recent = JSON.parse(readSetting(attemptsKey)); }
+  catch { recent = []; }
+  const { puzzle, hearts, elapsedMs, assisted } = active;
+  const attempt = {
+    id: puzzle.id,
+    category: puzzle.category,
+    difficulty: puzzle.difficulty,
+    ratingBand: Math.floor(rating / 200) * 200,
+    outcome,
+    assisted: Boolean(assisted),
+    mistakes: 3 - hearts,
+    elapsedMs: Number.isFinite(elapsedMs) ? Math.max(0, Math.round(elapsedMs)) : null
+  };
+  const records = Array.isArray(recent) ? recent.slice(1 - attemptsLimit) : [];
+  records.push(attempt);
+  writeSetting(attemptsKey, JSON.stringify(records));
+}
+
 export function resolvePuzzle(practice, outcome) {
   const { puzzle } = practice.active;
   const prior = practice.rating;
   practice.rating = puzzleRating(prior, practice.active, outcome);
   practice.recent = [...practice.recent, puzzle.id].slice(-historyLimit);
+  const active = practice.active;
   practice.active = null;
   savePractice(practice);
+  recordAttempt(prior, active, outcome);
   return practice.rating - prior;
 }

@@ -36,7 +36,7 @@ try {
   await vm.loadstring(`
 local Chess=(function()\n${engine}\nend)()
 local Puzzle=(function()
-${generator}
+${generator.replace(/return Puzzle\s*$/, "Puzzle.proveForTest=mateProof; return Puzzle")}
 end)()
 local Bot=(function()
 ${bot}
@@ -79,6 +79,24 @@ assert(not Puzzle.validate(Chess,Bot,lowResistance,Chess.allLegal(lowResistance)
 local manyMates=fixture({f6="wK",f7="wQ",h8="bK",a8="bQ",a1="wR"},"w")
 assert(mateCount(manyMates)>1)
 assert(not Puzzle.validate(Chess,Bot,manyMates,Chess.allLegal(manyMates),"checkmate",400,os.clock()+1))
+-- A narrow forcing tree exercises the full proof horizon without timing a
+-- large real-board search. Actual chess legality is covered by the fixtures below.
+local forced={from="a1",to="a2"}
+local tree={}
+function tree.allLegal(state) return state.ply<19 and {forced} or {} end
+function tree.hasLegal(state) return state.ply<19 end
+function tree.inCheck(state) return state.ply==19 end
+function tree.insufficientMaterial() return false end
+function tree.positionKey() return "position" end
+function tree.mayClaimWithMove() return false end
+function tree.apply(state)
+ return {ply=state.ply+1,turn=state.turn=="w" and "b" or "w",positions={},halfmove=0}
+end
+tree.searchApply=tree.apply
+local root={ply=0,turn="w",positions={},halfmove=0}
+assert(not Puzzle.proveForTest(tree,root,9,true,function() end,true))
+local extended,unique=Puzzle.proveForTest(tree,root,10,true,function() end,true)
+assert(unique and #extended==19)
 local replyFixture=fixture({
  d6="bB",d5="bN",b5="wB",b2="wP",a2="wP",c8="bK",a7="bP",a8="bR",
  c7="bP",h2="wR",g2="wP",f7="bP",g7="bP",e4="wP",f2="wP",e5="bN",
@@ -129,7 +147,8 @@ end
   vm.destroy();
 }
 
-globalThis.localStorage = { getItem: () => null, setItem() {} };
+const storage = new Map();
+globalThis.localStorage = { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) };
 const { loadPractice, possibleRatings, puzzleRating, resolvePuzzle } = await import("../game/puzzle-progress.js");
 for (const [result, hearts, delta] of [
   ["solved", 3, 50], ["solved", 2, 30], ["solved", 1, 20], ["failed", 0, -16], ["skipped", 3, 0]
@@ -158,6 +177,15 @@ for (const [rating, rewards] of [
     }
   }
 }
+const measured = { rating: 1234, recent: [], active: {
+  puzzle: { id: "timed", category: "material", difficulty: 1200 },
+  hearts: 2, elapsedMs: 2345.6
+} };
+resolvePuzzle(measured, "solved");
+assert.deepEqual(JSON.parse(storage.get("exalted-chess-puzzle-attempts-v1")).at(-1), {
+  id: "timed", category: "material", difficulty: 1200, ratingBand: 1200,
+  outcome: "solved", assisted: false, mistakes: 1, elapsedMs: 2346
+});
 localStorage.getItem = () => JSON.stringify({
   rating: 567, category: "checkmate", recent: ["last-puzzle"], seed: 0, active: { step: 5, hearts: 2 }
 });

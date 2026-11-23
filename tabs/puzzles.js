@@ -168,6 +168,29 @@ export default function puzzles(content) {
     next.textContent = finished ? "Next puzzle" : "Try again";
   }
 
+  let attemptStarted;
+
+  function startAttemptClock() {
+    if (practice.active && !document.hidden && attemptStarted == null) {
+      practice.active.elapsedMs ??= 0;
+      attemptStarted = performance.now();
+    }
+  }
+
+  function pauseAttemptClock() {
+    if (attemptStarted == null || !practice.active) return;
+    practice.active.elapsedMs += performance.now() - attemptStarted;
+    attemptStarted = undefined;
+    savePractice(practice);
+  }
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) pauseAttemptClock();
+    else startAttemptClock();
+  }, listeners);
+  window.addEventListener("pagehide", pauseAttemptClock, listeners);
+  window.addEventListener("pageshow", startAttemptClock, listeners);
+
   function stopAnimation() {
     clearTimeout(transition);
     clearTimeout(advanceTimer);
@@ -214,6 +237,7 @@ export default function puzzles(content) {
       if (disposed || request !== generation) return;
       if (candidate) {
         practice.active = { puzzle: candidate, step: 0, hearts: 3 };
+        startAttemptClock();
         savePractice(practice);
         message = prefix;
         prefetch = createPuzzlePrefetch(practice);
@@ -232,6 +256,7 @@ export default function puzzles(content) {
   }
 
   function resolve(result) {
+    pauseAttemptClock();
     const active = practice.active;
     const delta = resolvePuzzle(practice, result);
     prefetch?.take(practice.rating);
@@ -380,11 +405,13 @@ export default function puzzles(content) {
     if (kind === "profile" || kind === "catalog") render();
   });
   if (practice.active) {
+    startAttemptClock();
     render();
     prefetch = createPuzzlePrefetch(practice);
   }
   else generate();
   return () => {
+    pauseAttemptClock();
     disposed = true;
     generation++;
     controller.abort();

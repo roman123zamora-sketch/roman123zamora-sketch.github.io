@@ -157,22 +157,28 @@ the positional evaluator. Black plays the only legal move or the strongest
 move from a completed, bounded engine search. Candidates with an unfinished
 Black search are discarded. When Black defends in a puzzle line, that engine
 reply must still satisfy the tactical proof. Candidate analysis runs in a
-separate worker. It checks unique mates in one or two moves against every
-legal defense. Material puzzles verify all immediate replies and search
-capture and promotion exchanges, including all evasions in check. Positions
-that exceed the proof budget are discarded. Material verification is bounded
-to the verified tactical exchange.
+separate worker. It proves forced mates against every legal defense, and
+higher ratings can request searches up to mate in ten. Material puzzles
+start with undefended captures. At higher bands the generator also considers
+checking and quiet tactical setups, then verifies the legal replies and
+subsequent capture and promotion exchanges. A candidate that exceeds its
+proof budget is discarded.
 
-Difficulty is estimated from line length and tactical choices. Generation
-prefers the closest verified candidate to the player's rating within the time
-budget. Puzzle rating starts at 400. At that rating, an unassisted solve
+Difficulty is estimated in 200-point steps from 400 through 3000, taking
+into account solver moves, forcing alternatives, and defensive branching.
+Generation prefers the closest verified candidate within the time budget.
+It can return an easier puzzle with its original label or ask for a retry
+when deeper proofs are unavailable. Puzzle rating starts at 400. At that rating, an unassisted solve
 earns 50 points with no mistakes, 30 with one mistake, or 20 with two.
 Rewards taper linearly to 10 points at 2000 and above. Three wrong moves
 still incur the existing difficulty-based failure penalty. Skipping, hints,
 and revealing the solution are rating-neutral. The first hint highlights
 the piece and the second adds its destination. See solution gives written
 instructions for playing the moves yourself. Rating has a floor of 100.
-The generator’s targeting remains capped at 2400.
+The generator targets up to 3000. This browser retains the latest 512
+puzzle attempts with fingerprint, starting rating band, outcome, hints,
+mistakes, and active time. This data supports later calibration and is not
+shared across players.
 
 While a puzzle is active, workers prepare candidates for up to five possible
 resulting ratings. Only the matching candidate is used and the rest are

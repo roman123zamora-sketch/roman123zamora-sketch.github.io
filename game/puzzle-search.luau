@@ -72,7 +72,65 @@ local function mateInTwo(engine,state,root,stop)
  return chosen,unique
 end
 
-local function checkmate(engine,state,moves,rating,stop)
+-- Maximum target lengths count solver moves, not individual plies.
+local mateTargets={1,2,2,3,3,4,4,5,5,6,7,8,9,10}
+local materialTargets={1,1,2,2,3,3,3,4,4,5,5,6,7,8}
+local mateRatings={400,600,1000,1400,1800,2200,2400,2600,2800,2800}
+local materialRatings={400,800,1200,1800,2200,2500,2700,2900}
+local function ratingBand(rating)
+ return math.clamp(math.floor((rating-400)/200)+1,1,14)
+end
+
+-- Find a mate within the remaining solver moves. Every legal reply must lose.
+-- At solver nodes, finding a second solution marks the proof ambiguous.
+local function mateProof(engine,state,remaining,attacking,stop,unique)
+ stop()
+ local legal=engine.allLegal(state)
+ if #legal==0 then
+  if not attacking and engine.inCheck(state,state.turn) then return {},true end
+  return nil
+ end
+ if engine.insufficientMaterial(state) or state.halfmove>=150 or
+    (state.positions[engine.positionKey(state)] or 0)>=5 or
+    (not attacking and claimable(engine,state)) then return nil end
+ if attacking and remaining==1 then
+  local mates=tactics(engine,state,legal,stop)
+  if #mates==0 then return nil end
+  return {mates[1]},#mates==1
+ end
+ local preferred={}
+ local quiet={}
+ for _,move in ipairs(legal) do
+  stop()
+  local child=engine.apply(state,move)
+  local group=(not attacking or engine.inCheck(child,child.turn)) and preferred or quiet
+  table.insert(group,{move=move,child=child})
+ end
+ for _,candidate in ipairs(quiet) do table.insert(preferred,candidate) end
+ local longest,unambiguous
+ for _,candidate in ipairs(preferred) do
+  local line,single=mateProof(engine,candidate.child,remaining-(attacking and 1 or 0),not attacking,stop,unique)
+  if attacking then
+   if line then
+    if longest then return longest,false end
+    longest={candidate.move}
+    for _,move in ipairs(line) do table.insert(longest,move) end
+    unambiguous=single
+    if not unique then return longest,unambiguous end
+   end
+  else
+   if not line then return nil end
+   if not longest or #line>=#longest then
+    longest={candidate.move}
+    for _,move in ipairs(line) do table.insert(longest,move) end
+   end
+   unambiguous=unambiguous~=false and single
+  end
+ end
+ return longest,unambiguous
+end
+
+local function checkmate(engine,state,moves,rating,stop,bot,deadline)
  local mates=tactics(engine,state,moves,stop)
  if #mates==1 then return {mates[1]}, nil, 400 end
  if #mates~=0 or rating<600 then return nil end
@@ -90,13 +148,32 @@ local function checkmate(engine,state,moves,rating,stop)
    table.insert(quiet,move)
   end
  end
- if not proven then return nil end
+ if not proven then
+  if rating<1000 then return nil end
+  -- Use the engine to locate promising deeper candidates before paying to prove them.
+  local _,details=bot.choose(engine,state,2400,{
+   depth=12,nodes=4500,timeMs=math.min(85,math.max(0,(deadline-os.clock())*1000))
+  })
+  local score=details and details.score
+  if not score or score<350 then return nil end
+  local maximum=mateTargets[ratingBand(rating)]
+  local distance=score>=99000 and math.ceil((100000-score)/2) or maximum
+  if distance<3 or distance>maximum then return nil end
+  for horizon=3,distance do
+   local solution,unique=mateProof(engine,state,horizon,true,stop,true)
+   if solution then
+    if unique and forcing(engine,state,solution[1],engine.searchApply(state,solution[1])) then return solution end
+    return nil
+   end
+  end
+  return nil
+ end
  for _,move in ipairs(quiet) do
   if mateInTwo(engine,state,move,stop) then
    return nil
   end
  end
- return proven,nil, math.min(1250,950+math.floor(#moves/8)*50)
+ return proven
 end
 
 local function balance(state,owner)
@@ -221,7 +298,7 @@ local function defense(engine,state,move,owner,stop,cutoff)
  end)
  for _,reply in ipairs(replies) do
   stop()
-  local value,tail=exchange(engine,engine.apply(child,reply),owner,6,stop,-math.huge,best)
+  local value,tail=exchange(engine,engine.apply(child,reply),owner,14,stop,-math.huge,best)
   if value<best then best,line=value,prepend(reply,tail) end
   if best<cutoff then return best,line end
  end
@@ -253,12 +330,28 @@ local function material(engine,state,moves,rating,stop)
   local delta=potential(state,a)-potential(state,b)
   return delta>0 or (delta==0 and moveID(a)<moveID(b))
  end)
- if potential(state,moves[1])<300 then return nil end
+ if rating<800 and potential(state,moves[1])<300 then return nil end
  local choice,score,tail
  local tested={}
  local qualifying=initial+300
  for _,move in ipairs(moves) do
-  if potential(state,move)<300 then break end
+  local capture=potential(state,move)>=300
+  if not capture and rating<800 then break end
+  local setup=false
+  if not capture then
+   stop()
+   local child=engine.searchApply(state,move)
+   setup=engine.inCheck(child,child.turn)
+   if not setup then
+    -- A quiet fork or pin can create a threat that survives the opponent's reply.
+    child.turn=owner
+    child.ep=nil
+    for _,threat in ipairs(engine.tacticalMoves(child)) do
+     if potential(child,threat)>=300 then setup=true; break end
+    end
+   end
+  end
+  if not capture and not setup then continue end
   local value,line=defense(engine,state,move,owner,stop,qualifying)
   tested[move]=value
   if value>=qualifying and (not score or value>score) then choice,score,tail=move,value,line end
@@ -352,12 +445,13 @@ local function verifyBlackReplies(engine,bot,state,line,category,gain,deadline,s
     local nextState=engine.apply(position,best)
     local tail
     if category=="checkmate" then
-     local mates=tactics(engine,nextState,engine.allLegal(nextState),stop)
-     if #mates~=1 then return nil end
-     tail=mates
+     local remaining=math.floor((#line-index+1)/2)
+     local single
+     tail,single=mateProof(engine,nextState,remaining,true,stop,true)
+     if not tail or not single or #tail~=#line-index then return nil end
     else
      local score
-     score,tail=exchange(engine,nextState,owner,6,stop,-math.huge,math.huge)
+     score,tail=exchange(engine,nextState,owner,14,stop,-math.huge,math.huge)
      if score~=goal then return nil end
     end
     for later=#line,index+1,-1 do line[later]=nil end
@@ -378,25 +472,56 @@ function Puzzle.validate(engine,bot,state,moves,category,rating,deadline)
  if not hasResistance(lead,opposing) then return nil end
 
  local verify=category=="checkmate" and checkmate or material
- local stop=limit(math.min(deadline,os.clock()+.34),2500)
- local ok,line,gain,difficulty=pcall(verify,engine,state,moves,rating,stop)
+ local advanced=rating>=1000
+ local stop=limit(math.min(deadline,os.clock()+(advanced and .65 or .34)),advanced and 9500 or 2500)
+ local ok,line,gain,difficulty=pcall(verify,engine,state,moves,rating,stop,bot,deadline)
  if not ok or not line then return nil end
  if isAlreadyWon(engine,bot,state,moves,line[1],category,lead,deadline) then return nil end
  local replyStop=limit(math.min(deadline,os.clock()+.34),2500)
  local verified,finalLine=pcall(verifyBlackReplies,engine,bot,state,line,category,gain,deadline,replyStop)
  if not verified or not finalLine then return nil end
- if category=="material" then
-  if #finalLine>2 and rating<600 then return nil end
-  local tempting=0
-  for _,move in ipairs(moves) do if potential(state,move)>=200 then tempting+=1 end end
-  difficulty=#finalLine<=2 and 400 or math.min(1400,650+math.floor((#finalLine-1)/2)*150+math.min(4,tempting-1)*50)
+ local choices=math.ceil(#finalLine/2)
+ local position=state
+ local pressure=0
+ for index,move in ipairs(finalLine) do
+  if index%2==1 then
+   local options=engine.allLegal(position)
+   local forcingCount=0
+   for _,alternative in ipairs(options) do
+    if forcing(engine,position,alternative,engine.searchApply(position,alternative)) then forcingCount+=1 end
+   end
+   if forcingCount>=3 then pressure+=1 end
+  else
+   if #engine.allLegal(position)>=3 then pressure+=1 end
+  end
+  position=engine.apply(position,move)
  end
+ local base
+ if category=="material" then
+  if choices>materialTargets[ratingBand(rating)] then return nil end
+  local quiet=potential(state,finalLine[1])==0
+  if rating<600 then
+   local child=engine.apply(state,finalLine[1])
+   if kind(state.board[finalLine[1].to] or "  ")=="K" or
+      potential(state,finalLine[1])<300 or finalLine[1].promotion or
+      (finalLine[2] and finalLine[2].to==finalLine[1].to) then return nil end
+   for _,reply in ipairs(engine.tacticalMoves(child)) do
+    if reply.to==finalLine[1].to then return nil end
+   end
+  end
+  base=materialRatings[math.min(choices,#materialRatings)]+(quiet and (choices==1 and 400 or 100) or 0)
+ else
+  base=mateRatings[choices]
+ end
+ local bonus=choices>1 and math.min(400,pressure*100) or (category=="checkmate" and pressure>0 and 200 or 0)
+ if choices>=3 and pressure==0 then bonus=-400 end
+ difficulty=math.clamp(200*math.floor((base+bonus+100)/200),400,3000)
  return finalLine,gain,difficulty
 end
 
 function Puzzle.generate(engine,bot,options)
  local rating=options.rating
- local deadline=os.clock()+math.clamp(options.timeMs or 2400,100,4500)/1000
+ local deadline=os.clock()+math.clamp(options.timeMs or (rating>=1400 and 4500 or 2400),100,6000)/1000
  local random=randomSource(options.seed)
  local seen={}
  for _,id in ipairs(options.recent or {}) do seen[id]=true end
