@@ -3,6 +3,7 @@ import { createChessPiece, pieceName } from "./chess-pieces.js";
 const colors = { w: "white", b: "black", R: "red", B: "blue", Y: "yellow", G: "green" };
 const standard = "rnbqkbnr";
 const mirrored = "rnbkqbnr";
+const boardLayouts = new WeakMap();
 function startingPosition(fourPlayer) {
   const squares = new Map();
   const place = (row, column, type, side) => squares.set(`${row},${column}`, { type, side });
@@ -31,7 +32,10 @@ function startingPosition(fourPlayer) {
 
 export function board(theme, fourPlayer = false, sample = false, options = {}) {
   const size = sample ? 4 : fourPlayer ? 14 : 8;
-  const element = document.createElement("div");
+  const layout = `${size}:${options.side === "b"}:${Boolean(options.select)}`;
+  const existing = !sample && options.frame;
+  const reuse = existing && boardLayouts.get(existing) === layout;
+  const element = reuse ? existing.firstElementChild : document.createElement("div");
   element.className = sample ? "board sample" : "board";
   if (sample) element.setAttribute("aria-hidden", "true");
   else element.setAttribute("aria-label", fourPlayer ? "Four-player board" : "Chessboard");
@@ -49,7 +53,15 @@ export function board(theme, fourPlayer = false, sample = false, options = {}) {
     for (let column = 0; column < size; column++) {
       const address = files[column] + ranks[row];
       const corner = fourPlayer && !sample && !inCenter(row) && !inCenter(column);
-      const square = document.createElement(options.select && !corner ? "button" : "div");
+      const square = reuse ? element.children[row * size + column]
+        : document.createElement(options.select && !corner ? "button" : "div");
+      let image;
+      if (reuse) {
+        for (const child of [...square.children]) {
+          if (child.classList.contains("chess-piece")) image = child;
+          else child.remove();
+        }
+      }
       square.className = corner ? "square cutout" : (row + column) % 2 ? "square dark" : "square";
       const encoded = options.state?.board[address];
       const piece = options.state ? (encoded && { type: encoded[1], side: colors[encoded[0]] }) : position?.get(`${size - ranks[row]},${"abcdefghijklmn".indexOf(files[column])}`);
@@ -62,10 +74,16 @@ export function board(theme, fourPlayer = false, sample = false, options = {}) {
         if (column === leftEdge) square.dataset.rank = ranks[row];
         if (row === bottomEdge) square.dataset.file = files[column];
       }
+      if (image && (!piece || image.dataset.art !== `${piece.type.toLowerCase()}-${piece.side}`)) {
+        image.remove();
+        image = undefined;
+      }
       if (piece) {
-        const image = createChessPiece(piece.type, piece.side);
-        if (options.state?.eliminated?.[encoded?.[0]]) image.classList.add("eliminated");
-        square.append(image);
+        if (!image) {
+          image = createChessPiece(piece.type, piece.side);
+          square.append(image);
+        }
+        image.classList.toggle("eliminated", Boolean(options.state?.eliminated?.[encoded?.[0]]));
       }
       const checked = piece?.type.toUpperCase() === "K" && (
         options.state?.checkedColors ? Object.values(options.state.checkedColors).includes(encoded?.[0]) :
@@ -106,22 +124,26 @@ export function board(theme, fourPlayer = false, sample = false, options = {}) {
         square.type = "button";
         square.dataset.square = address;
         square.setAttribute("aria-pressed", String(options.selected === address));
-        square.addEventListener("click", () => options.select(address));
-        square.addEventListener("contextmenu", event => {
-          event.preventDefault();
-          square.classList.toggle("marked");
-          options.mark?.(address);
-        });
+        if (!reuse) {
+          square.addEventListener("click", () => options.select(address));
+          square.addEventListener("contextmenu", event => {
+            event.preventDefault();
+            square.classList.toggle("marked");
+            options.mark?.(address);
+          });
+        }
         square.classList.toggle("marked", options.marks?.has(address) ?? false);
       }
-      element.append(square);
+      if (!reuse) element.append(square);
     }
   }
   if (sample) return element;
+  if (reuse) return existing;
 
   const frame = document.createElement("div");
   frame.className = "board-frame";
   frame.append(element);
+  boardLayouts.set(frame, layout);
   return frame;
 }
 

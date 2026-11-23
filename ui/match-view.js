@@ -36,6 +36,7 @@ export function renderMatch(content, { title, fourPlayer }) {
   let scrollFrame;
   let targetRequest;
   let dragSource;
+  let dragMove;
   let resetting = false;
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   let queued = false;
@@ -156,10 +157,11 @@ export function renderMatch(content, { title, fourPlayer }) {
     dropped = null;
   }
 
-  function submit(move, queuedMove = false) {
+  function submit(move, queuedMove = false, dragged = false) {
     const data = match();
     if (!boardAcceptsInput() || data.state.turn !== data.side) return;
     if (!queuedMove) clearPremoves();
+    dragMove = dragged ? move : undefined;
     if (claiming) {
       claiming = false;
       action("claimDraw", move);
@@ -172,7 +174,7 @@ export function renderMatch(content, { title, fourPlayer }) {
     drawStatus();
   }
 
-  function finishDestination(from, to) {
+  function finishDestination(from, to, dragged = false) {
     const target = currentTargets().find(move => move.to === to);
     dropped = null;
     if (!target) {
@@ -188,19 +190,20 @@ export function renderMatch(content, { title, fourPlayer }) {
     }
     const move = { from, to };
     if (target.promotion) {
-      promotion = { move, matchId: match().matchId, revision: match().revision };
+      promotion = { move, matchId: match().matchId, revision: match().revision, dragged };
       dialog.returnValue = "";
       dialog.showModal();
       return true;
     }
-    submit(move);
+    submit(move, false, dragged);
     return true;
   }
 
-  function chooseDestination(from, to) {
+  function chooseDestination(from, to, dragged = false) {
     const data = match();
     if (!boardAcceptsInput() || !from || from === to || !to) return false;
     if (data.state.turn !== data.side) {
+      if (!dragged) return false;
       const piece = data.state.board[from];
       if (piece?.[0] !== data.side) return false;
       premoves.push({ from, to, piece });
@@ -210,8 +213,8 @@ export function renderMatch(content, { title, fourPlayer }) {
       return true;
     }
     if (selected !== from) requestTargets(from);
-    if (targetsReady()) return finishDestination(from, to);
-    dropped = to;
+    if (targetsReady()) return finishDestination(from, to, dragged);
+    dropped = { to, dragged };
     return true;
   }
 
@@ -239,7 +242,7 @@ export function renderMatch(content, { title, fourPlayer }) {
     promotion = null;
     if (choice && dialog.returnValue && choice.matchId === match()?.matchId && choice.revision === match()?.revision) {
       if (choice.queuedMove) premoveNotice = "Premove played.";
-      submit({ ...choice.move, promotion: dialog.returnValue }, choice.queuedMove);
+      submit({ ...choice.move, promotion: dialog.returnValue }, choice.queuedMove, choice.dragged);
     } else if (choice?.queuedMove) {
       clearPremoves();
       premoveNotice = "Premove canceled.";
@@ -269,7 +272,7 @@ export function renderMatch(content, { title, fourPlayer }) {
     }
     const next = premoves[0];
     if (!next) return;
-    if (premoves.some(move => data.state.board[move.from] !== move.piece)) {
+    if (data.state.board[next.from] !== next.piece) {
       clearPremoves();
       premoveNotice = "Premove canceled. The piece is no longer on its starting square.";
       return;
@@ -301,6 +304,7 @@ export function renderMatch(content, { title, fourPlayer }) {
       } else {
         premoveNotice = "Premove played.";
         submit(move, true);
+        return;
       }
     }
     drawBoard();
@@ -320,13 +324,15 @@ export function renderMatch(content, { title, fourPlayer }) {
       reviewAnalysis.textContent = Math.abs(change) < .05 ? "Little change in the engine estimate." :
         `${change > 0 ? "White" : "Black"} gained about ${Math.abs(change).toFixed(1)} pawns of advantage on this move.`;
     });
-    slot.replaceChildren(board(getTheme(), fourPlayer, false, {
+    const nextFrame = board(getTheme(), fourPlayer, false, {
+      frame: slot.firstElementChild,
       state: review?.positions[review.ply] ?? data?.state, side: data?.side, selected, targets: selected ? currentTargets() : [],
       premoves,
       bestMove: review ? bestMove.move : hint.move,
       select: active() ? select : undefined, marks: review ? undefined : marks,
       mark: address => { if (marks.has(address)) marks.delete(address); else marks.add(address); }
-    }));
+    });
+    if (nextFrame !== slot.firstElementChild) slot.replaceChildren(nextFrame);
     for (const square of slot.querySelectorAll("[data-square]")) {
       square.classList.toggle("drag-source", square.dataset.square === dragSource);
       if (boardAcceptsInput() && data?.state.board[square.dataset.square]?.[0] === data?.side) {
@@ -415,11 +421,14 @@ export function renderMatch(content, { title, fourPlayer }) {
     } else if (data) {
       status.textContent = data.state.terminal ? "Game ended" :
         data.state.eliminated?.[data.side] ? "Eliminated · Watching the remaining players" :
+        resetting ? "Resetting game…" :
         session.movePending ? "Sending move…" :
-        premoves.length ? `Premove queued · ${premoves.map(move => `${move.from}–${move.to}`).join(", ")}` :
         claiming ? "Choose a move to support your draw claim." :
         `${sides[data.state.turn]} to move${data.state.status === "check" ? " · Check" : ""}${/bot/i.test(data.mode) && data.state.turn !== data.side ? " · Bot thinking" : ""}`;
     } else status.textContent = "";
+    if (active() && premoves.length) {
+      status.textContent += ` · Premove queued: ${premoves.map(move => `${move.from}–${move.to}`).join(", ")}`;
+    }
     if (active() && premoveNotice) status.textContent += ` · ${premoveNotice}`;
     status.classList.toggle("in-check", data?.state.status === "check" && !outcome);
   }
@@ -571,7 +580,7 @@ export function renderMatch(content, { title, fourPlayer }) {
       ${onlineFinished && !session.queue && !queued ? '<button data-action="newOpponent">New Game</button>' : ""}
       ${review ? "" : '<button data-action="review">Review</button>'}` :
       active() ? `${bot ? `<button data-action="undo"${Object.values(data.state.history).some(move => move.color === data.side) ? "" : " disabled"}>Undo</button>
-        <button data-action="reset">Reset game</button>` : ""}
+        <button data-action="reset"${resetting ? ' disabled aria-busy="true"' : ""}>${resetting ? "Resetting…" : "Reset game"}</button>` : ""}
         ${data.state.turn === data.side && data.state.claimReason ? '<button data-action="claim">Claim draw</button>' :
           data.state.turn === data.side && data.state.mayClaimWithMove ? `<button data-action="claimMove" aria-pressed="${claiming}">${claiming ? "Cancel draw claim" : "Claim with move"}</button>` : ""}
         <button data-action="${abort ? "abort" : "resign"}">${abort ? "Abort" : "Resign"}</button>` : "";
@@ -680,8 +689,11 @@ export function renderMatch(content, { title, fourPlayer }) {
       case "reset":
         if (!resetting && confirm("Reset this game to the starting position?")) {
           resetting = true;
-          clearSelection();
+          clearPremoves();
+          clearBoardInput();
           drawBoard();
+          drawControls();
+          drawStatus();
           action("reset");
         }
         break;
@@ -719,15 +731,15 @@ export function renderMatch(content, { title, fourPlayer }) {
       dragSource = null;
       slot.querySelector(".drag-source")?.classList.remove("drag-source");
     },
-    drop: chooseDestination
+    drop: (from, to) => chooseDestination(from, to, true)
   });
   document.addEventListener("click", cancelPremovesOnClick);
-  function clearBoardInput() {
+  function clearBoardInput(keepDrag = false) {
     clearSelection();
-    dragSource = null;
+    if (!keepDrag) dragSource = null;
     promotion = null;
     if (dialog.open) dialog.close();
-    drag.cancel();
+    if (!keepDrag) drag.cancel();
   }
 
   const subscription = subscribe(kind => {
@@ -738,14 +750,16 @@ export function renderMatch(content, { title, fourPlayer }) {
         return;
       }
       if (!targetsReady()) return;
-      if (dropped && boardAcceptsInput()) finishDestination(selected, dropped);
+      if (dropped && boardAcceptsInput()) finishDestination(selected, dropped.to, dropped.dragged);
       else drawBoard();
       return;
     }
     if (kind === "state" || kind === "error" || kind === "reject") {
       starting = false;
-      resetting = false;
-      if (kind !== "state") queued = false;
+      if (kind !== "state") {
+        resetting = false;
+        queued = false;
+      }
     }
     if (kind === "state") {
       queued = false;
@@ -754,14 +768,20 @@ export function renderMatch(content, { title, fourPlayer }) {
       const history = Object.values(data?.state.history ?? {});
       const moveCount = history.length;
       const lastMove = history.at(-1);
-      animateMove = !newMatch && moveCount === lastMoveCount + 1 && lastMove?.color !== data?.side;
+      const justDragged = dragMove && lastMove?.color === data?.side &&
+        lastMove.from === dragMove.from && lastMove.to === dragMove.to;
+      animateMove = !newMatch && moveCount === lastMoveCount + 1 && !justDragged;
+      dragMove = undefined;
       lastMoveCount = moveCount;
       if (newMatch || data?.revision !== lastRevision) {
-        clearBoardInput();
+        const keepDrag = !newMatch && dragSource && active() &&
+          data.state.turn !== data.side && data.state.board[dragSource]?.[0] === data.side;
+        clearBoardInput(keepDrag);
         premoveRequest = undefined;
         claiming = false;
       }
       if (newMatch) {
+        resetting = false;
         reviewTools?.close();
         reviewTools = undefined;
         review = undefined;
@@ -781,6 +801,7 @@ export function renderMatch(content, { title, fourPlayer }) {
       if (data) checkPremove(data);
     }
     if (kind === "queueCancelled" || kind === "challengeDeclined") queued = false;
+    if (kind === "leave" || kind === "result") resetting = false;
     if (kind === "leave") {
       reviewTools?.close();
       reviewTools = undefined;

@@ -86,3 +86,12 @@
   gap: .55rem 1rem;
 }
 .history-entry p { min-inline-size: 0; overflow-wrap: anywhere; }
+
+.page > p, .lesson-piece p, .history-entry p { line-height: 1.55; }
+.profile-stats dt { line-height: 1.35; }
+.history-entry .action-row { gap: .45rem; }
+@media (max-width: 35rem) {
+  .history-entry .action-row { inline-size: 100%; }
+  .history-entry .action-row button { flex: 1; text-align: center; }
+  .shop-sections > button { flex: 1 1 auto; }
+}

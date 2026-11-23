@@ -29,7 +29,7 @@ local function limit(deadline,nodes)
 end
 
 local function claimable(engine,state)
- if (state.positions[engine.positionKey(state)] or 0)>=3 or state.halfmove>=100 then return true end
+ if (state.positions[state.proofKey or engine.positionKey(state)] or 0)>=3 or state.halfmove>=100 then return true end
  return engine.mayClaimWithMove(state)
 end
 
@@ -53,7 +53,7 @@ end
 -- Exhaustively try all replies. The defender uses the longest legal defense.
 -- At a player branch, every equally short mate is counted.
 local function mateInTwo(engine,state,root,stop)
- local child=engine.apply(state,root)
+ local child=engine.apply(state,root,false)
  local replies=engine.allLegal(child)
  if #replies==0 or claimable(engine,child) then return nil end
  local chosen
@@ -61,9 +61,9 @@ local function mateInTwo(engine,state,root,stop)
  table.sort(replies,function(a,b) return moveID(a)<moveID(b) end)
  for _,reply in ipairs(replies) do
   stop()
-  local nextState=engine.apply(child,reply)
+  local nextState=engine.apply(child,reply,false)
   if engine.insufficientMaterial(nextState) or nextState.halfmove>=150
-   or (nextState.positions[engine.positionKey(nextState)] or 0)>=5 then return nil end
+   or (nextState.positions[nextState.proofKey or engine.positionKey(nextState)] or 0)>=5 then return nil end
   local mates=tactics(engine,nextState,engine.allLegal(nextState),stop)
   if #mates==0 then return nil end
   if #mates>1 then unique=false end
@@ -91,7 +91,7 @@ local function mateProof(engine,state,remaining,attacking,stop,unique)
   return nil
  end
  if engine.insufficientMaterial(state) or state.halfmove>=150 or
-    (state.positions[engine.positionKey(state)] or 0)>=5 or
+    (state.positions[state.proofKey or engine.positionKey(state)] or 0)>=5 or
     (not attacking and claimable(engine,state)) then return nil end
  if attacking and remaining==1 then
   local mates=tactics(engine,state,legal,stop)
@@ -102,18 +102,19 @@ local function mateProof(engine,state,remaining,attacking,stop,unique)
  local quiet={}
  for _,move in ipairs(legal) do
   stop()
-  local child=engine.apply(state,move)
+  local child=attacking and engine.searchApply(state,move)
   local group=(not attacking or engine.inCheck(child,child.turn)) and preferred or quiet
-  table.insert(group,{move=move,child=child})
+  table.insert(group,move)
  end
  for _,candidate in ipairs(quiet) do table.insert(preferred,candidate) end
  local longest,unambiguous
  for _,candidate in ipairs(preferred) do
-  local line,single=mateProof(engine,candidate.child,remaining-(attacking and 1 or 0),not attacking,stop,unique)
+  local child=engine.apply(state,candidate,false)
+  local line,single=mateProof(engine,child,remaining-(attacking and 1 or 0),not attacking,stop,unique)
   if attacking then
    if line then
     if longest then return longest,false end
-    longest={candidate.move}
+    longest={candidate}
     for _,move in ipairs(line) do table.insert(longest,move) end
     unambiguous=single
     if not unique then return longest,unambiguous end
@@ -121,7 +122,7 @@ local function mateProof(engine,state,remaining,attacking,stop,unique)
   else
    if not line then return nil end
    if not longest or #line>=#longest then
-    longest={candidate.move}
+    longest={candidate}
     for _,move in ipairs(line) do table.insert(longest,move) end
    end
    unambiguous=unambiguous~=false and single
@@ -225,7 +226,7 @@ local function isAlreadyWon(engine,bot,state,moves,solution,category,lead,deadli
  local alternatives={}
  for _,move in ipairs(moves) do
   if moveID(move)~=moveID(solution) then
-   local child=engine.apply(state,move)
+   local child=engine.apply(state,move,false)
    table.insert(alternatives,{state=child,estimate=-bot.evaluatePosition(child),id=moveID(move)})
   end
  end
@@ -258,14 +259,14 @@ end
 
 -- Exact capture/promotion exchanges. In check, every legal evasion is searched
 -- and standing pat is forbidden. Stop represents declining another trade.
-local function exchange(engine,state,owner,depth,stop,alpha,beta)
+local function exchange(engine,state,owner,depth,stop,alpha,beta,score)
  stop()
  local checked=engine.inCheck(state,state.turn)
  local moves=checked and engine.allLegal(state) or engine.tacticalMoves(state)
  if #moves==0 and (checked or not engine.hasLegal(state)) then error("Terminal exchange",0) end
  if engine.insufficientMaterial(state) or (state.turn~=owner and claimable(engine,state)) then error("Draw exchange",0) end
  local maximize=state.turn==owner
- local score=balance(state,owner)
+ score=score or balance(state,owner)
  local best=score
  local line={}
  if checked or (#moves>0 and not engine.hasQuiet(state)) then best=maximize and -math.huge or math.huge end
@@ -275,7 +276,9 @@ local function exchange(engine,state,owner,depth,stop,alpha,beta)
  if alpha>=beta then return best,line end
  table.sort(moves,function(a,b) return potential(state,a)>potential(state,b) end)
  for _,move in ipairs(moves) do
-  local value,tail=exchange(engine,engine.apply(state,move),owner,depth-1,stop,alpha,beta)
+  local gain=potential(state,move)
+  local nextScore=score+(maximize and gain or -gain)
+  local value,tail=exchange(engine,engine.apply(state,move,false),owner,depth-1,stop,alpha,beta,nextScore)
   if (maximize and value>best) or (not maximize and value<best) then
    best,line=value,prepend(move,tail)
   end
@@ -286,7 +289,7 @@ local function exchange(engine,state,owner,depth,stop,alpha,beta)
 end
 
 local function defense(engine,state,move,owner,stop,cutoff)
- local child=engine.apply(state,move)
+ local child=engine.apply(state,move,false)
  if claimable(engine,child) then error("Draw defense",0) end
  local replies=engine.allLegal(child)
  if #replies==0 then error("Terminal defense",0) end
@@ -298,7 +301,7 @@ local function defense(engine,state,move,owner,stop,cutoff)
  end)
  for _,reply in ipairs(replies) do
   stop()
-  local value,tail=exchange(engine,engine.apply(child,reply),owner,14,stop,-math.huge,best)
+  local value,tail=exchange(engine,engine.apply(child,reply,false),owner,14,stop,-math.huge,best)
   if value<best then best,line=value,prepend(reply,tail) end
   if best<cutoff then return best,line end
  end
@@ -318,7 +321,7 @@ local function uniqueContinuation(engine,state,line,owner,goal,stop)
     end
    end
   end
-  step=engine.apply(step,move)
+  step=engine.apply(step,move,false)
  end
  return balance(step,owner)>=goal
 end
@@ -442,7 +445,7 @@ local function verifyBlackReplies(engine,bot,state,line,category,gain,deadline,s
    if not best then return nil end
    if moveID(best)~=moveID(move) then
     changed=true
-    local nextState=engine.apply(position,best)
+    local nextState=engine.apply(position,best,false)
     local tail
     if category=="checkmate" then
      local remaining=math.floor((#line-index+1)/2)
@@ -460,7 +463,7 @@ local function verifyBlackReplies(engine,bot,state,line,category,gain,deadline,s
     move=best
    end
   end
-  position=engine.apply(position,move)
+  position=engine.apply(position,move,false)
   index+=1
  end
  if changed and category=="material" and not uniqueContinuation(engine,state,line,owner,goal,stop) then return nil end
@@ -494,14 +497,14 @@ function Puzzle.validate(engine,bot,state,moves,category,rating,deadline)
   else
    if #engine.allLegal(position)>=3 then pressure+=1 end
   end
-  position=engine.apply(position,move)
+  position=engine.apply(position,move,false)
  end
  local base
  if category=="material" then
   if choices>materialTargets[ratingBand(rating)] then return nil end
   local quiet=potential(state,finalLine[1])==0
   if rating<600 then
-   local child=engine.apply(state,finalLine[1])
+   local child=engine.apply(state,finalLine[1],false)
    if kind(state.board[finalLine[1].to] or "  ")=="K" or
       potential(state,finalLine[1])<300 or finalLine[1].promotion or
       (finalLine[2] and finalLine[2].to==finalLine[1].to) then return nil end

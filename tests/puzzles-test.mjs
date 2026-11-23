@@ -193,3 +193,19 @@ assert.deepEqual(loadPractice(), {
   rating: 567, category: "checkmate", recent: ["last-puzzle"], seed: 1, active: null
 });
 console.log("Legal histories, one- and two-move mates, all mate defenses, settled material, fresh seeds, and every rating outcome passed.");
+
+const { puzzleTargetBucket } = await import("../game/puzzle-prefetch.js");
+const labels = Array.from({ length: 14 }, (_, index) => 400 + index * 200);
+const profilesByBucket = new Map();
+for (let rating = 100; rating <= 3200; rating++) {
+  const target = Math.min(rating, 3000);
+  const bucket = puzzleTargetBucket(rating);
+  const order = [...labels].sort((a, b) => Math.abs(a - target) - Math.abs(b - target));
+  const policy = JSON.stringify([
+    Math.floor((target - 400) / 200), order, labels.filter(label => Math.abs(label - target) <= 200)
+  ]);
+  assert.equal(profilesByBucket.get(bucket) ?? policy, policy);
+  profilesByBucket.set(bucket, policy);
+}
+assert.equal(new Set([384, 400, 420, 430, 450].map(puzzleTargetBucket)).size, 3);
+assert.equal(new Set([416, 432, 452, 462, 482].map(puzzleTargetBucket)).size, 1);

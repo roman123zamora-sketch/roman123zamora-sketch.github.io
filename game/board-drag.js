@@ -85,7 +85,11 @@ export function bindBoardDrag(board, { begin, end: finish, drop }) {
   }
 
   for (const type of ["pointerup", "pointercancel"]) window.addEventListener(type, end, options);
-  board.addEventListener("lostpointercapture", end, options);
+  board.addEventListener("lostpointercapture", event => {
+    // Touch starts with implicit capture on the piece. Its capture is lost
+    // when the gesture transfers to the board.
+    if (event.target === board) end(event);
+  }, options);
   board.addEventListener("click", event => {
     if (!suppressClick || !event.detail) return;
     suppressClick = false;

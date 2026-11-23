@@ -156,3 +156,7 @@ main { width: min(100%, 100rem); margin-inline: auto; padding: var(--space); }
 }
 
 .brand img { inline-size: 95%; block-size: 95%; display: block; }
+
+@media (max-width: 22rem) {
+  main { padding-inline: .25rem; }
+}

@@ -75,11 +75,16 @@ local function attacked(board,target,by)
  end
  return false
 end
-function Engine.inCheck(state,color)
- local king; local encoded=color.."K"; for s,p in pairs(state.board) do if p==encoded then king=s; break end end
- if not king then return true end
- return attacked(state.board,king,color=="w" and "b" or "w")
+local function kingSquare(board,color)
+ local encoded=color.."K"
+ for square,piece in pairs(board) do if piece==encoded then return square end end
 end
+
+function Engine.inCheck(state,color)
+ local king=kingSquare(state.board,color)
+ return not king or attacked(state.board,king,color=="w" and "b" or "w")
+end
+
 local function pseudo(state,from,tacticalOnly)
  local p=state.board[from]; if not p then return {} end
  local color,typ=string.sub(p,1,1),string.sub(p,2,2); local x,y=xy(from); local out={}
@@ -115,8 +120,9 @@ local function pseudo(state,from,tacticalOnly)
  end
  return out
 end
-local function applyPosition(state,m)
+local function applyPosition(state,m,record)
  local n=table.clone(state)
+ n.proofKey=nil
  n.board=table.clone(state.board)
  n.castling=table.clone(state.castling)
  local p=n.board[m.from]; if not p then return nil end; local color,typ=string.sub(p,1,1),string.sub(p,2,2); local captured=n.board[m.to]
@@ -127,21 +133,70 @@ local function applyPosition(state,m)
  if typ=="K" then n.castling[color.."K"]=false; n.castling[color.."Q"]=false end
  if m.from=="a1" then n.castling.wQ=false elseif m.from=="h1" then n.castling.wK=false elseif m.from=="a8" then n.castling.bQ=false elseif m.from=="h8" then n.castling.bK=false end
  if m.to=="a1" then n.castling.wQ=false elseif m.to=="h1" then n.castling.wK=false elseif m.to=="a8" then n.castling.bQ=false elseif m.to=="h8" then n.castling.bK=false end
- n.halfmove=(typ=="P" or captured) and 0 or n.halfmove+1; if color=="b" then n.fullmove+=1 end; n.turn=color=="w" and "b" or "w"; n.lastMove={from=m.from,to=m.to}; return n,{from=m.from,to=m.to,color=color,promotion=m.promotion,special=m.special,captured=captured}
+ n.halfmove=(typ=="P" or captured) and 0 or n.halfmove+1; if color=="b" then n.fullmove+=1 end; n.turn=color=="w" and "b" or "w"
+ if not record then return n end
+ n.lastMove={from=m.from,to=m.to}
+ return n,{from=m.from,to=m.to,color=color,promotion=m.promotion,special=m.special,captured=captured}
 end
+-- Work on one scratch board per move list. Only occupancy matters when
+-- checking the king; rights, clocks and history stay on the real position.
+local function kingSafeAfter(board,move,color,king)
+ local from,to=move.from,move.to
+ local piece,target=board[from],board[to]
+ local extraFrom,extraTo,extraPiece
+ if move.special=="enpassant" then
+  local x,y=xy(to)
+  extraFrom=sq(x,y+(color=="w" and -1 or 1))
+ elseif move.special=="castleK" or move.special=="castleQ" then
+  local x,y=xy(to)
+  local kingside=move.special=="castleK"
+  extraFrom=sq(kingside and 8 or 1,y)
+  extraTo=sq(x+(kingside and -1 or 1),y)
+ end
+ if extraFrom then
+  extraPiece=board[extraFrom]
+  board[extraFrom]=nil
+  if extraTo then board[extraTo]=extraPiece end
+ end
+ board[from]=nil
+ board[to]=piece
+ local safe=not attacked(board,from==king and to or king,color=="w" and "b" or "w")
+ board[from]=piece
+ board[to]=target
+ if extraFrom then
+  board[extraFrom]=extraPiece
+  if extraTo then board[extraTo]=nil end
+ end
+ return safe
+end
+
 function Engine.legalMoves(state,from,color)
- local p=state.board[from]; if not p or string.sub(p,1,1)~=(color or state.turn) then return {} end
- local out={}; for _,m in ipairs(pseudo(state,from)) do local n=applyPosition(state,m); if n and not Engine.inCheck(n,string.sub(p,1,1)) then table.insert(out,m) end end; return out
+ local p=state.board[from]
+ color=color or state.turn
+ if not p or string.sub(p,1,1)~=color then return {} end
+ local king=kingSquare(state.board,color)
+ if not king then return {} end
+ local scratch=table.clone(state.board)
+ local out={}
+ for _,move in ipairs(pseudo(state,from)) do
+  if kingSafeAfter(scratch,move,color,king) then table.insert(out,move) end
+ end
+ return out
 end
 local function legalForColor(state,color,tactical,firstOnly)
+ local king=kingSquare(state.board,color)
+ if not king then
+  if firstOnly then return false end
+  return {}
+ end
+ local scratch=table.clone(state.board)
  local out={}
  for from,piece in pairs(state.board) do
   if string.sub(piece,1,1)==color then
    for _,move in ipairs(pseudo(state,from,tactical==true)) do
     local isTactical=state.board[move.to]~=nil or move.promotion~=nil or move.special=="enpassant"
     if not tactical or (tactical=="quiet" and not isTactical) or (tactical==true and isTactical) then
-     local child=applyPosition(state,move)
-     if not Engine.inCheck(child,color) then
+     if kingSafeAfter(scratch,move,color,king) then
       if firstOnly then return true end
       table.insert(out,move)
      end
@@ -197,13 +252,16 @@ function Engine.searchApply(state,move)
  return nextState
 end
 
-function Engine.apply(state,move)
- local nextState,entry=applyPosition(state,move)
+function Engine.apply(state,move,recordHistory)
+ local nextState,entry=applyPosition(state,move,recordHistory~=false)
  if not nextState then return nil end
- nextState.history=table.clone(state.history)
- table.insert(nextState.history,entry)
+ if recordHistory~=false then
+  nextState.history=table.clone(state.history)
+  table.insert(nextState.history,entry)
+ end
  nextState.positions=table.clone(state.positions)
  local key=Engine.positionKey(nextState)
+ if recordHistory==false then nextState.proofKey=key end
  nextState.positions[key]=(nextState.positions[key] or 0)+1
  return nextState
 end

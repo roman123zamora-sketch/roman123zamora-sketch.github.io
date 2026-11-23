@@ -137,3 +137,8 @@
 }
 
 .match-hint { margin-block-start: .75rem; }
+
+.players li.turn {
+  box-shadow: inset .18rem 0 var(--turn-border);
+}
+.match-actions button, .review-controls .action-row button { max-inline-size: 100%; }

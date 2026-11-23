@@ -107,14 +107,16 @@ export default function puzzles(content) {
     const hintMove = active?.hint && active.puzzle.steps[active.step].move;
     const focused = slot.contains(document.activeElement) ? document.activeElement.dataset.square : null;
     const theme = getTheme();
-    slot.replaceChildren(board(theme, false, false, {
+    const nextFrame = board(theme, false, false, {
+      frame: slot.firstElementChild,
       state: position ?? { board: {} },
       side: puzzle?.side,
       selected,
       targets: selected && active ? legalFrom(selected) : [],
       select: canMove() ? select : undefined,
       marks: hintMove ? new Set(active.hint === 1 ? [hintMove.from] : [hintMove.from, hintMove.to]) : undefined
-    }));
+    });
+    if (nextFrame !== slot.firstElementChild) slot.replaceChildren(nextFrame);
     if (wrong) slot.querySelector(`[aria-label^="${wrong},"]`)?.classList.add("puzzle-wrong");
     if (canMove()) {
       for (const cell of slot.querySelectorAll("[data-square]")) {
@@ -140,6 +142,8 @@ export default function puzzles(content) {
       : puzzle ? categories[puzzle.category] : "";
     status.textContent = message;
     status.dataset.outcome = outcome ?? "";
+    status.classList.toggle("is-loading", generating);
+    slot.setAttribute("aria-busy", String(generating));
     hint.hidden = !active;
     hint.disabled = !canMove() || active?.hint === 2;
     hint.textContent = active?.hint === 1 ? "Show destination" : "Hint";

@@ -61,7 +61,7 @@
   inset: auto .15rem .1rem auto;
 }
 .board[aria-label="Four-player board"] .square:is([data-rank], [data-file]) {
-  --coordinate-size: clamp(.44rem, 1vw, .65rem);
+  --coordinate-size: clamp(.49rem, 1vw, .65rem);
 }
 
 button.square { padding: 0; border: 0; border-radius: 0; }
@@ -204,4 +204,15 @@ button.square:focus-visible { z-index: 2; outline: 2px solid var(--square-focus)
   padding-inline: .22rem;
   font: 700 .7rem/1.2 system-ui, sans-serif;
   pointer-events: none;
+}
+
+.board[aria-label="Four-player board"] .square[data-rank]::before,
+.board[aria-label="Four-player board"] .square[data-file]::after {
+  -webkit-text-stroke-width: 1px;
+}
+
+@media (max-width: 22rem) {
+  .aligned-board-area .board-and-eval { grid-template-columns: 2rem minmax(0, 1fr); gap: .25rem; }
+  .aligned-board-area .bot-eval { inline-size: 2rem; }
+  .aligned-board-area .eval-score { font-size: .61rem; }
 }
