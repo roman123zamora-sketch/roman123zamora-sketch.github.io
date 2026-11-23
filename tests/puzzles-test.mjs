@@ -202,12 +202,11 @@ end
 
 const storage = new Map();
 globalThis.localStorage = { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) };
-const { loadPractice, possibleRatings, puzzleRating, resolvePuzzle } = await import("../game/puzzle-progress.js");
+const { loadPractice, puzzleRating, resolvePuzzle } = await import("../game/puzzle-progress.js");
 for (const [hearts, deltas] of [[3, [15, 10, 5]], [2, [10, 5, 0]], [1, [5, 0, -5]]]) {
   for (const [hintsUsed, delta] of deltas.entries()) {
     const active = { puzzle: { id: "used", difficulty: 400, targetRating: 400 }, hearts, hintsUsed };
     const practice = { rating: 400, recent: [], active };
-    assert(possibleRatings(practice).has(400 + delta));
     assert.equal(resolvePuzzle(practice, "solved"), delta);
     assert.equal(practice.rating, 400 + delta);
     practice.active = { ...active, puzzle: { ...active.puzzle, targetRating: practice.rating } };
@@ -238,21 +237,13 @@ assert.deepEqual(loadPractice(), {
 assert.equal(JSON.parse(storage.get("exalted-chess-puzzles-v1")).rating, 1925);
 console.log("Puzzle proofs, all rating outcomes, replay protection and migration passed.");
 
-const { puzzleTargetBucket } = await import("../game/puzzle-prefetch.js");
-const labels = Array.from({ length: 14 }, (_, index) => 400 + index * 200);
-const profilesByBucket = new Map();
-for (let rating = 100; rating <= 3200; rating++) {
-  const target = Math.max(400, Math.min(rating, 3000));
-  const bucket = puzzleTargetBucket(rating);
-  const order = [...labels].sort((a, b) => Math.abs(a - target) - Math.abs(b - target));
-  const policy = JSON.stringify([
-    Math.floor((target - 400) / 200), order, labels.filter(label => label >= (target >= 600 ? 600 : 400) && Math.abs(label - target) <= 200)
-  ]);
-  assert.equal(profilesByBucket.get(bucket) ?? policy, policy);
-  profilesByBucket.set(bucket, policy);
-}
-assert.equal(new Set([390, 395, 400, 405, 410, 415].map(puzzleTargetBucket)).size, 2);
-assert.equal(new Set([416, 432, 452, 462, 482].map(puzzleTargetBucket)).size, 1);
+const { matchesPuzzleTarget, puzzleSearchTier } = await import("../game/puzzle-prefetch.js");
+assert.equal(puzzleSearchTier(390), puzzleSearchTier(415));
+assert.notEqual(puzzleSearchTier(595), puzzleSearchTier(600));
+assert(matchesPuzzleTarget({ difficulty: 400 }, 415));
+assert(!matchesPuzzleTarget({ difficulty: 400 }, 600));
+assert(matchesPuzzleTarget({ difficulty: 600 }, 600));
+assert(!matchesPuzzleTarget({ difficulty: 1000 }, 795));
 
 const { findPuzzle } = await import("../game/puzzle-prefetch.js");
 const selected = await findPuzzle({ run: async (_, payload) => {
@@ -260,3 +251,39 @@ const selected = await findPuzzle({ run: async (_, payload) => {
   return { id: "verified", difficulty: 400 };
 } }, { category: "material", rating: 415, recent: [] }, () => 17211);
 assert.equal(selected.targetRating, 415);
+
+const { createPuzzlePrefetch } = await import("../game/puzzle-prefetch.js");
+const warmupRequests = [];
+let warmupReply = { difficulty: 400, id: "prepared" };
+globalThis.Worker = class {
+  constructor() {
+    queueMicrotask(() => this.onmessage({ data: { ready: true } }));
+  }
+  postMessage({ id, payload }) {
+    warmupRequests.push(payload);
+    queueMicrotask(() => this.onmessage({ data: { id, result: warmupReply } }));
+  }
+  terminate() {}
+};
+const practice = {
+  category: "checkmate", rating: 400, recent: [], rated: [], seed: 5,
+  active: { puzzle: { id: "active", targetRating: 400 }, hearts: 3 }
+};
+let prefetch = createPuzzlePrefetch(practice);
+assert.equal((await prefetch.take(405)).targetRating, 405);
+assert.deepEqual(warmupRequests.map(request => request.rating), [415]);
+assert.deepEqual(warmupRequests[0].recent, ["active"]);
+prefetch.close();
+
+practice.rating = 595;
+practice.active.puzzle.targetRating = 595;
+prefetch = createPuzzlePrefetch(practice);
+assert.equal(prefetch.take(595), undefined, "A search started in the next tier cannot be reused");
+
+practice.rating = 400;
+practice.active.puzzle.targetRating = 400;
+warmupReply = { retry: true };
+const beforeMiss = warmupRequests.length;
+prefetch = createPuzzlePrefetch(practice);
+assert.equal(await prefetch.take(415), undefined);
+assert.equal(warmupRequests.length, beforeMiss + 1, "An empty speculative batch leaves the next search to the actual rating");

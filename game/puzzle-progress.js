@@ -75,18 +75,6 @@ export function puzzleRating(rating, { hearts, hintsUsed = 0 }, outcome) {
   return rating + hearts * 5 - Math.min(2, hintsUsed) * 5;
 }
 
-export function possibleRatings({ active, rating, rated }) {
-  const ratings = new Set([rating]);
-  if (active.puzzle.targetRating !== rating || rated?.includes(active.puzzle.id)) return ratings;
-  ratings.add(puzzleRating(rating, active, "failed"));
-  for (let hearts = active.hearts; hearts > 0; hearts--) {
-    for (let hintsUsed = Math.min(2, active.hintsUsed ?? 0); hintsUsed <= 2; hintsUsed++) {
-      ratings.add(puzzleRating(rating, { hearts, hintsUsed }, "solved"));
-    }
-  }
-  return ratings;
-}
-
 function recordAttempt(rating, active, outcome) {
   const recent = readAttempts();
   const { puzzle, hearts, elapsedMs, hintsUsed } = active;
