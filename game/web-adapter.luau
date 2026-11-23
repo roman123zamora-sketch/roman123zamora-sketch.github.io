@@ -113,13 +113,52 @@ return function(op, time, id, first, second)
   local move=modules.BotEngine.choose(engine,state,1200,{timeMs=220,depth=5,nodes=18000})
   return {move=move}
  end
- if op == "lesson" then
-  local results={}
-  for _,example in ipairs(first) do
-   local state={board=example.board,turn="w",castling={},halfmove=0,fullmove=1}
-   table.insert(results,modules.ChessEngine.legalMoves(state,example.from))
+ if op == "courseLesson" then
+  local engine=modules.ChessEngine
+  local state=engine.initial()
+  if first.board then
+   state={board=first.board,turn=first.turn or "w",castling=first.castling or {},
+    ep=first.ep,halfmove=0,fullmove=1,history={},positions={}}
+   state.positions[engine.positionKey(state)]=1
+   if next(state.board) and engine.inCheck(state,state.turn=="w" and "b" or "w") then
+    error("The side waiting to move is in check in this lesson position.")
+   end
   end
-  return results
+  local function describe(move)
+   local view=engine.public(state)
+   local legal=engine.allLegal(state)
+   if view.status=="draw" then legal={} end
+   local attacks={}
+   for _,square in ipairs(first.attackFrom or {}) do
+    attacks[square]=engine.attacksFrom(state,square)
+   end
+   local checked={}
+   if engine.inCheck(state,state.turn) then table.insert(checked,state.turn) end
+   return {state=view,legal=legal,attacks=attacks,checked=checked,move=move}
+  end
+  local frames={describe()}
+  for _,intent in ipairs(first.line or {}) do
+   local chosen
+   for _,move in ipairs(frames[#frames].legal) do
+    if move.from==intent.from and move.to==intent.to and move.promotion==intent.promotion then
+     chosen=move; break
+    end
+   end
+   if not chosen then error("Invalid course move: "..intent.from.."-"..intent.to) end
+   state=engine.apply(state,chosen)
+   table.insert(frames,describe(chosen))
+  end
+  local promotions={}
+  if first.promotion then
+   local original=state
+   for _,move in ipairs(frames[#frames].legal) do
+    if move.from==first.promotion.from and move.to==first.promotion.to and move.promotion then
+     state=engine.apply(original,move)
+     promotions[move.promotion]=describe(move)
+    end
+   end
+  end
+  return {frames=frames,promotions=promotions}
  end
  -- Invalidate a bot turn before resuming due search coroutines.
  if op=="action" and (first=="reset" or first=="undo" or first=="leave" or first=="resign") then

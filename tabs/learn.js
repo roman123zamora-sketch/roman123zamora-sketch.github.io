@@ -1,76 +1,429 @@
+import { bindBoardDrag } from "../game/board-drag.js";
 import { createPositionTools } from "../game/position-tools.js";
+import { readSetting, subscribe, writeSetting } from "../game/session.js";
 import { getTheme } from "../ui/board-themes.js";
 import { board } from "../ui/chessboard.js";
-import { subscribe } from "../game/session.js";
+import { course } from "./learn-lessons.js";
 
-const examples = [
-  ["Pawn", "A pawn moves one square forward. From its starting square it can go two squares if both are clear. To capture, it moves one square diagonally forward. At the far end of the board it promotes to a queen, rook, bishop, or knight.",
-    { a1: "wK", h7: "bK", d2: "wP", e3: "bP" }, "d2"],
-  ["Rook", "A rook moves any number of clear squares along a row or column.",
-    { a1: "wK", h7: "bK", d4: "wR" }, "d4"],
-  ["Bishop", "A bishop moves any number of clear squares diagonally.",
-    { a1: "wK", h7: "bK", d4: "wB" }, "d4"],
-  ["Queen", "A queen moves any number of clear squares along a row, column, or diagonal.",
-    { a1: "wK", h7: "bK", d4: "wQ" }, "d4"],
-  ["Knight", "A knight moves in an L: two squares in one direction, then one square sideways. It is the only piece that can jump over other pieces.",
-    { a1: "wK", h7: "bK", d4: "wN", d5: "wP", e4: "wP" }, "d4"],
-  ["King", "A king moves one square in any direction, as long as the destination is safe. Here the black rook attacks the e-file, so the king cannot step onto it.",
-    { d4: "wK", h7: "bK", e8: "bR" }, "d4"]
-];
+const progressKey = "exalted-chess-learn-v1";
+const pieces = { Q: "Queen", R: "Rook", B: "Bishop", N: "Knight" };
+const outcomes = { checkmate: "Checkmate", stalemate: "Stalemate" };
+const points = { P: 1, N: 3, B: 3, R: 5, Q: 9 };
+
+function showMoveArrow(grid, move, side) {
+  grid.querySelector(".learn-arrow")?.remove();
+  if (!move) return;
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 8 8");
+  svg.setAttribute("aria-hidden", "true");
+  svg.classList.add("learn-arrow");
+  const coordinate = square => {
+    const x = square.charCodeAt(0) - 97;
+    const rank = Number(square[1]);
+    return side === "b" ? [7.5 - x, rank - .5] : [x + .5, 8.5 - rank];
+  };
+  const [x, y] = coordinate(move.from);
+  const [toX, toY] = coordinate(move.to);
+  const angle = Math.atan2(toY - y, toX - x);
+  const dx = Math.cos(angle), dy = Math.sin(angle);
+  const tipX = toX - dx * .22, tipY = toY - dy * .22;
+  const bodyX = tipX - dx * .23, bodyY = tipY - dy * .23;
+  const path = document.createElementNS(svg.namespaceURI, "path");
+  path.setAttribute("d", `M ${x} ${y} L ${bodyX} ${bodyY}
+    M ${bodyX + dy * .14} ${bodyY - dx * .14} L ${tipX} ${tipY} L ${bodyX - dy * .14} ${bodyY + dx * .14}`);
+  svg.append(path);
+  grid.append(svg);
+}
 
 export default function learn(content) {
-  content.innerHTML = `
-    <article class="page panel learn">
-      <h1>How the Chess Pieces Move</h1>
-      <p>Pieces stay on the board and can capture only opposing pieces. A piece cannot move through another piece unless it is a knight.</p>
-      <p>Each example shows White to move. The outline marks the piece, dots mark moves, and a ring marks a capture.</p>
-      <p class="lesson-status" role="status">Loading example moves…</p>
-      <div class="lesson-grid"></div>
-    </article>`;
-  const grid = content.querySelector(".lesson-grid");
-  const status = content.querySelector(".lesson-status");
-  const tools = createPositionTools();
-  let disposed = false;
-  let targets;
-  const slots = examples.map(([name, explanation]) => {
-    const section = document.createElement("section");
-    section.className = "lesson-piece inset";
-    const title = document.createElement("h2");
-    title.textContent = name;
-    const text = document.createElement("p");
-    text.textContent = explanation;
-    const slot = document.createElement("div");
-    section.append(title, slot, text);
-    grid.append(section);
-    return slot;
-  });
-  function renderBoards() {
-    examples.forEach(([, , pieces, from], index) => {
-      slots[index].replaceChildren(board(getTheme(), false, false, {
-        state: { board: pieces },
-        selected: from,
-        targets: targets ? Object.values(targets[index]) : []
-      }));
-    });
+  let saved;
+  try { saved = JSON.parse(readSetting(progressKey)); } catch { saved = null; }
+  const completed = new Set(Array.isArray(saved?.completed) ? saved.completed : []);
+  const last = Array.isArray(saved?.last) ? saved.last.slice(0, 2) : [0, 0];
+  const panel = document.createElement("article");
+  panel.className = "panel page learn";
+  content.append(panel);
+  let closeLesson;
+
+  function openHome() {
+    closeLesson?.();
+    closeLesson = undefined;
+    const total = course.reduce((sum, module) => sum + module.lessons.length, 0);
+    const finished = course.reduce((sum, module, index) =>
+      sum + module.lessons.filter((_, lesson) => completed.has(`${index}:${lesson}`)).length, 0);
+    panel.innerHTML = `
+      <h1 tabindex="-1">Chess Foundations</h1>
+      <p>Learn the rules of standard chess one position at a time.</p>
+      <div class="learn-summary">
+        <progress max="${total}" value="${finished}" aria-label="Course completion"></progress>
+        <span>${finished} of ${total} lessons complete</span>
+        <button type="button" class="primary" data-continue>${finished ? "Continue course" : "Start course"}</button>
+      </div>
+      <div class="learn-module-grid">
+        ${course.map((module, index) => {
+          const count = module.lessons.filter((_, lesson) => completed.has(`${index}:${lesson}`)).length;
+          return `<section class="inset lesson-piece">
+            <h2>${module.title}</h2><p>${module.description}</p>
+            <span class="help">${count === module.lessons.length ? "Complete" : `${count} of ${module.lessons.length} complete`}</span>
+            <button type="button" data-module="${index}">${count === module.lessons.length ? "Revisit" : count ? "Continue" : "Open module"}</button>
+          </section>`;
+        }).join("")}
+      </div>`;
+    panel.querySelector("[data-continue]").onclick = () => {
+      const module = course[last[0]];
+      if (module?.lessons[last[1]] && !completed.has(last.join(":"))) return openLesson(...last);
+      const index = course.findIndex((entry, m) => entry.lessons.some((_, n) => !completed.has(`${m}:${n}`)));
+      if (index < 0) openLesson(0, 0);
+      else openModule(index);
+    };
+    for (const button of panel.querySelectorAll("[data-module]")) {
+      button.onclick = () => openModule(Number(button.dataset.module));
+    }
   }
-  renderBoards();
-  tools.run("lesson", examples.map(([, , pieces, from]) => ({ board: pieces, from })))
-    .then(result => {
-      if (disposed) return;
-      targets = Object.values(result);
-      renderBoards();
-      status.textContent = "";
-    })
-    .catch(() => {
-      if (!disposed) status.textContent = "Example moves could not load. Reopen Learn to try again.";
-    })
-    .finally(() => tools.close());
-  const unsubscribe = subscribe(kind => {
-    if (kind === "profile" || kind === "catalog") renderBoards();
-  });
-  return () => {
-    disposed = true;
-    unsubscribe();
-    tools.close();
-  };
+
+  function openModule(index) {
+    const next = course[index].lessons.findIndex((_, lesson) => !completed.has(`${index}:${lesson}`));
+    openLesson(index, Math.max(0, next));
+  }
+
+  function openLesson(moduleIndex, lessonIndex) {
+    closeLesson?.();
+    const module = course[moduleIndex];
+    const lesson = module.lessons[lessonIndex];
+    const key = `${moduleIndex}:${lessonIndex}`;
+    last.splice(0, last.length, moduleIndex, lessonIndex);
+    const save = () => writeSetting(progressKey, JSON.stringify({ completed: [...completed], last }));
+    save();
+    panel.innerHTML = `
+      <div class="replay-heading">
+        <button type="button" data-course>All modules</button>
+        <span class="help">Module ${moduleIndex + 1} of ${course.length} · Lesson ${lessonIndex + 1} of ${module.lessons.length}</span>
+      </div>
+      <h1 tabindex="-1">${lesson.title}</h1>
+      <p>${lesson.explanation}</p>
+      <div class="learn-workspace">
+        <section class="learn-position" aria-label="Lesson diagram">
+          <div class="learn-board-meta">
+            <span data-turn></span>
+            <button type="button" data-flip>Flip board</button>
+          </div>
+          <div class="board-slot" aria-busy="true"></div>
+          <p class="help learn-legend">Dot = legal move · Ring = capture · A = attacker · ! = controlled · × = blocked · Arrow = last move</p>
+        </section>
+        <section class="inset learn-practice" aria-label="Practice">
+          <label class="learn-picker">Lesson
+            <select data-lesson>${module.lessons.map((item, index) =>
+              `<option value="${index}" ${index === lessonIndex ? "selected" : ""}>${item.title}${completed.has(`${moduleIndex}:${index}`) ? " ✓" : ""}</option>`).join("")}</select>
+          </label>
+          <h2>Practice</h2>
+          <p>${lesson.goal}</p>
+          <div class="action-row learn-answers"></div>
+          <div class="action-row">
+            <button type="button" data-example hidden>Play example</button>
+            <button type="button" data-reset disabled>Reset example</button>
+          </div>
+          <p class="help" data-material hidden></p>
+          <p class="learn-feedback" role="status">Loading the board…</p>
+          <div class="action-row learn-next">
+            <button type="button" data-previous>Previous</button>
+            <button type="button" class="primary" data-next>Next lesson</button>
+          </div>
+        </section>
+      </div>
+      <dialog class="promotion-dialog" aria-labelledby="learn-promotion-title">
+        <form method="dialog">
+          <h2 id="learn-promotion-title">Choose a promotion</h2>
+          <div class="action-row">${Object.entries(pieces).map(([value, name]) =>
+            `<button value="${value}">${name}</button>`).join("")}<button value="">Cancel</button></div>
+        </form>
+      </dialog>`;
+
+    const $ = selector => panel.querySelector(selector);
+    const slot = $(".board-slot");
+    const status = $(".learn-feedback");
+    const dialog = $("dialog");
+    const demo = $("[data-example]");
+    const reset = $("[data-reset]");
+    const answers = $(".learn-answers");
+    const tools = createPositionTools();
+    const controller = new AbortController();
+    const events = { signal: controller.signal };
+    const start = lesson.practiceStart ?? 0;
+    let frames;
+    let promotions;
+    let ply = start;
+    let frame;
+    let promotion;
+    let selected;
+    let timer;
+    let playing = false;
+    let solved = false;
+    let side = lesson.side ?? "w";
+
+    function report(text, outcome = "") {
+      status.textContent = text;
+      status.dataset.outcome = outcome;
+    }
+
+    function success() {
+      solved = true;
+      completed.add(key);
+      save();
+      const option = $("[data-lesson]").selectedOptions[0];
+      if (!option.textContent.endsWith("✓")) option.textContent += " ✓";
+      report(lesson.feedback, "correct");
+    }
+
+    function render() {
+      if (!frame) return;
+      const state = { ...frame.state, checkedColors: frame.checked };
+      const targetMoves = Object.values(frame.legal ?? {}).filter(move => move.from === selected);
+      const canMove = !playing && !solved && !promotion;
+      const attacks = new Set(Object.values(frame.attacks ?? {}).flatMap(squares => Object.values(squares)));
+      const next = board(getTheme(), false, false, {
+        frame: slot.firstElementChild, state, side, selected, targets: targetMoves,
+        select: canMove ? select : undefined
+      });
+      if (next !== slot.firstElementChild) slot.replaceChildren(next);
+      showMoveArrow(next.firstElementChild, frame.move, side);
+      for (const square of slot.querySelectorAll(".square")) {
+        const name = square.getAttribute("aria-label").split(",")[0];
+        const label = lesson.marks?.[name] ?? (Object.values(frame.attacks?.[name] ?? {}).length ? "A" : attacks.has(name) ? "!" : "");
+        if (label) {
+          const marker = document.createElement("span");
+          marker.className = "learn-square-mark";
+          marker.textContent = label;
+          marker.setAttribute("aria-hidden", "true");
+          square.append(marker);
+          const description = label === "!" ? "attacked or defended" : label === "×" ? "blocked or forbidden" : label === "A" ? "attacker" : `marked ${label}`;
+          square.setAttribute("aria-label", square.getAttribute("aria-label") + ", " + description);
+        }
+        if (targetMoves.some(move => move.to === name && move.special === "enpassant")) {
+          square.classList.add("learn-en-passant");
+        }
+        if (canMove && (lesson.setup.line || lesson.promotion) && state.board[name]?.[0] === state.turn) {
+          square.classList.add("drag-enabled");
+        }
+      }
+      const ending = !solved && ["Checkmate", "Stalemate", "Neither"].includes(lesson.answer) ? null : { checkmate: "Checkmate", stalemate: "Stalemate", draw: "Draw", check: "Check" }[state.status];
+      $("[data-turn]").textContent = lesson.setup.board && !Object.keys(lesson.setup.board).length
+        ? `${side === "w" ? "White" : "Black"}’s view`
+        : `${state.turn === "w" ? "White" : "Black"} to move${ending ? " · " + ending : ""}`;
+      for (const button of answers.querySelectorAll("button")) button.disabled = playing || solved;
+      demo.disabled = playing;
+      if (lesson.material) {
+        const totals = { w: 0, b: 0 };
+        for (const entry of Object.values(state.history ?? {})) {
+          if (entry.captured) totals[entry.color] += points[entry.captured[1]] ?? 0;
+        }
+        const display = $("[data-material]");
+        display.hidden = false;
+        display.textContent = `Captured value · White ${totals.w}, Black ${totals.b} · Net for White ${totals.w - totals.b}`;
+      }
+    }
+
+    function show(nextFrame) {
+      const previous = frame.state.board;
+      const move = nextFrame.move;
+      const motions = [[move.from, move.to]];
+      if (move.special === "castleK" || move.special === "castleQ") {
+        const kingSide = move.special === "castleK";
+        motions.push([ (kingSide ? "h" : "a") + move.from[1], (kingSide ? "f" : "d") + move.from[1] ]);
+      }
+      const cell = name => slot.querySelector(`.square[aria-label^="${name},"]`);
+      const origins = motions.map(([from, to]) => [cell(from)?.getBoundingClientRect(), to]);
+      const capturedSquare = move.special === "enpassant" ? move.to[0] + move.from[1] : null;
+      const captured = capturedSquare && previous[capturedSquare] && cell(capturedSquare)?.querySelector(".chess-piece");
+      const motionAllowed = !matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let fading;
+      if (captured && motionAllowed) {
+        const rect = captured.getBoundingClientRect();
+        fading = captured.cloneNode(true);
+        fading.classList.add("learn-fade");
+        fading.setAttribute("aria-hidden", "true");
+        fading.style.cssText = `left:${rect.left}px;top:${rect.top}px;width:${rect.width}px`;
+        document.body.append(fading);
+        fading.animate([{opacity: 1}, {opacity: 0}], {duration: 200}).finished.then(() => fading.remove());
+      }
+      frame = nextFrame;
+      selected = undefined;
+      render();
+      if (!motionAllowed) return;
+      for (const [origin, to] of origins) {
+        const destination = cell(to);
+        if (!origin || !destination) continue;
+        const rect = destination.getBoundingClientRect();
+        destination.querySelector(".chess-piece")?.animate([
+          { translate: `${origin.left - rect.left}px ${origin.top - rect.top}px` },
+          { translate: "0 0" }
+        ], { duration: 210, easing: "ease-out" });
+      }
+    }
+
+    function playFollowingMoves(isDemo) {
+      if (ply >= frames.length - 1) {
+        playing = false;
+        if (isDemo) {
+          solved = true;
+          report(lesson.feedback + " Reset the example to try it yourself.");
+        } else success();
+        render();
+        return;
+      }
+      if (!isDemo && frames[ply].state.turn === frames[start].state.turn) {
+        playing = false;
+        selected = frames[ply + 1].move.from;
+        report("Find the next move in the sequence.");
+        render();
+        return;
+      }
+      timer = setTimeout(() => {
+        show(frames[++ply]);
+        playFollowingMoves(isDemo);
+      }, matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 420);
+    }
+
+    function choose(from, to) {
+      if (!frame || playing || solved || promotion || from === to) return false;
+      selected = from;
+      const legal = Object.values(frame.legal ?? {}).filter(move => move.from === from && move.to === to);
+      if (!legal.length) {
+        const friendly = frame.state.board[to]?.[0] === frame.state.turn;
+        report(lesson.mistakes?.[to] ?? (friendly ? "That square holds one of your own pieces."
+          : frame.state.status === "check" ? "That move doesn’t get your king out of check."
+          : "That move is illegal. Check the piece’s path and your king’s safety."), "wrong");
+        render();
+        return false;
+      }
+      if (lesson.promotion && from === lesson.setup.promotion.from && to === lesson.setup.promotion.to) {
+        promotion = true;
+        dialog.returnValue = "";
+        dialog.showModal();
+        return true;
+      }
+      const expected = frames[ply + 1]?.move;
+      if (expected?.from !== from || expected?.to !== to) {
+        report(lesson.mistakes?.[to] ?? "That move is legal. Try the move described in the practice goal.", "wrong");
+        render();
+        return false;
+      }
+      playing = true;
+      show(frames[++ply]);
+      playFollowingMoves(false);
+      return true;
+    }
+
+    function select(square) {
+      if (lesson.square) {
+        if (square === lesson.square) { selected = square; success(); }
+        else report(lesson.mistakes?.[square] ?? `You picked ${square}. Try again.`, "wrong");
+        render();
+        return;
+      }
+      if (lesson.options) return;
+      if (frame.state.board[square]?.[0] === frame.state.turn && !selected) {
+        selected = square;
+        render();
+      } else if (selected && !choose(selected, square) && frame.state.board[square]?.[0] === frame.state.turn) {
+        selected = square;
+        render();
+      }
+    }
+
+    function restart(plyNumber = start) {
+      clearTimeout(timer);
+      playing = false;
+      solved = false;
+      ply = plyNumber;
+      frame = frames[ply];
+      selected = lesson.focus ?? frames[ply + 1]?.move.from ?? lesson.setup.promotion?.from;
+      report("Try the practice goal on the board.");
+      render();
+    }
+
+    const drag = bindBoardDrag(slot, {
+      begin(from) { return !playing && !solved && Boolean(frame?.state.board[from]); },
+      end() {},
+      drop: choose
+    });
+    for (const choice of lesson.options ?? []) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = choice;
+      button.addEventListener("click", () => {
+        const actual = ["Checkmate", "Stalemate", "Neither"].includes(lesson.answer)
+          ? (outcomes[frame.state.status] ?? "Neither")
+          : lesson.answer;
+        if (choice === actual) success();
+        else report(lesson.feedback + " Try again.", "wrong");
+        render();
+      }, events);
+      answers.append(button);
+    }
+    dialog.addEventListener("close", () => {
+      promotion = false;
+      if (promotions?.[dialog.returnValue]) {
+        success();
+        show(promotions[dialog.returnValue]);
+      } else render();
+    }, events);
+    $("[data-course]").onclick = () => { openHome(); panel.querySelector("h1").focus(); };
+    $("[data-lesson]").onchange = event => openLesson(moduleIndex, Number(event.target.value));
+    $("[data-flip]").onclick = () => { side = side === "w" ? "b" : "w"; render(); };
+    reset.onclick = () => restart();
+    demo.onclick = () => {
+      restart(0);
+      if (lesson.promotion && promotions?.Q) {
+        solved = true;
+        show(promotions.Q);
+        report("This example promotes to a queen. Reset to try any of the four choices.");
+        return;
+      }
+      playing = true;
+      report("Watch how the position changes.");
+      render();
+      playFollowingMoves(true);
+    };
+    $("[data-previous]").disabled = moduleIndex === 0 && lessonIndex === 0;
+    $("[data-previous]").onclick = () => lessonIndex
+      ? openLesson(moduleIndex, lessonIndex - 1)
+      : openLesson(moduleIndex - 1, course[moduleIndex - 1].lessons.length - 1);
+    const lastLesson = moduleIndex === course.length - 1 && lessonIndex === module.lessons.length - 1;
+    if (lastLesson) $("[data-next]").textContent = "Course home";
+    $("[data-next]").onclick = () => {
+      if (lastLesson) { openHome(); panel.querySelector("h1").focus(); }
+      else if (lessonIndex + 1 < module.lessons.length) openLesson(moduleIndex, lessonIndex + 1);
+      else openLesson(moduleIndex + 1, 0);
+    };
+    const stop = subscribe(kind => { if (kind === "profile" || kind === "catalog") render(); });
+    closeLesson = () => {
+      clearTimeout(timer);
+      controller.abort();
+      drag.destroy();
+      stop();
+      tools.close();
+      dialog.close();
+    };
+    $("h1").focus();
+    tools.run("courseLesson", { ...lesson.setup, attackFrom: lesson.attackFrom ?? lesson.setup.attackFrom })
+      .then(result => {
+        if (controller.signal.aborted) return;
+        frames = Object.values(result.frames);
+        promotions = result.promotions;
+        slot.setAttribute("aria-busy", "false");
+        reset.disabled = false;
+        demo.hidden = frames.length < 2 && !lesson.promotion;
+        restart();
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          slot.setAttribute("aria-busy", "false");
+          report("The board could not load. Open the lesson again to retry.", "wrong");
+        }
+      });
+    for (const button of answers.querySelectorAll("button")) button.disabled = true;
+  }
+
+  openHome();
+  return () => closeLesson?.();
 }

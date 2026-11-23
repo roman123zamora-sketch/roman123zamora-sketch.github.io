@@ -57,24 +57,38 @@ function Engine.initial()
  state.positions[Engine.positionKey(state)]=1
  return state
 end
-local function attacked(board,target,by)
+local function attacked(board,target,by,source)
  local tx,ty=xy(target)
  local pawnY=ty+(by=="w" and -1 or 1)
  local pawn,knight,queen,king,rook,bishop=by.."P",by.."N",by.."Q",by.."K",by.."R",by.."B"
- if board[sq(tx-1,pawnY)]==pawn or board[sq(tx+1,pawnY)]==pawn then return true end
- for _,square in ipairs(knightTargets[target]) do if board[square]==knight then return true end end
+ local pawnLeft,pawnRight=sq(tx-1,pawnY),sq(tx+1,pawnY)
+ if ((not source or source==pawnLeft) and board[pawnLeft]==pawn) or
+    ((not source or source==pawnRight) and board[pawnRight]==pawn) then return true end
+ for _,square in ipairs(knightTargets[target]) do if (not source or source==square) and board[square]==knight then return true end end
  for direction,line in ipairs(rays[target]) do
   local slider=direction<=4 and rook or bishop
   for distance,square in ipairs(line) do
    local piece=board[square]
    if piece then
-    if piece==slider or piece==queen or (distance==1 and piece==king) then return true end
+    if (not source or source==square) and (piece==slider or piece==queen or (distance==1 and piece==king)) then return true end
     break
    end
   end
  end
  return false
 end
+function Engine.attacksFrom(state,from)
+ local piece=state.board[from]
+ local result={}
+ if not piece then return result end
+ for _,target in ipairs(filesByRank) do
+  if target~=from and attacked(state.board,target,string.sub(piece,1,1),from) then
+   table.insert(result,target)
+  end
+ end
+ return result
+end
+
 local function kingSquare(board,color)
  local encoded=color.."K"
  for square,piece in pairs(board) do if piece==encoded then return square end end

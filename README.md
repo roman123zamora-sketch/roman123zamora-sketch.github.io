@@ -22,6 +22,7 @@ styles/
   board.css                    Squares, coordinates, pieces, and move indicators
   match.css                    Match controls, ratings, clocks, and move history
   collection.css               Shop, board collection, profile, and replay layouts
+  learn.css                    Course cards, diagrams, and practice controls
 ui/
   site-navigation.js           Tab routing and site-wide event wiring
   match-view.js                Shared interface for both chess modes
@@ -34,7 +35,8 @@ tabs/
   shop.js                      Board purchases
   inventory.js                 Owned boards and equipping
   profile.js                   Ratings, match history, and replay controls
-  learn.js                     Illustrated piece movement lessons
+  learn.js                     Interactive course and saved progress
+  learn-lessons.js             Course modules, positions, and exercises
   puzzles.js                   Rated practice and solution review
 game/
   session.js                   Browser state, storage, audio, and match commands
@@ -67,6 +69,7 @@ tests/
   standard-chess-test.mjs      Runs the rules tests through the Luau runtime
   standard-chess-cases.luau    Positions and assertions for the rules tests
   puzzles-test.mjs             Tactical proofs, puzzle rating, and save recovery
+  learn-course-test.mjs        Course diagrams, rule checks, and legal solutions
 reference/
   roblox-client.luau           Original Roblox client retained for reference
 ```
@@ -148,6 +151,16 @@ Profile history also show the evaluation bar. During live play, the evaluation
 bar is available only in standard bot games. Four-player review uses recorded
 board positions. Online New Game queues for a different opponent through the
 optional match server.
+
+## Learn
+
+Chess Foundations is an eleven-module course for standard chess. Practice
+boards use the same move and attack rules as the main game. Course progress
+is stored in the current browser and lessons can be revisited individually.
+
+```sh
+node tests/learn-course-test.mjs
+```
 
 ## Puzzles
 
