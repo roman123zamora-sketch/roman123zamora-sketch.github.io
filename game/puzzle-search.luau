@@ -205,10 +205,19 @@ end
 function Puzzle.bestBlackMove(engine,bot,state,moves,deadline,defending)
  if #moves==1 then return moves[1] end
  if #moves==0 or os.clock()>=deadline then return nil end
+ local depth=defending and 3 or (#moves<=14 and 2 or 1)
+ local remaining=(deadline-os.clock())*1000
  local move,details=bot.choose(engine,state,2400,{
-  depth=defending and 3 or (#moves<=14 and 2 or 1),nodes=defending and 1800 or 1100,timeMs=math.min(35,math.max(0,(deadline-os.clock())*1000))
+  depth=depth,nodes=defending and 1800 or 1100,timeMs=math.min(35,remaining)
  })
- -- A move-ordering fallback is not a completed search.
+ -- A move-ordering fallback is not a completed search. Extend the budget
+ -- when necessary to finish a full root iteration rather than abandon the game.
+ if details and details.depth>0 then return move end
+ remaining=(deadline-os.clock())*1000
+ if not details or remaining<15 then return nil end
+ move,details=bot.choose(engine,state,2400,{
+  depth=depth,nodes=6500,timeMs=math.min(120,remaining)
+ })
  if details and details.depth>0 then return move end
 end
 
@@ -524,7 +533,7 @@ end
 
 function Puzzle.generate(engine,bot,options)
  local rating=options.rating
- local deadline=os.clock()+math.clamp(options.timeMs or (rating>=1400 and 4500 or 2400),100,6000)/1000
+ local deadline=os.clock()+math.clamp(options.timeMs or (rating>=1000 and 4500 or 2400),100,6000)/1000
  local random=randomSource(options.seed)
  local seen={}
  for _,id in ipairs(options.recent or {}) do seen[id]=true end

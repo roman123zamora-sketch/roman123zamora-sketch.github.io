@@ -232,11 +232,18 @@ export default function puzzles(content) {
       if (disposed || request !== generation) return;
       if (!candidate) {
         tools = createPositionTools();
-        candidate = await findPuzzle(tools, practice, () => {
+        const takeSeed = () => {
           const seed = nextSeed(practice);
           savePractice(practice);
           return seed;
-        });
+        };
+        while (!candidate && !disposed && request === generation) {
+          candidate = await findPuzzle(tools, practice, takeSeed);
+          if (!candidate && !disposed && request === generation) {
+            message = "Still searching for a verified puzzle. You can switch categories while we search.";
+            render();
+          }
+        }
       }
       if (disposed || request !== generation) return;
       if (candidate) {
@@ -245,11 +252,12 @@ export default function puzzles(content) {
         savePractice(practice);
         message = prefix;
         prefetch = createPuzzlePrefetch(practice);
-      } else {
-        message = "A puzzle could not be verified in time. Try again for a fresh position.";
       }
-    } catch {
-      if (!disposed && request === generation) message = "Puzzle generation interrupted. Try again.";
+    } catch (error) {
+      if (!disposed && request === generation) {
+        console.error("Puzzle generation failed.", error);
+        message = "The puzzle generator could not run. Try again to restart it.";
+      }
     } finally {
       if (!disposed && request === generation) {
         tools?.close();

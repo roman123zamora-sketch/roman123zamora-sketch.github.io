@@ -113,6 +113,15 @@ local blackStart=apply(Chess.initial(),{from="e2",to="e4"})
 local replies=Chess.allLegal(blackStart)
 assert(not Puzzle.bestBlackMove(Chess,stoppedEngine,blackStart,replies,os.clock()+1))
 assert(Puzzle.bestBlackMove(Chess,stoppedEngine,blackStart,{replies[1]},os.clock()+1)==replies[1])
+local searches=0
+local recoveringEngine={choose=function(_,_,_,options)
+ searches+=1
+ if searches==1 then return replies[1],{depth=0} end
+ assert(options.nodes>1100,"The retry must increase the root search budget")
+ return replies[2],{depth=1}
+end}
+assert(Puzzle.bestBlackMove(Chess,recoveringEngine,blackStart,replies,os.clock()+1)==replies[2])
+assert(searches==2)
 for _,puzzle in ipairs(puzzles) do
  local state=Chess.initial()
  for _,move in ipairs(puzzle.origin.history) do
