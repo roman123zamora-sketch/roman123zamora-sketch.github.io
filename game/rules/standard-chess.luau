@@ -154,13 +154,13 @@ local function applyPosition(state,m,record)
 end
 -- Work on one scratch board per move list. Only occupancy matters when
 -- checking the king; rights, clocks and history stay on the real position.
-local function kingSafeAfter(board,move,color,king)
+local function attackedAfter(board,move,mover,king,attacker)
  local from,to=move.from,move.to
  local piece,target=board[from],board[to]
  local extraFrom,extraTo,extraPiece
  if move.special=="enpassant" then
   local x,y=xy(to)
-  extraFrom=sq(x,y+(color=="w" and -1 or 1))
+  extraFrom=sq(x,y+(mover=="w" and -1 or 1))
  elseif move.special=="castleK" or move.special=="castleQ" then
   local x,y=xy(to)
   local kingside=move.special=="castleK"
@@ -173,15 +173,30 @@ local function kingSafeAfter(board,move,color,king)
   if extraTo then board[extraTo]=extraPiece end
  end
  board[from]=nil
- board[to]=piece
- local safe=not attacked(board,from==king and to or king,color=="w" and "b" or "w")
+ board[to]=move.promotion and mover..move.promotion or piece
+ local threat=attacked(board,from==king and to or king,attacker)
  board[from]=piece
  board[to]=target
  if extraFrom then
   board[extraFrom]=extraPiece
   if extraTo then board[extraTo]=nil end
  end
- return safe
+ return threat
+end
+
+local function kingSafeAfter(board,move,color,king)
+ return not attackedAfter(board,move,color,king,color=="w" and "b" or "w")
+end
+
+-- Reuse occupancy and the opposing king's location across legal candidates.
+function Engine.checkingMoveTester(state)
+ local mover=state.turn
+ local king=kingSquare(state.board,mover=="w" and "b" or "w")
+ if not king then return function() return false end end
+ local scratch=table.clone(state.board)
+ return function(move)
+  return attackedAfter(scratch,move,mover,king,mover)
+ end
 end
 
 function Engine.legalMoves(state,from,color)

@@ -54,6 +54,24 @@ for _,piece in ipairs({"Q","R","B","N"}) do
  assert(play(promotion,"a7","a8",piece).board.a8=="w"..piece)
 end
 
+-- The puzzle generator's scratch-board check detector must agree with
+-- fully applying each move, including moves that change multiple squares.
+local rookCastle=position({e1="wK",h1="wR",f8="bK"},{castling={wK=true}})
+local discoveredEp=position({a1="wK",a5="wR",d5="bP",e5="wP",h5="bK"},{ep="d6"})
+local knightPromotion=position({h1="wK",c7="bK",a7="wP"})
+assert(Chess.checkingMoveTester(rookCastle)(assert(legal(rookCastle,"e1","g1"))))
+assert(Chess.checkingMoveTester(discoveredEp)(assert(legal(discoveredEp,"e5","d6"))))
+assert(Chess.checkingMoveTester(knightPromotion)(assert(legal(knightPromotion,"a7","a8","N"))))
+for _,sample in ipairs({start,rookCastle,discoveredEp,knightPromotion,promotion}) do
+ local check=Chess.checkingMoveTester(sample)
+ local original=Chess.positionKey(sample)
+ for _,move in ipairs(Chess.allLegal(sample)) do
+  local child=Chess.searchApply(sample,move)
+  assert(check(move)==Chess.inCheck(child,child.turn),move.from.."-"..move.to)
+ end
+ assert(Chess.positionKey(sample)==original)
+end
+
 local mate=position({h8="bK",g7="wQ",f6="wK"},{turn="b",halfmove=150})
 assert(Chess.status(mate)=="checkmate")
 assert(Chess.status(position({h8="bK",f7="wQ",f6="wK"},{turn="b"}))=="stalemate")

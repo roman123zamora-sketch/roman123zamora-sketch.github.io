@@ -86,6 +86,7 @@ local tree={}
 function tree.allLegal(state) return state.ply<19 and {forced} or {} end
 function tree.hasLegal(state) return state.ply<19 end
 function tree.inCheck(state) return state.ply==19 end
+function tree.checkingMoveTester(state) return function() return state.ply==18 end end
 function tree.insufficientMaterial() return false end
 function tree.positionKey() return "position" end
 function tree.mayClaimWithMove() return false end

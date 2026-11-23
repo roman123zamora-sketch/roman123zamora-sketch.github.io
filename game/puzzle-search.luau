@@ -33,17 +33,17 @@ local function claimable(engine,state)
  return engine.mayClaimWithMove(state)
 end
 
-local function forcing(engine,before,move,after)
+local function forcing(before,move,givesCheck)
  return before.board[move.to]~=nil or move.special=="enpassant" or
-  move.promotion~=nil or engine.inCheck(after,after.turn)
+  move.promotion~=nil or givesCheck(move)
 end
 
 local function tactics(engine,state,moves,stop)
  local mates={}
+ local givesCheck=engine.checkingMoveTester(state)
  for _,move in ipairs(moves) do
   stop()
-  local child=engine.searchApply(state,move)
-  if engine.inCheck(child,child.turn) and not engine.hasLegal(child) then
+  if givesCheck(move) and not engine.hasLegal(engine.searchApply(state,move)) then
    table.insert(mates,move)
   end
  end
@@ -100,10 +100,10 @@ local function mateProof(engine,state,remaining,attacking,stop,unique)
  end
  local preferred={}
  local quiet={}
+ local givesCheck=attacking and engine.checkingMoveTester(state)
  for _,move in ipairs(legal) do
   stop()
-  local child=attacking and engine.searchApply(state,move)
-  local group=(not attacking or engine.inCheck(child,child.turn)) and preferred or quiet
+  local group=(not attacking or givesCheck(move)) and preferred or quiet
   table.insert(group,move)
  end
  for _,candidate in ipairs(quiet) do table.insert(preferred,candidate) end
@@ -137,9 +137,10 @@ local function checkmate(engine,state,moves,rating,stop,bot,deadline)
  if #mates~=0 or rating<600 then return nil end
  local proven
  local quiet={}
+ local givesCheck=engine.checkingMoveTester(state)
  -- Establish at least one forcing candidate before comparing quiet alternatives.
  for _,move in ipairs(moves) do
-  if forcing(engine,state,move,engine.searchApply(state,move)) then
+  if forcing(state,move,givesCheck) then
    local line,unique=mateInTwo(engine,state,move,stop)
    if line then
     if proven or not unique then return nil end
@@ -163,7 +164,7 @@ local function checkmate(engine,state,moves,rating,stop,bot,deadline)
   for horizon=3,distance do
    local solution,unique=mateProof(engine,state,horizon,true,stop,true)
    if solution then
-    if unique and forcing(engine,state,solution[1],engine.searchApply(state,solution[1])) then return solution end
+    if unique and forcing(state,solution[1],givesCheck) then return solution end
     return nil
    end
   end
@@ -499,8 +500,9 @@ function Puzzle.validate(engine,bot,state,moves,category,rating,deadline)
   if index%2==1 then
    local options=engine.allLegal(position)
    local forcingCount=0
+   local givesCheck=engine.checkingMoveTester(position)
    for _,alternative in ipairs(options) do
-    if forcing(engine,position,alternative,engine.searchApply(position,alternative)) then forcingCount+=1 end
+    if forcing(position,alternative,givesCheck) then forcingCount+=1 end
    end
    if forcingCount>=3 then pressure+=1 end
   else
