@@ -267,15 +267,22 @@ local function prepend(move,line)
  return result
 end
 
--- Exact capture/promotion exchanges. In check, every legal evasion is searched
--- and standing pat is forbidden. Stop represents declining another trade.
+-- Search captures and promotions on the entire board. Include the defender's
+-- quiet checks so a counterattack can force the solver away from a recapture.
+-- When checked, every legal evasion is searched and standing pat is forbidden.
 local function exchange(engine,state,owner,depth,stop,alpha,beta,score)
  stop()
+ local maximize=state.turn==owner
  local checked=engine.inCheck(state,state.turn)
  local moves=checked and engine.allLegal(state) or engine.tacticalMoves(state)
+ if not checked and not maximize then
+  local givesCheck=engine.checkingMoveTester(state)
+  for _,move in ipairs(engine.allLegal(state)) do
+   if potential(state,move)==0 and givesCheck(move) then table.insert(moves,move) end
+  end
+ end
  if #moves==0 and (checked or not engine.hasLegal(state)) then error("Terminal exchange",0) end
  if engine.insufficientMaterial(state) or (state.turn~=owner and claimable(engine,state)) then error("Draw exchange",0) end
- local maximize=state.turn==owner
  score=score or balance(state,owner)
  local best=score
  local line={}
@@ -346,7 +353,7 @@ local function material(engine,state,moves,rating,stop)
  if rating<800 and potential(state,moves[1])<300 then return nil end
  local choice,score,tail
  local tested={}
- local qualifying=initial+300
+ local qualifying=math.max(100,initial+300)
  for _,move in ipairs(moves) do
   local capture=potential(state,move)>=300
   if not capture and rating<800 then break end
@@ -437,7 +444,7 @@ local function serialize(engine,state,line,options,id,gain,difficulty)
  origin.castling=state.castling
  origin.ep=state.ep
  return {id=id,category=options.category,seed=options.seed,side=state.turn,
-  difficulty=difficulty,gain=gain,origin=origin,steps=steps,line=line}
+  difficulty=difficulty,gain=gain,materialProof=options.category=="material" and 2 or nil,origin=origin,steps=steps,line=line}
 end
 
 local function verifyBlackReplies(engine,bot,state,line,category,gain,deadline,stop)
@@ -496,6 +503,7 @@ function Puzzle.validate(engine,bot,state,moves,category,rating,deadline)
  local choices=math.ceil(#finalLine/2)
  local position=state
  local pressure=0
+ local afterSolver
  for index,move in ipairs(finalLine) do
   if index%2==1 then
    local options=engine.allLegal(position)
@@ -509,9 +517,14 @@ function Puzzle.validate(engine,bot,state,moves,category,rating,deadline)
    if #engine.allLegal(position)>=3 then pressure+=1 end
   end
   position=engine.apply(position,move,false)
+  if index%2==1 then afterSolver=position end
  end
  local base
  if category=="material" then
+  local settled=balance(position,state.turn)
+  -- Check both the resolved exchange and the board shown after the last
+  -- solver move. A gain that still leaves the solver behind is insufficient.
+  if settled<math.max(100,lead+gain) or balance(afterSolver,state.turn)<100 then return nil end
   if choices>materialTargets[ratingBand(rating)] then return nil end
   local quiet=potential(state,finalLine[1])==0
   if rating<600 then

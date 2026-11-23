@@ -17,6 +17,7 @@ const mate = await generate("checkmate", 400, [3, 8, 4, 5, 7, 6, 2], 1);
 const different = await generate("checkmate", 400, [4, 5, 7, 8, 3, 6, 2], 1, [mate.id]);
 const puzzles = [material, mate, different];
 assert(material.gain >= 300);
+assert.equal(material.materialProof, 2);
 assert.notEqual(different.id, mate.id);
 for (const puzzle of puzzles) assert(puzzle.origin.history.length >= 12);
 
@@ -36,7 +37,7 @@ try {
   await vm.loadstring(`
 local Chess=(function()\n${engine}\nend)()
 local Puzzle=(function()
-${generator.replace(/return Puzzle\s*$/, "Puzzle.proveForTest=mateProof; return Puzzle")}
+${generator.replace(/return Puzzle\s*$/, "Puzzle.proveForTest=mateProof; Puzzle.exchangeForTest=exchange; return Puzzle")}
 end)()
 local Bot=(function()
 ${bot}
@@ -74,6 +75,40 @@ assert(mateCount(overwhelming)==1,"The old uniqueness check would accept this tr
 for _,category in ipairs({"checkmate","material"}) do
  assert(not Puzzle.validate(Chess,Bot,overwhelming,Chess.allLegal(overwhelming),category,400,os.clock()+1))
 end
+local poisoned=fixture({h1="wK",a1="wR",g2="wP",h8="bK",b8="bB",a7="bN",h7="bP"},"w")
+local bait=apply(poisoned,{from="a1",to="a7"})
+assert(balance(bait,"w")>balance(poisoned,"w"))
+local recaptured=apply(bait,{from="b8",to="a7"})
+assert(balance(recaptured,"w")<balance(poisoned,"w"))
+assert(not Puzzle.validate(Chess,Bot,poisoned,Chess.allLegal(poisoned),"material",400,os.clock()+2))
+local stillBehind=fixture({h1="wK",a1="wR",g2="wP",h8="bK",g8="bQ",f8="bB",a7="bN",h7="bP"},"w")
+assert(balance(apply(stillBehind,{from="a1",to="a7"}),"w")<0)
+assert(not Puzzle.validate(Chess,Bot,stillBehind,Chess.allLegal(stillBehind),"material",400,os.clock()+2))
+
+-- A quiet countercheck forces the solver's only evasion before the defender
+-- can capture the rook. Stopping at the apparent gain misses the loss.
+local check={from="f8",to="f1"}
+local evade={from="h1",to="h2"}
+local take={from="f1",to="a1"}
+local sequence={check,evade,take}
+local counter={}
+function counter.inCheck(state) return state.ply==2 end
+function counter.allLegal(state) return sequence[state.ply] and {sequence[state.ply]} or {} end
+function counter.tacticalMoves(state) return state.ply==3 and {take} or {} end
+function counter.checkingMoveTester(state) return function(move) return state.ply==1 and move==check end end
+function counter.hasLegal() return true end
+function counter.hasQuiet() return true end
+function counter.insufficientMaterial() return false end
+function counter.mayClaimWithMove() return false end
+function counter.positionKey() return "position" end
+function counter.apply(state)
+ local board=table.clone(state.board)
+ if state.ply==3 then board.a1=nil end
+ return {ply=state.ply+1,turn=state.turn=="w" and "b" or "w",board=board,positions={},halfmove=0}
+end
+local score,line=Puzzle.exchangeForTest(counter,{ply=1,turn="b",board={a1="wR"},positions={},halfmove=0},
+ "w",14,function() end,-math.huge,math.huge,300)
+assert(score==-200 and #line==3 and line[1]==check)
 local lowResistance=fixture({a1="wK",b1="wR",h8="bK",g7="bP",h7="bP"},"w")
 assert(not Puzzle.validate(Chess,Bot,lowResistance,Chess.allLegal(lowResistance),"material",400,os.clock()+1))
 local manyMates=fixture({f6="wK",f7="wQ",h8="bK",a8="bQ",a1="wR"},"w")
@@ -150,7 +185,10 @@ for _,puzzle in ipairs(puzzles) do
  local final=state
  for _,move in ipairs(puzzle.line) do final=apply(final,move) end
  if puzzle.category=="checkmate" then assert(Chess.status(final)=="checkmate")
- else assert(balance(final,puzzle.side)-balance(state,puzzle.side)>=puzzle.gain) end
+ else
+  assert(balance(final,puzzle.side)>=100)
+  assert(balance(final,puzzle.side)-balance(state,puzzle.side)>=puzzle.gain)
+ end
 end
 `, "Puzzle proofs", true)();
 } finally {

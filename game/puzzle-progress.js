@@ -9,7 +9,7 @@ const attemptsLimit = 512;
 function validActive(active, category) {
   if (active == null) return true;
   const { puzzle, step, hearts } = active;
-  return puzzle?.category === category && typeof puzzle.id === "string" &&
+  return puzzle?.category === category && (category !== "material" || puzzle.materialProof === 2) && typeof puzzle.id === "string" &&
     Number.isFinite(puzzle.difficulty) && puzzle.origin?.board &&
     ["w", "b"].includes(puzzle.side) && Array.isArray(puzzle.steps) &&
     Number.isInteger(step) && step >= 0 && step < puzzle.steps.length &&

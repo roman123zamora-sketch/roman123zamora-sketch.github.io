@@ -159,7 +159,7 @@ export default function puzzles(content) {
         const { from, to, promotion } = step.move;
         const item = document.createElement("li");
         item.textContent = `Move your ${names[start.board[from]?.[1]] ?? "piece"} from ${from} to ${to}${promotion ? ` and promote to ${names[promotion]}` : ""}.`;
-        if (step.response && index < puzzle.steps.length - 1) {
+        if (step.response && (index < puzzle.steps.length - 1 || puzzle.category === "material")) {
           item.textContent += ` Reply: ${step.response.from}–${step.response.to}.`;
         }
         instructions.append(item);
