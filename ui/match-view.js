@@ -22,7 +22,9 @@ export function renderMatch(content, { title, fourPlayer }) {
   const variant = fourPlayer ? "four" : "chess";
   let selected;
   let marks = new Set();
-  let premove;
+  const premoves = [];
+  let premoveRequest;
+  let premoveNotice = "";
   let promotion;
   let setup = false;
   let challenge = false;
@@ -82,6 +84,8 @@ export function renderMatch(content, { title, fourPlayer }) {
           <p class="help review-analysis" aria-live="polite"></p>
         </div>
         <div class="match-actions"></div>
+        <button type="button" class="match-hint" hidden>Hint</button>
+        <p class="help best-move-status match-hint-status" role="status"></p>
       </aside>
     </div>
     <dialog class="promotion-dialog result-dialog" aria-labelledby="match-result-title">
@@ -114,6 +118,8 @@ export function renderMatch(content, { title, fourPlayer }) {
   const reviewControls = content.querySelector(".review-controls");
   const bestMove = createBestMoveControl(reviewControls.querySelector("[data-best-move]"),
     reviewControls.querySelector(".best-move-status"), drawBoard);
+  const hint = createBestMoveControl(content.querySelector(".match-hint"),
+    content.querySelector(".match-hint-status"), drawBoard);
   const reviewAnalysis = content.querySelector(".review-analysis");
   const match = () => session.match?.variant === variant ? session.match : null;
   const result = () => match()?.matchId === session.result?.matchId ? session.result : null;
@@ -150,15 +156,14 @@ export function renderMatch(content, { title, fourPlayer }) {
     dropped = null;
   }
 
-  function submit(move) {
+  function submit(move, queuedMove = false) {
     const data = match();
-    if (!boardAcceptsInput()) return;
+    if (!boardAcceptsInput() || data.state.turn !== data.side) return;
+    if (!queuedMove) clearPremoves();
     if (claiming) {
       claiming = false;
       action("claimDraw", move);
       drawControls();
-    } else if (data.state.turn !== data.side) {
-      premove = move;
     } else {
       action("move", move);
     }
@@ -193,7 +198,17 @@ export function renderMatch(content, { title, fourPlayer }) {
   }
 
   function chooseDestination(from, to) {
+    const data = match();
     if (!boardAcceptsInput() || !from || from === to || !to) return false;
+    if (data.state.turn !== data.side) {
+      const piece = data.state.board[from];
+      if (piece?.[0] !== data.side) return false;
+      premoves.push({ from, to, piece });
+      premoveNotice = "";
+      drawBoard();
+      drawStatus();
+      return true;
+    }
     if (selected !== from) requestTargets(from);
     if (targetsReady()) return finishDestination(from, to);
     dropped = to;
@@ -201,7 +216,8 @@ export function renderMatch(content, { title, fourPlayer }) {
   }
 
   function select(address) {
-    if (!boardAcceptsInput()) return;
+    cancelPremovesOnClick();
+    if (!boardAcceptsInput() || match().state.turn !== match().side) return;
     if (selected && currentTargets().some(move => move.to === address)) {
       chooseDestination(selected, address);
       return;
@@ -213,8 +229,6 @@ export function renderMatch(content, { title, fourPlayer }) {
     } else if (selected) {
       chooseDestination(selected, address);
       return;
-    } else {
-      premove = null;
     }
     drawBoard();
     drawStatus();
@@ -224,15 +238,82 @@ export function renderMatch(content, { title, fourPlayer }) {
     const choice = promotion;
     promotion = null;
     if (choice && dialog.returnValue && choice.matchId === match()?.matchId && choice.revision === match()?.revision) {
-      submit({ ...choice.move, promotion: dialog.returnValue });
+      if (choice.queuedMove) premoveNotice = "Premove played.";
+      submit({ ...choice.move, promotion: dialog.returnValue }, choice.queuedMove);
+    } else if (choice?.queuedMove) {
+      clearPremoves();
+      premoveNotice = "Premove canceled.";
+      drawBoard();
+      drawStatus();
     }
   });
+
+  function clearPremoves() {
+    const hadMoves = premoves.length > 0 || premoveRequest != null;
+    premoves.length = 0;
+    premoveRequest = undefined;
+    return hadMoves;
+  }
+
+  function cancelPremovesOnClick() {
+    if (!clearPremoves()) return;
+    premoveNotice = "Premoves cleared.";
+    drawBoard();
+    drawStatus();
+  }
+
+  function checkPremove(data) {
+    if (!active() || data.state.eliminated?.[data.side]) {
+      clearPremoves();
+      return;
+    }
+    const next = premoves[0];
+    if (!next) return;
+    if (premoves.some(move => data.state.board[move.from] !== move.piece)) {
+      clearPremoves();
+      premoveNotice = "Premove canceled. The piece is no longer on its starting square.";
+      return;
+    }
+    if (data.state.turn !== data.side || !boardAcceptsInput() || premoveRequest != null) return;
+    targetRequest = (targetRequest ?? 0) + 1;
+    premoveRequest = targetRequest;
+    action("legal", { from: next.from, requestId: premoveRequest });
+  }
+
+  function playPremove() {
+    const data = match();
+    const queued = premoves[0];
+    premoveRequest = undefined;
+    if (!queued || !boardAcceptsInput() || data.state.turn !== data.side ||
+        data.state.board[queued.from] !== queued.piece) return;
+    const target = Object.values(session.legal.moves).find(move => move.to === queued.to &&
+      (!queued.promotion || move.promotion === queued.promotion));
+    if (!target) {
+      clearPremoves();
+      premoveNotice = "Premove canceled. The move is no longer legal.";
+    } else {
+      premoves.shift();
+      const move = { from: queued.from, to: queued.to, promotion: queued.promotion };
+      if (target.promotion && !move.promotion) {
+        promotion = { move, matchId: data.matchId, revision: data.revision, queuedMove: true };
+        dialog.returnValue = "";
+        dialog.showModal();
+      } else {
+        premoveNotice = "Premove played.";
+        submit(move, true);
+      }
+    }
+    drawBoard();
+    drawStatus();
+  }
 
   function drawBoard(animateMove = false) {
     const move = animateMove ? match()?.state.lastMove : null;
     const origin = move && slot.querySelector(`[data-square="${move.from}"]`)?.getBoundingClientRect();
     const focused = document.activeElement?.dataset.square;
     const data = match();
+    hint.update(!review && boardAcceptsInput() && /bot/i.test(data?.mode) && data.state.turn === data.side
+      ? data.state : undefined, variant);
     evaluation.update(data, review, (score, previous) => {
       if (score.kind !== "cp" || previous.kind !== "cp") return;
       const change = (score.value - previous.value) / 100;
@@ -241,7 +322,8 @@ export function renderMatch(content, { title, fourPlayer }) {
     });
     slot.replaceChildren(board(getTheme(), fourPlayer, false, {
       state: review?.positions[review.ply] ?? data?.state, side: data?.side, selected, targets: selected ? currentTargets() : [],
-      bestMove: review ? bestMove.move : undefined,
+      premoves,
+      bestMove: review ? bestMove.move : hint.move,
       select: active() ? select : undefined, marks: review ? undefined : marks,
       mark: address => { if (marks.has(address)) marks.delete(address); else marks.add(address); }
     }));
@@ -334,10 +416,11 @@ export function renderMatch(content, { title, fourPlayer }) {
       status.textContent = data.state.terminal ? "Game ended" :
         data.state.eliminated?.[data.side] ? "Eliminated · Watching the remaining players" :
         session.movePending ? "Sending move…" :
-        premove ? `Premove queued · ${premove.from}–${premove.to}` :
+        premoves.length ? `Premove queued · ${premoves.map(move => `${move.from}–${move.to}`).join(", ")}` :
         claiming ? "Choose a move to support your draw claim." :
         `${sides[data.state.turn]} to move${data.state.status === "check" ? " · Check" : ""}${/bot/i.test(data.mode) && data.state.turn !== data.side ? " · Bot thinking" : ""}`;
     } else status.textContent = "";
+    if (active() && premoveNotice) status.textContent += ` · ${premoveNotice}`;
     status.classList.toggle("in-check", data?.state.status === "check" && !outcome);
   }
 
@@ -624,7 +707,11 @@ export function renderMatch(content, { title, fourPlayer }) {
       if (!boardAcceptsInput()) return false;
       dragSource = from;
       dropped = null;
-      requestTargets(from);
+      if (match().state.turn === match().side) {
+        clearPremoves();
+        premoveNotice = "";
+        requestTargets(from);
+      }
       drawBoard();
       return true;
     },
@@ -634,6 +721,7 @@ export function renderMatch(content, { title, fourPlayer }) {
     },
     drop: chooseDestination
   });
+  document.addEventListener("click", cancelPremovesOnClick);
   function clearBoardInput() {
     clearSelection();
     dragSource = null;
@@ -645,6 +733,10 @@ export function renderMatch(content, { title, fourPlayer }) {
   const subscription = subscribe(kind => {
     let animateMove = false;
     if (kind === "legal") {
+      if (premoveRequest != null && session.legal.requestId === premoveRequest) {
+        playPremove();
+        return;
+      }
       if (!targetsReady()) return;
       if (dropped && boardAcceptsInput()) finishDestination(selected, dropped);
       else drawBoard();
@@ -666,6 +758,7 @@ export function renderMatch(content, { title, fourPlayer }) {
       lastMoveCount = moveCount;
       if (newMatch || data?.revision !== lastRevision) {
         clearBoardInput();
+        premoveRequest = undefined;
         claiming = false;
       }
       if (newMatch) {
@@ -675,7 +768,8 @@ export function renderMatch(content, { title, fourPlayer }) {
         drawReview();
         resultDialog.close();
         marks = new Set();
-        premove = null;
+        clearPremoves();
+        premoveNotice = "";
         claiming = false;
         if (data && window.matchMedia("(max-width: 65rem)").matches) {
           cancelAnimationFrame(scrollFrame);
@@ -684,11 +778,7 @@ export function renderMatch(content, { title, fourPlayer }) {
       }
       lastMatch = data?.matchId;
       lastRevision = data?.revision;
-      if (data && active() && premove && data.state.turn === data.side) {
-        const next = premove;
-        premove = null;
-        action("move", next);
-      }
+      if (data) checkPremove(data);
     }
     if (kind === "queueCancelled" || kind === "challengeDeclined") queued = false;
     if (kind === "leave") {
@@ -702,7 +792,8 @@ export function renderMatch(content, { title, fourPlayer }) {
     }
     if (["undoState", "leave", "result", "reject", "error"].includes(kind)) {
       clearBoardInput();
-      premove = null;
+      clearPremoves();
+      premoveNotice = "";
       claiming = false;
     }
     if (kind === "profile" || kind === "catalog") {
@@ -733,6 +824,8 @@ export function renderMatch(content, { title, fourPlayer }) {
     subscription();
     evaluation.close();
     bestMove.close();
+    hint.close();
+    document.removeEventListener("click", cancelPremovesOnClick);
     clearBoardInput();
     drag.destroy();
     cancelAnimationFrame(scrollFrame);

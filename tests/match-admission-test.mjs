@@ -84,8 +84,13 @@ await send("join", 4, "Collector", {
   pieceStorage: 9, allTimeCaptures: 12, botStars: { 400: 3 },
   history: [{ mode: "bot" }, { mode: "fourBot" }, { mode: "online" }]
 });
+const legacy = (await action(4, "profile")).find(event => event.kind === "profile").data;
+assert.equal(new Set(legacy.history.map(record => record.id)).size, 3);
+const deleted = (await action(4, "deleteHistoryMatch", { id: legacy.history[0].id }))
+  .find(event => event.kind === "profile").data;
+assert.deepEqual(deleted.history.map(record => record.mode), ["fourBot", "online"]);
 const cleanProfile = (await action(4, "clearBotHistory")).find(event => event.kind === "profile").data;
-assert.deepEqual(cleanProfile.history, [{ mode: "online" }]);
+assert.deepEqual(cleanProfile.history, [legacy.history[2]]);
 assert.equal(cleanProfile.botStars, undefined);
 assert.equal(cleanProfile.allTimeCaptures, 12);
 assert.equal(cleanProfile.pieceStorage, 9);

@@ -3,6 +3,10 @@
 Exalted Chess is a browser game for standard and four-player chess. The GitHub
 Pages version runs the original Luau rules and bots in a browser worker. Bot
 matches, profiles, earned pieces, board purchases, and replays work locally.
+In bot games, Hint highlights a suggested move on your turn. During an
+opponent’s turn, drag your pieces to queue premoves. A click clears the queue.
+Each premove is checked against the actual board when your turn starts.
+
 Equipping an owned board changes the site palette, along with boards in matches
 and replays. Classic restores the default blue-and-white design.
 

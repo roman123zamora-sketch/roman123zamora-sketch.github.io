@@ -193,3 +193,15 @@ button.square:focus-visible { z-index: 2; outline: 2px solid var(--square-focus)
 }
 .eval-score[data-side="w"] { background: #f4f8ff; color: #142335; }
 .eval-score[data-side="b"] { background: #111c2d; color: #f4f8ff; }
+
+.square.premove-target { outline: 2px solid #d92644; outline-offset: -3px; }
+.square .premove-number {
+  position: absolute;
+  inset: .12rem .12rem auto auto;
+  background: #a51630;
+  color: #fff;
+  border-radius: .2rem;
+  padding-inline: .22rem;
+  font: 700 .7rem/1.2 system-ui, sans-serif;
+  pointer-events: none;
+}

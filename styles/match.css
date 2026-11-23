@@ -135,3 +135,5 @@
   }
   .match .board-status { margin-block-start: .45rem; }
 }
+
+.match-hint { margin-block-start: .75rem; }

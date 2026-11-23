@@ -45,9 +45,26 @@ export default function profile(content) {
     });
     if (!records.length) list.innerHTML = '<p class="inset">No games recorded.</p>';
     for (const record of records) {
+      const row = document.createElement("article");
+      row.className = "inset history-entry";
+      const summary = document.createElement("p");
+      summary.textContent = `${record.v === "four" ? "4-Player Chess" : "Chess"} · ${record.opp} · ${record.place ? "Placed " + record.place : record.result} · ${record.reason}`;
+      const controls = document.createElement("div");
+      controls.className = "action-row";
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.textContent = "Delete";
+      remove.dataset.deleteMatch = "";
+      remove.disabled = !record.id;
+      remove.addEventListener("click", () => {
+        if (opening || !confirm("Delete this match from your history?")) return;
+        remove.disabled = true;
+        remove.dataset.deleting = "true";
+        action("deleteHistoryMatch", { id: record.id });
+      });
       const item = document.createElement("button");
       item.type = "button";
-      item.textContent = `${record.v === "four" ? "4-Player Chess" : "Chess"} · ${record.opp} · ${record.place ? "Placed " + record.place : record.result} · ${record.reason}`;
+      item.textContent = "Review";
       item.addEventListener("click", async () => {
         if (opening) return;
         opening = true;
@@ -79,11 +96,14 @@ export default function profile(content) {
           if (!disposed) {
             item.disabled = false;
             item.removeAttribute("aria-busy");
-            item.textContent = "Replay unavailable. Try again.";
+            item.textContent = "Review";
+            panel.querySelector(".history-notice").textContent = "Replay unavailable. Try again.";
           }
         }
       });
-      list.append(item);
+      controls.append(item, remove);
+      row.append(summary, controls);
+      list.append(row);
     }
   }
 
@@ -140,8 +160,13 @@ export default function profile(content) {
     if (kind === "profile" && !opening) history();
     if (kind === "error" && !opening) {
       const clear = panel.querySelector("[data-clear-bot-history]");
-      if (clear?.disabled) {
-        clear.disabled = false;
+      const pending = [...panel.querySelectorAll("[data-delete-match]:disabled")].filter(button => button.dataset.deleting);
+      if (clear?.disabled || pending.length) {
+        if (clear) clear.disabled = false;
+        for (const button of pending) {
+          button.disabled = false;
+          delete button.dataset.deleting;
+        }
         panel.querySelector(".history-notice").textContent = session.notice;
       }
     }

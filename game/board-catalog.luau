@@ -21,9 +21,6 @@ ThemeLibrary.themes={
 	{id="lavenderMilk",name="Lavender Milk",price=20,desc="Soft lavender swirled into cream.",
 		board={light=rgb(244,236,255),dark=rgb(105,65,165),frame=rgb(40,26,66),stroke=rgb(112,72,160),tex={rot=125,l={{0,rgb(246,239,255)},{1,rgb(240,231,251)}},d={{0,rgb(113,73,173)},{1,rgb(95,57,155)}},pat={type="nebula",sz=.64,szY=.56,ns=2,l={rgb(226,212,244),.76},l2={rgb(253,249,255),.85},d={rgb(126,88,186),.56},d2={rgb(80,48,136),.6}}}},
 		ui={bg=rgb(26,20,34),top=rgb(38,29,49),panel=rgb(54,41,69),panel2=rgb(42,32,54),muted=rgb(204,186,222),blue=rgb(176,138,220),blueDark=rgb(110,82,152),teal=rgb(76,58,106),green=rgb(196,160,238),gold=rgb(228,204,150)}},
-	{id="ocean",name="Ocean",price=25,desc="Cool seaside blues.",
-		board={light=rgb(222,238,246),dark=rgb(96,150,190),frame=rgb(16,32,44),stroke=rgb(60,110,150)},
-		ui={bg=rgb(14,22,30),top=rgb(20,32,44),panel=rgb(28,46,62),panel2=rgb(22,36,50),muted=rgb(158,188,212),blue=rgb(96,160,220),blueDark=rgb(48,100,160),teal=rgb(34,72,104),green=rgb(110,180,235),gold=rgb(150,205,240)}},
 	{id="cherry",name="Cherry",price=35,desc="Bright ruby wood.",
 		board={light=rgb(246,226,220),dark=rgb(190,96,90),frame=rgb(44,20,18),stroke=rgb(140,66,60)},
 		ui={bg=rgb(28,14,13),top=rgb(42,21,19),panel=rgb(60,30,27),panel2=rgb(47,23,21),muted=rgb(210,160,152),blue=rgb(214,110,100),blueDark=rgb(140,62,55),teal=rgb(96,42,38),green=rgb(230,130,115),gold=rgb(240,190,120)}},
@@ -103,7 +100,7 @@ ThemeLibrary.themes={
 	{id="phoenixCrown",name="Pheonix",price=1200,desc="A crown reborn in flame and gold.",
 		board={light=rgb(248,193,139),dark=rgb(110,31,34),frame=rgb(52,15,16),stroke=rgb(160,50,45),tex={rot=65,l={{0,rgb(250,197,145)},{1,rgb(245,188,132)}},d={{0,rgb(122,37,40)},{1,rgb(103,29,32)}},pat={type="basalt",nm=3,nc=3,ember=.3,l={rgb(246,180,120),.74},l2={rgb(255,222,176),.84},d={rgb(168,58,58),.52},d2={rgb(238,150,64),.48}}}},
 		ui={bg=rgb(26,12,10),top=rgb(38,18,15),panel=rgb(54,26,22),panel2=rgb(42,20,17),muted=rgb(216,170,150),blue=rgb(240,150,80),blueDark=rgb(160,90,40),teal=rgb(100,48,36),green=rgb(255,175,100),gold=rgb(250,210,120)}},
-	{id="sovereignAurora",name="Sovereign Aurora",price=2400,desc="The northern lights, crowned in jade.",
+	{id="sovereignAurora",name="Auoura",price=2400,desc="The northern lights, crowned in jade.",
 		board={light=rgb(201,241,229),dark=rgb(20,88,79),frame=rgb(8,40,36),stroke=rgb(60,150,130),tex={rot=115,l={{0,rgb(204,243,232)},{1,rgb(197,238,225)}},d={{0,rgb(25,96,86)},{1,rgb(17,82,73)}},pat={type="ribbon",nr=3,rw=.18,l={rgb(182,228,212),.78},l2={rgb(230,250,242),.86},d={rgb(38,126,112),.54},d2={rgb(126,224,194),.5}}}},
 		ui={bg=rgb(10,24,22),top=rgb(15,35,32),panel=rgb(22,50,46),panel2=rgb(17,39,36),muted=rgb(170,214,204),blue=rgb(90,210,180),blueDark=rgb(40,130,112),teal=rgb(30,80,72),green=rgb(110,230,200),gold=rgb(220,230,160)}},
 }

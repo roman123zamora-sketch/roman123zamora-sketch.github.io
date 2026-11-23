@@ -77,3 +77,12 @@
 
 .shop-sections { margin-block: .9rem; }
 .history-notice:empty { display: none; }
+
+.history-entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: .55rem 1rem;
+}
+.history-entry p { min-inline-size: 0; overflow-wrap: anywhere; }

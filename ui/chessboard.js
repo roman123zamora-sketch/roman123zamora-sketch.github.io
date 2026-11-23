@@ -88,6 +88,12 @@ export function board(theme, fourPlayer = false, sample = false, options = {}) {
       if (!corner && !sample) {
         const last = options.state?.lastMove;
         square.classList.toggle("last-move", [last?.from, last?.to].includes(address));
+        const premoveIndex = options.premoves?.findIndex(move => move.to === address) ?? -1;
+        if (premoveIndex >= 0) {
+          square.classList.add("premove-target");
+          square.append(marker("premove-number", String(premoveIndex + 1)));
+          square.setAttribute("aria-label", square.getAttribute("aria-label") + `, premove ${premoveIndex + 1} destination`);
+        }
         const suggestion = options.bestMove;
         if (suggestion && (address === suggestion.from || address === suggestion.to)) {
           const target = address === suggestion.to;

@@ -28,6 +28,16 @@ local function league(points)
  local found="Soil"; for _,pair in ipairs(THRESHOLDS) do if points>=pair[2] then found=pair[1] end end; return found
 end
 local function send(p,kind,data) if p and p.Parent then if typeof(p)=="Instance" then Update:FireClient(p,kind,data) end end end
+local function historyId(history)
+ while true do
+  local id=HttpService:GenerateGUID(false)
+  local used=false
+  for _,record in ipairs(history) do
+   if type(record)=="table" and record.id==id then used=true; break end
+  end
+  if not used then return id end
+ end
+end
 local function getProfile(p)
  local id=tostring(p.UserId); if profileCache[id] then return profileCache[id] end
  local profile=copy(defaultProfile); local ok,saved=false,nil
@@ -37,6 +47,9 @@ local function getProfile(p)
  profile.allTimeCaptures=math.max(0,math.floor(tonumber(profile.allTimeCaptures) or 0))
  profile.pieceStorage=math.max(0,math.floor(tonumber(profile.pieceStorage) or 0))
  profile.chessElo=tonumber(profile.chessElo) or 1000; profile.fourElo=tonumber(profile.fourElo) or 1000; profile.history=type(profile.history)=="table" and profile.history or {}
+ for _,record in ipairs(profile.history) do
+  if type(record)=="table" and not record.id then record.id=historyId(profile.history) end
+ end
  -- Board themes: Void was retired and replaced by Galaxy — carry ownership/equip over.
  do
   local owned=type(profile.ownedBoards)=="table" and profile.ownedBoards or {}
@@ -166,7 +179,7 @@ local function recordHistory(m,p,side,result,reason,place)
   table.insert(fourStates,{turn=m.state.turn,eliminated=m.state.eliminated})
  end
  prof.history=prof.history or {}
- table.insert(prof.history,1,{v=fourMode(m) and "four" or "chess",mode=m.mode,result=result,reason=reason,ts=os.time(),side=side,place=place,opp=table.concat(opp,", "),moves=moves,fourStates=fourStates})
+ table.insert(prof.history,1,{id=historyId(prof.history),v=fourMode(m) and "four" or "chess",mode=m.mode,result=result,reason=reason,ts=os.time(),side=side,place=place,opp=table.concat(opp,", "),moves=moves,fourStates=fourStates})
  while #prof.history>20 do table.remove(prof.history,#prof.history) end
  saveProfile(p); send(p,"profile",profileView(p))
 end
@@ -519,6 +532,19 @@ local function makeQueueMatch(p,q,mode,count)
 end
 Action.OnServerEvent:Connect(function(p,kind,data)
  if kind=="profile" then send(p,"profile",profileView(p))
+ elseif kind=="deleteHistoryMatch" then
+  local profile=getProfile(p)
+  local id=type(data)=="table" and data.id
+  if type(id)=="string" then
+   for index,record in ipairs(profile.history) do
+    if record.id==id then
+     table.remove(profile.history,index)
+     saveProfile(p)
+     break
+    end
+   end
+  end
+  send(p,"profile",profileView(p))
  elseif kind=="clearBotHistory" then
   local profile=getProfile(p)
   local history={}
