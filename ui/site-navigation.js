@@ -23,6 +23,7 @@ const links = document.querySelectorAll("nav a");
 let cleanup;
 
 function navigate() {
+  const previousBoard = content.querySelector(".aligned-board-area .board-and-eval")?.getBoundingClientRect();
   cleanup?.();
   const hash = location.hash === "#boards" ? "inventory" : location.hash.slice(1);
   const page = pages.has(hash) ? hash : "chess";
@@ -36,6 +37,18 @@ function navigate() {
   }
   content.replaceChildren();
   cleanup = pages.get(page)(content);
+  content.style.minBlockSize = "";
+
+  const nextBoard = content.querySelector(".aligned-board-area .board-and-eval");
+  if (previousBoard && nextBoard && previousBoard.bottom > 0 && previousBoard.top < innerHeight) {
+    const target = Math.max(0, scrollY + nextBoard.getBoundingClientRect().top - previousBoard.top);
+    const available = document.documentElement.scrollHeight - innerHeight;
+    if (target > available) {
+      // A shorter tab can otherwise pull the board down as the viewport scroll clamps.
+      content.style.minBlockSize = `${Math.ceil(innerHeight + target - (content.getBoundingClientRect().top + scrollY))}px`;
+    }
+    if (Math.abs(scrollY - target) >= 1) window.scrollTo({ top: target, behavior: "instant" });
+  }
 }
 
 window.addEventListener("hashchange", navigate);
