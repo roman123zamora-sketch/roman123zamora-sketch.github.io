@@ -39,7 +39,11 @@ export function loadPractice() {
           typeof attempt?.id === "string" && (attempt.outcome === "solved" || attempt.outcome === "failed"));
         saved.rated = [...new Set(completed.map(attempt => attempt.id))];
       }
-      if (!validActive(saved.active, saved.category)) saved.active = null;
+      if (!validActive(saved.active, saved.category) ||
+          (saved.active && (saved.active.puzzle.unrated || saved.active.puzzle.targetRating !== rating))) {
+        saved.active = null;
+        savePractice(saved);
+      }
       if (saved.active && !Number.isFinite(saved.active.hintsUsed)) {
         saved.active.hintsUsed = saved.active.assisted ? Math.max(1, saved.active.hint ?? 0) : 0;
       }

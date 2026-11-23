@@ -287,3 +287,20 @@ const beforeMiss = warmupRequests.length;
 prefetch = createPuzzlePrefetch(practice);
 assert.equal(await prefetch.take(415), undefined);
 assert.equal(warmupRequests.length, beforeMiss + 1, "An empty speculative batch leaves the next search to the actual rating");
+
+const { findRatedPuzzle } = await import("../game/puzzle-prefetch.js");
+const searched = [];
+const wider = await findRatedPuzzle({
+  async run(_, payload) {
+    searched.push(payload.rating);
+    assert(payload.recent.includes("previously-rated"));
+    return payload.rating === 600 ? { difficulty: 600, id: "fresh" } : { retry: true };
+  }
+}, { category: "checkmate", rating: 1925, recent: [], rated: ["previously-rated"] },
+() => 17211, () => true, () => {});
+assert.deepEqual(searched, [1925, 1000, 600]);
+assert.equal(wider.targetRating, 1925);
+assert.equal(wider.difficulty, 600);
+const ladder = { rating: 1925, recent: [], active: { puzzle: wider, hearts: 3 } };
+assert.equal(resolvePuzzle(ladder, "solved"), 15);
+assert.equal(ladder.rating, 1940);

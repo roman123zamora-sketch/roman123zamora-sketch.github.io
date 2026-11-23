@@ -1,4 +1,4 @@
-import { createPuzzlePrefetch, findPuzzle } from "../game/puzzle-prefetch.js";
+import { createPuzzlePrefetch, findRatedPuzzle } from "../game/puzzle-prefetch.js";
 import { createPositionTools } from "../game/position-tools.js";
 import { loadPractice, nextSeed, resolvePuzzle, savePractice } from "../game/puzzle-progress.js";
 import { playSound, subscribe } from "../game/session.js";
@@ -22,6 +22,7 @@ export default function puzzles(content) {
         <dl class="puzzle-stats">
           <div><dt>Your Puzzle Rating</dt><dd data-rating></dd></div>
           <div><dt>Puzzle Difficulty (target)</dt><dd data-difficulty></dd></div>
+          <div><dt>Verified difficulty</dt><dd data-estimate></dd></div>
         </dl>
       </aside>
       <section class="board-area aligned-board-area" aria-label="Puzzle board">
@@ -41,7 +42,6 @@ export default function puzzles(content) {
           <button type="button" data-solution aria-expanded="false">See solution</button>
           <button type="button" data-skip>Skip</button>
           <button type="button" data-next hidden>Next puzzle</button>
-          <button type="button" data-unrated hidden>Play unrated puzzle</button>
           <button type="button" data-replay hidden>Replay last puzzle</button>
         </div>
         <ol class="puzzle-solution" hidden></ol>
@@ -66,7 +66,6 @@ export default function puzzles(content) {
   const instructions = content.querySelector(".puzzle-solution");
   const next = content.querySelector("[data-next]");
   const replay = content.querySelector("[data-replay]");
-  const unrated = content.querySelector("[data-unrated]");
   const controller = new AbortController();
   const listeners = { signal: controller.signal };
   let selected;
@@ -74,8 +73,6 @@ export default function puzzles(content) {
   let generation = 0;
   let disposed = false;
   let generating = false;
-  let offerPractice = false;
-  let slowSearchTimer;
   let tools;
   let prefetch;
   let pendingPool;
@@ -138,13 +135,14 @@ export default function puzzles(content) {
     }
     content.querySelector("[data-rating]").textContent = practice.rating;
     content.querySelector("[data-difficulty]").textContent = puzzle?.targetRating ?? puzzle?.difficulty ?? "—";
+    content.querySelector("[data-estimate]").textContent = puzzle?.difficulty ?? "—";
     const heartLabel = content.querySelector(".puzzle-hearts");
     heartLabel.hidden = !puzzle || Boolean(retry);
     heartLabel.setAttribute("aria-label", `${hearts} of 3 hearts remaining`);
     heartLabel.innerHTML = `<span aria-hidden="true">${"♥".repeat(hearts)}${"♡".repeat(3 - hearts)}</span>`;
     content.querySelector(".puzzle-objective").textContent = transition
       ? `${colors[position.turn]} replies · ${categories[puzzle.category]}`
-      : active ? `${colors[puzzle.side]} to move · ${retry || puzzle.unrated || puzzle.targetRating !== practice.rating ? "Unrated practice" : categories[puzzle.category]}`
+      : active ? `${colors[puzzle.side]} to move · ${retry ? "Replay · Rating already recorded" : categories[puzzle.category]}`
       : puzzle ? categories[puzzle.category] : "";
     status.textContent = message;
     status.dataset.outcome = outcome ?? "";
@@ -178,8 +176,7 @@ export default function puzzles(content) {
     skip.disabled = Boolean(transition);
     next.hidden = Boolean(practice.active || generating);
     next.disabled = Boolean(transition);
-    next.textContent = offerPractice ? "Search again" : finished ? "Next puzzle" : "Try again";
-    unrated.hidden = !offerPractice || Boolean(active);
+    next.textContent = finished ? "Next puzzle" : "Try again";
   }
 
   let attemptStarted;
@@ -217,10 +214,8 @@ export default function puzzles(content) {
     drag.cancel();
   }
 
-  async function generate(prefix = "", usePrefetch = true, practiceOnly = false) {
+  async function generate(prefix = "", usePrefetch = true) {
     const request = ++generation;
-    clearTimeout(slowSearchTimer);
-    offerPractice = false;
     tools?.close();
     pendingPool?.close();
     const pool = prefetch;
@@ -234,16 +229,8 @@ export default function puzzles(content) {
     retry = null;
     outcome = null;
     generating = true;
-    const target = practiceOnly ? 400 : practice.rating;
-    message = prefix ? `${prefix} Generating a fresh puzzle…` : practiceOnly
-      ? "Generating a verified practice puzzle…" : "Generating a verified puzzle…";
-    if (!practiceOnly && practice.rating >= 600) {
-      slowSearchTimer = setTimeout(() => {
-        offerPractice = true;
-        message = "Still looking for a rated puzzle. You can switch to unrated practice.";
-        render();
-      }, 3500);
-    }
+    const target = practice.rating;
+    message = `${prefix ? prefix + " " : ""} Searching for a verified puzzle near ${target}…`;
     render();
     try {
       let candidate = await prepared;
@@ -257,31 +244,22 @@ export default function puzzles(content) {
           savePractice(practice);
           return seed;
         };
-        const search = { ...practice, rating: target };
-        candidate = await findPuzzle(tools, search, takeSeed, 3);
-        // Beginner and practice searches are cheap enough for one more pass.
-        if (!candidate && target < 600 && !disposed && request === generation) {
-          message = "Still searching for a verified puzzle…";
+        const current = () => !disposed && request === generation;
+        let widened = false;
+        candidate = await findRatedPuzzle(tools, practice, takeSeed, current, () => {
+          if (widened) return;
+          widened = true;
+          message = "Searching a wider difficulty range for a verified rated puzzle…";
           render();
-          candidate = await findPuzzle(tools, search, takeSeed, 3);
-        }
+        }, Boolean(prepared));
       }
-      if (disposed || request !== generation) return;
-      if (candidate) {
-        if (practiceOnly) candidate.unrated = true;
-        offerPractice = false;
-        finished = null;
-        practice.active = { puzzle: candidate, step: 0, hearts: 3 };
-        startAttemptClock();
-        savePractice(practice);
-        message = prefix;
-        if (!practiceOnly) prefetch = createPuzzlePrefetch(practice);
-      } else {
-        offerPractice = !practiceOnly && practice.rating >= 600;
-        message = offerPractice
-          ? `No verified puzzle near ${target} was found in this search. Search again or play unrated practice.`
-          : "No verified puzzle was found in this search. Try again.";
-      }
+      if (disposed || request !== generation || !candidate) return;
+      finished = null;
+      practice.active = { puzzle: candidate, step: 0, hearts: 3 };
+      startAttemptClock();
+      savePractice(practice);
+      message = prefix;
+      prefetch = createPuzzlePrefetch(practice);
     } catch (error) {
       if (!disposed && request === generation) {
         console.error("Puzzle generation failed.", error);
@@ -289,7 +267,6 @@ export default function puzzles(content) {
       }
     } finally {
       if (!disposed && request === generation) {
-        clearTimeout(slowSearchTimer);
         tools?.close();
         generating = false;
         render();
@@ -309,7 +286,7 @@ export default function puzzles(content) {
       : currentPosition(active) };
     if (result === "failed") retry = { ...active, hint: 0 };
     message = `${result === "solved" ? "Solved" : result === "skipped" ? "Skipped" : "Out of hearts"}. Rating ${delta > 0 ? "+" + delta : delta < 0 ? "−" + Math.abs(delta) : "unchanged"}.`;
-    if (retry) message += " Keep trying in unrated practice.";
+    if (retry) message += " You can replay this puzzle or move on.";
   }
 
   function attempt(move) {
@@ -434,7 +411,7 @@ export default function puzzles(content) {
     retry = retry ? null : { puzzle: lastCompleted, step: 0 };
     showSolution = false;
     outcome = null;
-    message = retry ? "Unrated practice. Your current puzzle is paused." : "";
+    message = retry ? "Replaying a completed attempt. Your current puzzle is paused." : "";
     startAttemptClock();
     render();
   }, listeners);
@@ -443,7 +420,6 @@ export default function puzzles(content) {
     resolve("skipped");
     generate(message);
   }, listeners);
-  unrated.addEventListener("click", () => generate("", false, true), listeners);
   next.addEventListener("click", () => generate(outcome === "solved" ? message : ""), listeners);
   for (const button of content.querySelectorAll("[data-category]")) {
     button.addEventListener("click", () => {
@@ -461,14 +437,13 @@ export default function puzzles(content) {
   if (practice.active) {
     startAttemptClock();
     render();
-    if (!practice.active.puzzle.unrated) prefetch = createPuzzlePrefetch(practice);
+    prefetch = createPuzzlePrefetch(practice);
   }
   else generate();
   return () => {
     pauseAttemptClock();
     disposed = true;
     generation++;
-    clearTimeout(slowSearchTimer);
     controller.abort();
     stopAnimation();
     drag.destroy();
