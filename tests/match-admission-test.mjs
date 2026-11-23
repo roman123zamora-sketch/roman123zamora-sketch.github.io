@@ -46,3 +46,20 @@ assert.equal(resumed.length, 1);
 assert.equal(resumed[0].user, black);
 assert.equal(resumed[0].data.state.board.e4, "wP");
 console.log("Match admission, invalid requests, synchronization and refresh snapshot passed.");
+
+const reviewed = await dispatch("review", time, 0, {
+  variant: "chess", moves: [{ f: "e2", t: "e4", c: "w" }]
+});
+assert.equal(reviewed.length, 2);
+assert.equal(reviewed[0].board.e2, "wP");
+assert.equal(reviewed[1].lastMove.to, "e4");
+assert.equal(reviewed[1].turn, "b");
+assert(reviewed[1].analysis.positions);
+
+await action(white, "resign");
+await action(3, "cancelQueue");
+assert.equal((await action(white, "queue", { newOpponent: true }))[0].kind, "queued");
+assert.equal((await action(black, "queue"))[0].kind, "queued");
+const newGame = (await action(3, "queue")).filter(event => event.kind === "state");
+assert.deepEqual(new Set(newGame.map(event => event.user)), new Set([white, 3]));
+console.log("Review snapshots and New Game opponent exclusion passed.");

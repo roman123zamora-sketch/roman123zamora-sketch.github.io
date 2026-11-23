@@ -99,7 +99,7 @@ function selectData(kind, data) {
     case "bot": return { rating: rating(input.rating) };
     case "fourBot": return { ratings: { B: rating(input.ratings?.B), Y: rating(input.ratings?.Y), G: rating(input.ratings?.G) } };
     case "buyBoard": case "equipBoard": return { id: typeof input.id === "string" ? input.id.slice(0, 48) : "" };
-    case "queue": case "queueFour": return timer;
+    case "queue": case "queueFour": return { ...timer, newOpponent: input.newOpponent === true };
     case "challenge": return { ...timer, userId: number(input.userId), userIds: Array.isArray(input.userIds) ? [...new Set(input.userIds.slice(0, 3).map(number).filter(Boolean))] : undefined };
     case "challengeRespond": case "rematchRespond": return { accept: input.accept === true };
     default: return undefined;

@@ -33,6 +33,7 @@ tabs/
 game/
   session.js                   Browser state, storage, audio, and match commands
   local-worker.js              Browser worker for local matches and replays
+  puzzle-prefetch.js           Background puzzle generation for possible rating outcomes
   touch-board.js               Touch dragging
   luau-runtime.js              Loads Luau modules and exchanges data with JavaScript
   web-adapter.luau             Browser and server bridge to the original game modules
@@ -125,6 +126,15 @@ search ceiling and reports games unfinished at 120 plies separately. Timings
 include small deadline-check overshoots and vary by machine. Results describe
 this sample only.
 
+## Game review
+
+Finished matches offer a rematch and a move-by-move review. In standard
+chess, review reconstructs the position after each move and uses the original
+engine to estimate how the balance changed. During live play, the evaluation
+bar is available only in standard bot games. Four-player review uses recorded
+board positions. Online New Game queues for a different opponent through the
+optional match server.
+
 ## Puzzles
 
 Practice offers Checkmate and Material. The generator starts every candidate
@@ -142,7 +152,16 @@ budget. Puzzle rating starts at 400. The clean solve reward is the nearest
 even integer to `32 × (1 − expected)`, with a minimum of 2, where
 `expected = 1 / (1 + 10^((difficulty − rating) / 400))`. One wrong move halves
 the reward, two wrong moves cost half the reward, and three cost the full
-reward. Skip is neutral. Rating stays between 100 and 2400.
+reward. Skip, hints, and revealing the solution are rating-neutral. The
+first hint highlights the piece and the second adds its destination. See
+solution gives written instructions for playing the moves yourself. Rating
+stays between 100 and 2400.
+
+While a puzzle is active, workers prepare candidates for up to five possible
+resulting ratings. Only the matching candidate is used and the rest are
+discarded. If that candidate is still being verified, the game waits for
+verification and can retry generation. A solve stops on the player’s final
+move, then advances automatically.
 
 Browser storage holds the rating, selected category, generator seed, up to
 128 recent fingerprints, and the active puzzle with its exact progress. It

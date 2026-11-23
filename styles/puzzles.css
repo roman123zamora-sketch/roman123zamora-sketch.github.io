@@ -28,3 +28,5 @@
 @media (max-width: 45rem) {
   .puzzle-layout { grid-template-columns: minmax(0, 1fr); }
 }
+.puzzle-solution { padding-inline-start: 1.5rem; margin-block: .75rem 0; }
+.puzzle-solution li + li { margin-block-start: .4rem; }

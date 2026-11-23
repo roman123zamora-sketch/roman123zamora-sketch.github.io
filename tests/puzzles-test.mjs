@@ -88,14 +88,22 @@ end
 }
 
 globalThis.localStorage = { getItem: () => null, setItem() {} };
-const { resolvePuzzle } = await import("../game/puzzle-progress.js");
+const { possibleRatings, resolvePuzzle } = await import("../game/puzzle-progress.js");
 for (const [result, hearts, delta] of [
   ["solved", 3, 16], ["solved", 2, 8], ["solved", 1, -8], ["failed", 0, -16], ["skipped", 3, 0]
 ]) {
   const practice = { rating: 400, recent: [], active: { puzzle: { id: "used", difficulty: 400 }, hearts } };
+  const assisted = { ...practice, active: { ...practice.active, assisted: true } };
+  assert.deepEqual([...possibleRatings(assisted)], [400]);
+  assert.equal(resolvePuzzle(assisted, result), 0);
+  assert.equal(assisted.rating, 400);
+  assert(possibleRatings(practice).has(400 + delta));
   assert.equal(resolvePuzzle(practice, result), delta);
   assert.equal(practice.rating, 400 + delta);
   assert.equal(practice.active, null);
   assert.deepEqual(practice.recent, ["used"]);
 }
+assert.deepEqual([...possibleRatings({
+  rating: 400, active: { puzzle: { difficulty: 400 }, hearts: 3 }
+})].sort((a, b) => a - b), [384, 392, 400, 408, 416]);
 console.log("Legal histories, one- and two-move mates, all mate defenses, settled material, fresh seeds, and every rating outcome passed.");

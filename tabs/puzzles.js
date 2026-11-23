@@ -1,3 +1,4 @@
+import { createPuzzlePrefetch, findPuzzle } from "../game/puzzle-prefetch.js";
 import { createPositionTools } from "../game/position-tools.js";
 import { loadPractice, nextSeed, resolvePuzzle, savePractice } from "../game/puzzle-progress.js";
 import { playSound, subscribe } from "../game/session.js";
@@ -30,9 +31,12 @@ export default function puzzles(content) {
           <dl class="puzzle-stats"><div><dt>Your Puzzle Rating</dt><dd data-rating></dd></div>
             <div><dt>Puzzle Difficulty</dt><dd data-difficulty></dd></div></dl>
           <div class="action-row puzzle-actions">
+            <button type="button" data-hint>Hint</button>
+            <button type="button" data-solution aria-expanded="false">See solution</button>
             <button type="button" data-skip>Skip</button>
             <button type="button" data-next hidden>Next puzzle</button>
           </div>
+          <ol class="puzzle-solution" hidden></ol>
           <p class="help">Active puzzles and ratings are saved in this browser.</p>
         </div>
       </div>
@@ -50,6 +54,9 @@ export default function puzzles(content) {
   const dialog = content.querySelector("dialog");
   const status = content.querySelector(".puzzle-message");
   const skip = content.querySelector("[data-skip]");
+  const hint = content.querySelector("[data-hint]");
+  const solution = content.querySelector("[data-solution]");
+  const instructions = content.querySelector(".puzzle-solution");
   const next = content.querySelector("[data-next]");
   const controller = new AbortController();
   const listeners = { signal: controller.signal };
@@ -61,6 +68,9 @@ export default function puzzles(content) {
   let disposed = false;
   let generating = false;
   let tools;
+  let prefetch;
+  let pendingPool;
+  let showSolution = false;
   let transition;
   let advanceTimer;
   let wrong;
@@ -88,6 +98,7 @@ export default function puzzles(content) {
     const puzzle = active?.puzzle ?? finished?.puzzle;
     const hearts = active?.hearts ?? finished?.hearts ?? 0;
     const position = animationPosition ?? (active ? currentPosition(active) : finished?.position);
+    const hintMove = active?.hint && active.puzzle.steps[active.step].move;
     const focused = slot.contains(document.activeElement) ? document.activeElement.dataset.square : null;
     const theme = getTheme();
     slot.replaceChildren(board(theme, false, false, {
@@ -95,7 +106,8 @@ export default function puzzles(content) {
       side: puzzle?.side,
       selected,
       targets: selected && active ? legalFrom(selected) : [],
-      select: canMove() ? select : undefined
+      select: canMove() ? select : undefined,
+      marks: hintMove ? new Set(active.hint === 1 ? [hintMove.from] : [hintMove.from, hintMove.to]) : undefined
     }));
     if (wrong) slot.querySelector(`[aria-label^="${wrong},"]`)?.classList.add("puzzle-wrong");
     if (canMove()) {
@@ -123,6 +135,27 @@ export default function puzzles(content) {
       : puzzle ? categories[puzzle.category] : "";
     status.textContent = message;
     status.dataset.outcome = outcome ?? "";
+    hint.hidden = !active;
+    hint.disabled = !canMove() || active?.hint === 2;
+    hint.textContent = active?.hint === 1 ? "Show destination" : "Hint";
+    solution.hidden = !puzzle;
+    solution.disabled = Boolean(transition);
+    solution.setAttribute("aria-expanded", String(showSolution));
+    instructions.hidden = !showSolution;
+    instructions.replaceChildren();
+    if (showSolution && puzzle) {
+      const names = { K: "king", Q: "queen", R: "rook", B: "bishop", N: "knight", P: "pawn" };
+      for (const [index, step] of Object.values(puzzle.steps).entries()) {
+        const start = index ? puzzle.steps[index - 1].position : puzzle.origin;
+        const { from, to, promotion } = step.move;
+        const item = document.createElement("li");
+        item.textContent = `Move your ${names[start.board[from]?.[1]] ?? "piece"} from ${from} to ${to}${promotion ? ` and promote to ${names[promotion]}` : ""}.`;
+        if (step.response && index < puzzle.steps.length - 1) {
+          item.textContent += ` Reply: ${step.response.from}–${step.response.to}.`;
+        }
+        instructions.append(item);
+      }
+    }
     skip.hidden = !active;
     skip.disabled = Boolean(transition);
     next.hidden = Boolean(active || generating);
@@ -145,11 +178,16 @@ export default function puzzles(content) {
     touch.cancel();
   }
 
-  async function generate(prefix = "") {
+  async function generate(prefix = "", usePrefetch = true) {
     const request = ++generation;
     tools?.close();
-    tools = createPositionTools();
-    const worker = tools;
+    pendingPool?.close();
+    const pool = prefetch;
+    pendingPool = pool;
+    prefetch = undefined;
+    const prepared = usePrefetch && pool?.take(practice.rating);
+    if (!prepared) pool?.close();
+    showSolution = false;
     stopAnimation();
     finished = null;
     outcome = null;
@@ -157,32 +195,32 @@ export default function puzzles(content) {
     message = prefix ? `${prefix} Generating a fresh puzzle…` : "Generating a verified puzzle…";
     render();
     try {
-      let candidate;
-      for (let attempt = 0; attempt < 3; attempt++) {
-        const seed = nextSeed(practice);
-        savePractice(practice);
-        const puzzle = await worker.run("puzzle", {
-          category: practice.category, rating: practice.rating, seed, recent: practice.recent
+      let candidate = await prepared;
+      pool?.close();
+      if (pendingPool === pool) pendingPool = undefined;
+      if (disposed || request !== generation) return;
+      if (!candidate) {
+        tools = createPositionTools();
+        candidate = await findPuzzle(tools, practice, () => {
+          const seed = nextSeed(practice);
+          savePractice(practice);
+          return seed;
         });
-        if (disposed || request !== generation) return;
-        if (!puzzle.retry && (!candidate ||
-            Math.abs(puzzle.difficulty - practice.rating) < Math.abs(candidate.difficulty - practice.rating))) {
-          candidate = puzzle;
-        }
-        if (candidate && Math.abs(candidate.difficulty - practice.rating) <= 200) break;
       }
+      if (disposed || request !== generation) return;
       if (candidate) {
         practice.active = { puzzle: candidate, step: 0, hearts: 3 };
         savePractice(practice);
         message = prefix;
+        prefetch = createPuzzlePrefetch(practice);
       } else {
         message = "A puzzle could not be verified in time. Try again for a fresh position.";
       }
     } catch {
       if (!disposed && request === generation) message = "Puzzle generation interrupted. Try again.";
     } finally {
-      worker.close();
       if (!disposed && request === generation) {
+        tools?.close();
         generating = false;
         render();
       }
@@ -192,14 +230,13 @@ export default function puzzles(content) {
   function resolve(result) {
     const active = practice.active;
     const delta = resolvePuzzle(practice, result);
+    prefetch?.take(practice.rating);
     outcome = result;
-    finished = { puzzle: active.puzzle, hearts: active.hearts, position: currentPosition(active) };
+    finished = { puzzle: active.puzzle, hearts: active.hearts, position: result === "solved"
+      ? active.puzzle.steps[active.step - 1].afterMove ?? currentPosition(active)
+      : currentPosition(active) };
     message = delta > 0 ? `Solved. Rating +${delta}.`
       : `${result === "solved" ? "Solved" : result === "skipped" ? "Skipped" : "Out of hearts"}. Rating ${delta < 0 ? "−" + Math.abs(delta) : "unchanged"}.`;
-    if (result === "failed") {
-      const line = Object.values(active.puzzle.line).map(move => `${move.from}–${move.to}${move.promotion ? "=" + move.promotion : ""}`);
-      message += ` Solution: ${line.join(", ")}.`;
-    }
   }
 
   function attempt(move) {
@@ -225,6 +262,7 @@ export default function puzzles(content) {
     clearTimeout(wrongTimer);
     wrong = null;
     active.step++;
+    active.hint = 0;
     const solved = active.step === active.puzzle.steps.length;
     if (solved) {
       resolve("solved");
@@ -237,7 +275,7 @@ export default function puzzles(content) {
       message = "Correct. Find the next move.";
       savePractice(practice);
     }
-    if (step.afterMove && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (!solved && step.afterMove && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       animationPosition = step.afterMove;
       transition = setTimeout(() => {
         animationPosition = null;
@@ -302,6 +340,25 @@ export default function puzzles(content) {
     choose(from, event.target.closest("[data-square]")?.dataset.square);
   }, listeners);
   slot.addEventListener("dragend", () => { dragged = null; clearGhost?.(); }, listeners);
+  hint.addEventListener("click", () => {
+    if (!canMove()) return;
+    const active = practice.active;
+    active.hint = Math.min(2, (active.hint ?? 0) + 1);
+    active.assisted = true;
+    const { from, to } = active.puzzle.steps[active.step].move;
+    message = `${active.hint === 1 ? `Move the piece on ${from}.` : `Move from ${from} to ${to}.`} Rating stays unchanged.`;
+    savePractice(practice);
+    render();
+  }, listeners);
+  solution.addEventListener("click", () => {
+    showSolution = !showSolution;
+    if (showSolution && practice.active) {
+      practice.active.assisted = true;
+      message = "Solution shown. Rating stays unchanged.";
+      savePractice(practice);
+    }
+    render();
+  }, listeners);
   skip.addEventListener("click", () => {
     if (!practice.active || transition) return;
     resolve("skipped");
@@ -315,13 +372,16 @@ export default function puzzles(content) {
       if (practice.active) resolve("skipped");
       practice.category = button.dataset.category;
       savePractice(practice);
-      generate();
+      generate("", false);
     }, listeners);
   }
   const unsubscribe = subscribe(kind => {
     if (kind === "profile" || kind === "catalog") render();
   });
-  if (practice.active) render();
+  if (practice.active) {
+    render();
+    prefetch = createPuzzlePrefetch(practice);
+  }
   else generate();
   return () => {
     disposed = true;
@@ -330,6 +390,8 @@ export default function puzzles(content) {
     stopAnimation();
     touch.destroy();
     tools?.close();
+    prefetch?.close();
+    pendingPool?.close();
     unsubscribe();
   };
 }

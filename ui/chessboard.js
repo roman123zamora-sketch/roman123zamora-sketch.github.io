@@ -85,12 +85,14 @@ export function board(theme, fourPlayer = false, sample = false, options = {}) {
         }
         square.classList.toggle("target", legalTarget);
       }
+      if (!corner && !sample) {
+        const last = options.state?.lastMove;
+        square.classList.toggle("last-move", [last?.from, last?.to].includes(address));
+      }
       if (options.select && !corner) {
         square.type = "button";
         square.dataset.square = address;
         square.setAttribute("aria-pressed", String(options.selected === address));
-        const last = options.state?.lastMove;
-        square.classList.toggle("last-move", [last?.from, last?.to].includes(address));
         square.addEventListener("click", () => options.select(address));
         square.addEventListener("contextmenu", event => {
           event.preventDefault();

@@ -1,3 +1,4 @@
+import { createPositionTools } from "../game/position-tools.js";
 import { createEvaluationBar } from "./evaluation-bar.js";
 import { bindTouchBoard } from "../game/touch-board.js";
 import { board } from "./chessboard.js";
@@ -40,6 +41,9 @@ export function renderMatch(content, { title, fourPlayer }) {
   let clearDragImage;
   let starting = false;
   let claiming = false;
+  let shownResult;
+  let review;
+  let reviewTools;
 
   content.innerHTML = `
     <div class="match">
@@ -67,9 +71,28 @@ export function renderMatch(content, { title, fourPlayer }) {
         <ul class="players"></ul>
         <h2>Move history</h2>
         <ol class="inset move-list"></ol>
+        <div class="review-controls" hidden>
+          <div class="action-row">
+            <button type="button" data-action="reviewPrevious" aria-label="Previous move">←</button>
+            <output aria-live="polite"></output>
+            <button type="button" data-action="reviewNext" aria-label="Next move">→</button>
+            <button type="button" data-action="reviewExit">Exit review</button>
+          </div>
+          <p class="help review-analysis" aria-live="polite"></p>
+        </div>
         <div class="match-actions"></div>
       </aside>
     </div>
+    <dialog class="promotion-dialog result-dialog" aria-labelledby="match-result-title">
+      <form method="dialog"><button type="submit" class="result-close" aria-label="Close result">×</button></form>
+      <h2 id="match-result-title"></h2>
+      <p></p>
+      <div class="action-row">
+        <button type="button" data-action="rematch">Rematch</button>
+        <button type="button" data-action="newOpponent">New Game</button>
+        <button type="button" data-action="review">Review</button>
+      </div>
+    </dialog>
     <dialog class="promotion-dialog">
       <form method="dialog">
         <h2>Promote pawn</h2>
@@ -85,7 +108,10 @@ export function renderMatch(content, { title, fourPlayer }) {
   const evaluation = createEvaluationBar(content.querySelector(".bot-eval"));
   const status = content.querySelector(".board-status");
   const quickPlay = content.querySelector(".quick-play");
-  const dialog = content.querySelector("dialog");
+  const dialog = content.querySelector("dialog:not(.result-dialog)");
+  const resultDialog = content.querySelector(".result-dialog");
+  const reviewControls = content.querySelector(".review-controls");
+  const reviewAnalysis = content.querySelector(".review-analysis");
   const match = () => session.match?.variant === variant ? session.match : null;
   const result = () => match()?.matchId === session.result?.matchId ? session.result : null;
   const currentTargets = () => {
@@ -203,10 +229,15 @@ export function renderMatch(content, { title, fourPlayer }) {
     const origin = move && slot.querySelector(`[data-square="${move.from}"]`)?.getBoundingClientRect();
     const focused = document.activeElement?.dataset.square;
     const data = match();
-    evaluation.update(data);
+    evaluation.update(data, review, (score, previous) => {
+      if (score.kind !== "cp" || previous.kind !== "cp") return;
+      const change = (score.value - previous.value) / 100;
+      reviewAnalysis.textContent = Math.abs(change) < .05 ? "Little change in the engine estimate." :
+        `${change > 0 ? "White" : "Black"} gained about ${Math.abs(change).toFixed(1)} pawns of advantage on this move.`;
+    });
     slot.replaceChildren(board(getTheme(), fourPlayer, false, {
-      state: data?.state, side: data?.side, selected, targets: selected ? currentTargets() : [],
-      select: active() ? select : undefined, marks,
+      state: review?.positions[review.ply] ?? data?.state, side: data?.side, selected, targets: selected ? currentTargets() : [],
+      select: active() ? select : undefined, marks: review ? undefined : marks,
       mark: address => { if (marks.has(address)) marks.delete(address); else marks.add(address); }
     }));
     for (const square of slot.querySelectorAll("[data-square]")) {
@@ -231,6 +262,57 @@ export function renderMatch(content, { title, fourPlayer }) {
       }
     }
     if (focused) slot.querySelector(`[data-square="${focused}"]`)?.focus({ preventScroll: true });
+  }
+
+  function drawReview() {
+    reviewControls.hidden = !review;
+    if (!review) return;
+    const { ply, positions, history } = review;
+    const move = history[ply - 1];
+    reviewControls.querySelector("output").textContent = move
+      ? `${ply}/${positions.length - 1} · ${move.from}–${move.to}${move.promotion ? "=" + move.promotion : ""}`
+      : "Starting position";
+    reviewControls.querySelector('[data-action="reviewPrevious"]').disabled = ply === 0;
+    reviewControls.querySelector('[data-action="reviewNext"]').disabled = ply === positions.length - 1;
+    reviewAnalysis.textContent = fourPlayer ? "Move replay" : "Engine estimate from White’s and Black’s perspectives.";
+  }
+
+  async function startReview() {
+    const data = match();
+    if (!result() || review || reviewTools) return;
+    const history = Object.values(data.state.history);
+    const recorded = result().review;
+    const worker = recorded ? null : createPositionTools();
+    reviewTools = worker;
+    status.textContent = "Loading game review…";
+    try {
+      const positions = Object.values(recorded ?? await worker.run("review", {
+        variant, moves: history.map(move => ({ f: move.from, t: move.to, c: move.color, p: move.promotion }))
+      }));
+      if (reviewTools !== worker || data.matchId !== match()?.matchId) return;
+      review = { positions, history, ply: positions.length - 1 };
+      drawReview();
+      drawBoard();
+      drawControls();
+      reviewControls.querySelector('[data-action="reviewPrevious"]:enabled, [data-action="reviewExit"]').focus();
+    } catch {
+      if (reviewTools === worker) status.textContent = "Game review could not be loaded. Try again.";
+    } finally {
+      worker?.close();
+      if (reviewTools === worker) reviewTools = undefined;
+    }
+  }
+
+  function drawResult() {
+    const outcome = result();
+    if (!outcome || outcome.final === false || outcome.result === "aborted" || shownResult === outcome.matchId) return;
+    shownResult = outcome.matchId;
+    const labels = { win: "Victory", loss: "Loss", draw: outcome.reason === "Stalemate" ? "Stalemate" : "Draw" };
+    resultDialog.querySelector("h2").textContent = labels[outcome.result];
+    resultDialog.querySelector("p").textContent = outcome.reason === labels[outcome.result] ? "" : outcome.reason;
+    resultDialog.querySelector('[data-action="newOpponent"]').hidden = !["online", "fourOnline"].includes(match().mode);
+    if (dialog.open) dialog.close();
+    resultDialog.showModal();
   }
 
   function drawStatus() {
@@ -394,7 +476,10 @@ export function renderMatch(content, { title, fourPlayer }) {
     const actions = content.querySelector(".match-actions");
     const bot = /bot/i.test(data?.mode ?? "");
     const abort = !bot && !Object.values(data?.state.history ?? {}).some(move => move.color === data?.side);
-    actions.innerHTML = result() ? '<button data-action="rematch">Rematch</button><button data-action="leave">New match</button>' :
+    const onlineFinished = ["online", "fourOnline"].includes(data?.mode);
+    actions.innerHTML = result() ? `<button data-action="rematch">Rematch</button>
+      ${onlineFinished && !session.queue && !queued ? '<button data-action="newOpponent">New Game</button>' : ""}
+      ${review ? "" : '<button data-action="review">Review</button>'}` :
       active() ? `${bot ? `<button data-action="undo"${Object.values(data.state.history).some(move => move.color === data.side) ? "" : " disabled"}>Undo</button>
         <button data-action="reset">Reset game</button>` : ""}
         ${data.state.turn === data.side && data.state.claimReason ? '<button data-action="claim">Claim draw</button>' :
@@ -425,6 +510,41 @@ export function renderMatch(content, { title, fourPlayer }) {
       return;
     }
     switch (button.dataset.action) {
+      case "review":
+        resultDialog.close();
+        startReview();
+        break;
+      case "reviewPrevious": case "reviewNext":
+        if (review) {
+          review.ply = Math.max(0, Math.min(review.positions.length - 1,
+            review.ply + (button.dataset.action === "reviewNext" ? 1 : -1)));
+          drawReview();
+          drawBoard();
+        }
+        break;
+      case "reviewExit":
+        review = undefined;
+        drawReview();
+        drawBoard();
+        drawStatus();
+        drawControls();
+        content.querySelector('.match-actions [data-action="review"]')?.focus();
+        break;
+      case "newOpponent":
+        if (!session.network || !result() || queued || session.queue) break;
+        resultDialog.close();
+        queued = true;
+        action(fourPlayer ? "queueFour" : "queue", { ...control(), newOpponent: true });
+        drawControls();
+        break;
+      case "rematch":
+        resultDialog.close();
+        if (session.queue || queued) {
+          queued = false;
+          action("cancelQueue");
+        }
+        action("rematch");
+        break;
       case "setup":
         onlineInfo = false;
         setup = true;
@@ -482,7 +602,7 @@ export function renderMatch(content, { title, fourPlayer }) {
         drawBoard();
         drawStatus();
         break;
-      case "undo": case "rematch": case "abort": action(button.dataset.action); break;
+      case "undo": case "abort": action(button.dataset.action); break;
     }
   }
 
@@ -553,6 +673,7 @@ export function renderMatch(content, { title, fourPlayer }) {
     if (kind === "state" || kind === "error" || kind === "reject") {
       starting = false;
       resetting = false;
+      if (kind !== "state") queued = false;
     }
     if (kind === "state") {
       queued = false;
@@ -568,6 +689,11 @@ export function renderMatch(content, { title, fourPlayer }) {
         claiming = false;
       }
       if (newMatch) {
+        reviewTools?.close();
+        reviewTools = undefined;
+        review = undefined;
+        drawReview();
+        resultDialog.close();
         marks = new Set();
         premove = null;
         claiming = false;
@@ -584,7 +710,13 @@ export function renderMatch(content, { title, fourPlayer }) {
         action("move", next);
       }
     }
+    if (kind === "queueCancelled" || kind === "challengeDeclined") queued = false;
     if (kind === "leave") {
+      reviewTools?.close();
+      reviewTools = undefined;
+      review = undefined;
+      drawReview();
+      resultDialog.close();
       setup = false;
       starting = false;
     }
@@ -605,6 +737,7 @@ export function renderMatch(content, { title, fourPlayer }) {
       drawStatus();
     }
     if (kind !== "players" || challenge) drawControls();
+    if (kind === "result") drawResult();
   });
   const clock = setInterval(updateClocks, 250);
   drawControls();
@@ -612,7 +745,11 @@ export function renderMatch(content, { title, fourPlayer }) {
   drawPlayers();
   drawHistory();
   drawStatus();
+  drawResult();
   return () => {
+    resultDialog.close();
+    reviewTools?.close();
+    reviewTools = undefined;
     subscription();
     evaluation.close();
     clearBoardInput();

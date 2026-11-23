@@ -30,15 +30,28 @@ export function nextSeed(practice) {
   return practice.seed;
 }
 
-export function resolvePuzzle(practice, outcome) {
-  const { puzzle, hearts } = practice.active;
-  const expected = 1 / (1 + 10 ** ((puzzle.difficulty - practice.rating) / 400));
+export function puzzleRating(rating, { puzzle, hearts, assisted }, outcome) {
+  const expected = 1 / (1 + 10 ** ((puzzle.difficulty - rating) / 400));
   // An even reward keeps all half results exact. L = R.
   const reward = Math.max(2, 2 * Math.round(16 * (1 - expected)));
-  const delta = outcome === "skipped" ? 0 : outcome === "failed" ? -reward :
+  const delta = assisted || outcome === "skipped" ? 0 : outcome === "failed" ? -reward :
     hearts === 3 ? reward : hearts === 2 ? reward / 2 : -reward / 2;
+  return Math.max(100, Math.min(2400, rating + delta));
+}
+
+export function possibleRatings(practice) {
+  const { active, rating } = practice;
+  const ratings = new Set([rating, puzzleRating(rating, active, "failed")]);
+  for (let hearts = active.hearts; hearts > 0; hearts--) {
+    ratings.add(puzzleRating(rating, { ...active, hearts }, "solved"));
+  }
+  return ratings;
+}
+
+export function resolvePuzzle(practice, outcome) {
+  const { puzzle } = practice.active;
   const prior = practice.rating;
-  practice.rating = Math.max(100, Math.min(2400, prior + delta));
+  practice.rating = puzzleRating(prior, practice.active, outcome);
   practice.recent = [...practice.recent, puzzle.id].slice(-historyLimit);
   practice.active = null;
   savePractice(practice);

@@ -128,19 +128,34 @@ return function(op, time, id, first, second)
   profiles[tostring(id)] = nil
  elseif op == "action" and users[id] then
   action.OnServerEvent.handler(users[id], first, second)
- elseif op == "replay" then
-  local engine = first == "four" and modules.FourPlayerEngine or modules.ChessEngine
-  local state = engine.initial()
-  local positions = {state.board}
-  for _, entry in ipairs(second) do
-   for _, move in ipairs(engine.legalMoves(state, entry.f, entry.c)) do
-    if move.to == entry.t then
-     if move.promotion then move.promotion = entry.p or "Q" end
-     state = engine.apply(state,move)
-     table.insert(positions,state.board)
+ elseif op == "replay" or op == "review" then
+  local reviewing=op=="review"
+  local variant,moves=first,second
+  if reviewing then variant,moves=first.variant,first.moves end
+  local engine=variant=="four" and modules.FourPlayerEngine or modules.ChessEngine
+  local state=engine.initial()
+  local function snapshot()
+   if not reviewing then return state.board end
+   local view=engine.public(state)
+   view.history=nil
+   if variant=="chess" then
+    view.analysis={castling=state.castling,ep=state.ep,positions=state.positions}
+   end
+   return view
+  end
+  local positions={snapshot()}
+  for _,entry in ipairs(moves) do
+   local found=false
+   for _,move in ipairs(engine.legalMoves(state,entry.f,entry.c)) do
+    if move.to==entry.t then
+     if move.promotion then move.promotion=entry.p or "Q" end
+     state=engine.apply(state,move)
+     table.insert(positions,snapshot())
+     found=true
      break
     end
    end
+   if reviewing and not found then error("Match history could not be replayed.") end
   end
   return positions
  end

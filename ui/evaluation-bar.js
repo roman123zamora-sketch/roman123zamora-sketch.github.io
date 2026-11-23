@@ -8,6 +8,12 @@ export function createEvaluationBar(element) {
   let matchId;
   let revision;
   let generation = 0;
+  let scores = new Map();
+
+  function analyze(state) {
+    const { board, turn, halfmove, fullmove, analysis } = state;
+    return (tools ??= createPositionTools()).run("analysis", { board, turn, halfmove, fullmove, ...analysis });
+  }
 
   function display(score) {
     const share = score?.kind === "mate" ? (score.side === "w" ? 100 : 0) :
@@ -24,8 +30,9 @@ export function createEvaluationBar(element) {
   }
 
   return {
-    update(match) {
-      const eligible = match?.mode === "bot" && match.variant === "chess" && match.state.analysis;
+    update(match, review, onChange) {
+      const state = review?.positions[review.ply] ?? match?.state;
+      const eligible = Boolean(state?.analysis && match.variant === "chess" && (review || match.mode === "bot"));
       element.hidden = !eligible;
       if (!eligible) {
         matchId = undefined;
@@ -33,23 +40,32 @@ export function createEvaluationBar(element) {
         generation++;
         tools?.close();
         tools = undefined;
+        scores.clear();
         return;
       }
-      if (match.matchId === matchId && match.revision === revision) return;
-      if (match.matchId !== matchId) display(null);
+      const key = review ? `review:${review.ply}` : match.revision;
+      if (match.matchId === matchId && key === revision) return;
+      if (match.matchId !== matchId) scores.clear();
+      if (review || match.matchId !== matchId) display(null);
       matchId = match.matchId;
-      revision = match.revision;
+      revision = key;
       meter.classList.toggle("white-on-top", match.side === "b");
       const current = ++generation;
-      const { board, turn, halfmove, fullmove, analysis } = match.state;
-      (tools ??= createPositionTools()).run("analysis", { board, turn, halfmove, fullmove, ...analysis })
-        .then(score => { if (generation === current) display(score); })
-        .catch(() => {
-          if (generation === current) {
-            display(null);
-            caption.textContent = "Unavailable";
-          }
-        });
+      async function getScore(frame, frameKey) {
+        if (review && scores.has(frameKey)) return scores.get(frameKey);
+        const score = await analyze(frame);
+        if (review && generation === current) scores.set(frameKey, score);
+        return score;
+      }
+      getScore(state, key).then(async score => {
+        if (generation !== current) return;
+        display(score);
+        if (!review?.ply) return;
+        const previous = await getScore(review.positions[review.ply - 1], `review:${review.ply - 1}`);
+        if (generation === current) onChange(score, previous);
+      }).catch(() => {
+        if (generation === current) caption.textContent = "Unavailable";
+      });
     },
     close() {
       generation++;

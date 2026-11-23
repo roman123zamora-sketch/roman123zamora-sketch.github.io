@@ -107,3 +107,11 @@
   margin-block-start: .75rem;
 }
 .online-status:empty { display: none; }
+
+.result-dialog { position: fixed; }
+.result-dialog h2 { padding-inline-end: 3rem; }
+.result-dialog p:empty { display: none; }
+.result-close { position: absolute; inset-block-start: .75rem; inset-inline-end: .75rem; }
+.review-controls { margin-block-start: .75rem; }
+.review-controls output { min-inline-size: 7rem; text-align: center; }
+.review-analysis { margin-block: .4rem 0; }
