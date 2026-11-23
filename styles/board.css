@@ -130,6 +130,7 @@ button.square:focus-visible { z-index: 2; outline: 2px solid var(--square-focus)
 }
 .bot-eval[hidden] { display: none; }
 .eval-meter {
+  margin-inline: .1875rem;
   position: relative;
   display: flex;
   flex: 1;
