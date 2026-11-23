@@ -308,8 +308,9 @@ export function renderMatch(content, { title, fourPlayer }) {
     if (!outcome || outcome.final === false || outcome.result === "aborted" || shownResult === outcome.matchId) return;
     shownResult = outcome.matchId;
     const labels = { win: "Victory", loss: "Loss", draw: outcome.reason === "Stalemate" ? "Stalemate" : "Draw" };
-    resultDialog.querySelector("h2").textContent = labels[outcome.result];
-    resultDialog.querySelector("p").textContent = outcome.reason === labels[outcome.result] ? "" : outcome.reason;
+    const title = outcome.placements?.[match().side] === 4 ? "Loss" : labels[outcome.result];
+    resultDialog.querySelector("h2").textContent = title;
+    resultDialog.querySelector("p").textContent = outcome.reason === title ? "" : outcome.reason;
     resultDialog.querySelector('[data-action="newOpponent"]').hidden = !["online", "fourOnline"].includes(match().mode);
     if (dialog.open) dialog.close();
     resultDialog.showModal();

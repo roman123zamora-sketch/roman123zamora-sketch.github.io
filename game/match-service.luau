@@ -193,6 +193,8 @@ local function finish(m,winner,reason,placements)
  end
  for _,p in ipairs(m.players) do
   local side=m.sides[p.UserId]; local win=winner and side==winner
+  local place=(fourMode(m) and placements) and placements[side] or nil
+  local res=win and "win" or (winner or place==4) and "loss" or "draw"
   if m.noResult and m.noResult[p.UserId] then m.resultsSent[p.UserId]=true; playerMatch[p.UserId]=nil
   elseif not m.resultsSent[p.UserId] then
   local stars=(win and (m.mode=="bot" or m.mode=="fourBot")) and m.undoMax or 0
@@ -203,13 +205,11 @@ local function finish(m,winner,reason,placements)
    local prof=getProfile(p); local best=stars
    for _,c in ipairs({"B","Y","G"}) do local key=tostring(m.botRatings[c]); local old=prof.botStars[key] or 0; prof.botStars[key]=math.max(old,best) end
    saveProfile(p); send(p,"result",{matchId=m.id,result="win",reason=reason,stars=best,placements=placements,clocks=m.clocks,review=review,final=true})
-  else send(p,"result",{matchId=m.id,result=win and "win" or winner and "loss" or "draw",reason=reason,stars=0,placements=placements,clocks=m.clocks,review=review,final=true}) end
-  local res=win and "win" or winner and "loss" or "draw"
-  local place=(fourMode(m) and placements) and placements[side] or nil
+  else send(p,"result",{matchId=m.id,result=res,reason=reason,stars=0,placements=placements,clocks=m.clocks,review=review,final=true}) end
   if place then res=place==1 and "win" or (place==4 and "loss" or "placed") end
   recordHistory(m,p,side,res,reason,place)
   m.resultsSent[p.UserId]=true; playerMatch[p.UserId]=nil; lastMatchId[p.UserId]=m.id
-  else send(p,"result",{matchId=m.id,result=win and "win" or winner and "loss" or "draw",reason=reason,stars=0,placements=placements,clocks=m.clocks,review=review,final=true}) end
+  else send(p,"result",{matchId=m.id,result=res,reason=reason,stars=0,placements=placements,clocks=m.clocks,review=review,final=true}) end
  end
 end
 local function clearQueue(p,q)
