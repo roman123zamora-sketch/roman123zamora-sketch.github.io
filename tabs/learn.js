@@ -10,31 +10,6 @@ const pieces = { Q: "Queen", R: "Rook", B: "Bishop", N: "Knight" };
 const outcomes = { checkmate: "Checkmate", stalemate: "Stalemate" };
 const points = { P: 1, N: 3, B: 3, R: 5, Q: 9 };
 
-function showMoveArrow(grid, move, side) {
-  grid.querySelector(".learn-arrow")?.remove();
-  if (!move) return;
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("viewBox", "0 0 8 8");
-  svg.setAttribute("aria-hidden", "true");
-  svg.classList.add("learn-arrow");
-  const coordinate = square => {
-    const x = square.charCodeAt(0) - 97;
-    const rank = Number(square[1]);
-    return side === "b" ? [7.5 - x, rank - .5] : [x + .5, 8.5 - rank];
-  };
-  const [x, y] = coordinate(move.from);
-  const [toX, toY] = coordinate(move.to);
-  const angle = Math.atan2(toY - y, toX - x);
-  const dx = Math.cos(angle), dy = Math.sin(angle);
-  const tipX = toX - dx * .22, tipY = toY - dy * .22;
-  const bodyX = tipX - dx * .23, bodyY = tipY - dy * .23;
-  const path = document.createElementNS(svg.namespaceURI, "path");
-  path.setAttribute("d", `M ${x} ${y} L ${bodyX} ${bodyY}
-    M ${bodyX + dy * .14} ${bodyY - dx * .14} L ${tipX} ${tipY} L ${bodyX - dy * .14} ${bodyY + dx * .14}`);
-  svg.append(path);
-  grid.append(svg);
-}
-
 export default function learn(content) {
   let saved;
   try { saved = JSON.parse(readSetting(progressKey)); } catch { saved = null; }
@@ -95,33 +70,35 @@ export default function learn(content) {
     const save = () => writeSetting(progressKey, JSON.stringify({ completed: [...completed], last }));
     save();
     panel.innerHTML = `
-      <div class="replay-heading">
-        <button type="button" data-course>All modules</button>
-        <span class="help">Module ${moduleIndex + 1} of ${course.length} · Lesson ${lessonIndex + 1} of ${module.lessons.length}</span>
-      </div>
-      <h1 tabindex="-1">${lesson.title}</h1>
-      <p>${lesson.explanation}</p>
       <div class="learn-workspace">
+        <section class="inset learn-context" aria-label="Lesson">
+          <div class="replay-heading">
+              <button type="button" data-course>All modules</button>
+            <span class="help">Module ${moduleIndex + 1} of ${course.length} · Lesson ${lessonIndex + 1} of ${module.lessons.length}</span>
+        </div>
+          <h1 tabindex="-1">${lesson.title}</h1>
+          <p>${lesson.explanation}</p>
+          <label class="learn-picker">Lesson
+            <select data-lesson>${module.lessons.map((item, index) =>
+              `<option value="${index}" ${index === lessonIndex ? "selected" : ""}>${item.title}${completed.has(`${moduleIndex}:${index}`) ? " (complete)" : ""}</option>`).join("")}</select>
+          </label>
+        </section>
         <section class="learn-position" aria-label="Lesson diagram">
           <div class="learn-board-meta">
             <span data-turn></span>
             <button type="button" data-flip>Flip board</button>
           </div>
           <div class="board-slot" aria-busy="true"></div>
-          <p class="help learn-legend">Dot = legal move · Ring = capture · A = attacker · ! = controlled · × = blocked · Arrow = last move</p>
+          <div class="learn-example-controls">
+            <button type="button" data-reset disabled>Reset example</button>
+            <button type="button" data-example hidden>Play example</button>
+          </div>
+          <p class="help learn-legend" data-legend hidden></p>
         </section>
         <section class="inset learn-practice" aria-label="Practice">
-          <label class="learn-picker">Lesson
-            <select data-lesson>${module.lessons.map((item, index) =>
-              `<option value="${index}" ${index === lessonIndex ? "selected" : ""}>${item.title}${completed.has(`${moduleIndex}:${index}`) ? " ✓" : ""}</option>`).join("")}</select>
-          </label>
           <h2>Practice</h2>
           <p>${lesson.goal}</p>
           <div class="action-row learn-answers"></div>
-          <div class="action-row">
-            <button type="button" data-example hidden>Play example</button>
-            <button type="button" data-reset disabled>Reset example</button>
-          </div>
           <p class="help" data-material hidden></p>
           <p class="learn-feedback" role="status">Loading the board…</p>
           <div class="action-row learn-next">
@@ -170,36 +147,49 @@ export default function learn(content) {
       completed.add(key);
       save();
       const option = $("[data-lesson]").selectedOptions[0];
-      if (!option.textContent.endsWith("✓")) option.textContent += " ✓";
+      if (!option.textContent.endsWith("(complete)")) option.textContent += " (complete)";
       report(lesson.feedback, "correct");
     }
 
     function render() {
       if (!frame) return;
-      const state = { ...frame.state, checkedColors: frame.checked };
-      const targetMoves = Object.values(frame.legal ?? {}).filter(move => move.from === selected);
+      const state = { ...frame.state, checkedColors: [] };
       const canMove = !playing && !solved && !promotion;
-      const attacks = new Set(Object.values(frame.attacks ?? {}).flatMap(squares => Object.values(squares)));
+      const moves = canMove && !lesson.options
+        ? Object.values(frame.legal ?? {}).filter(move => move.from === selected)
+        : [];
+      const highlights = new Map(moves.map(move => [move.to, "legal move"]));
+      for (const square of lesson.blockers ?? []) {
+        if (state.board[square]) highlights.set(square, "blocking piece");
+      }
+      for (const [from, squares] of Object.entries(frame.attacks ?? {})) {
+        for (const square of Object.values(squares)) {
+          if (!lesson.attackSquares?.includes(square)) continue;
+          highlights.set(from, "attacking piece");
+          highlights.set(square, "controlled square");
+        }
+      }
       const next = board(getTheme(), false, false, {
-        frame: slot.firstElementChild, state, side, selected, targets: targetMoves,
+        frame: slot.firstElementChild, state, side, selected,
         select: canMove ? select : undefined
       });
       if (next !== slot.firstElementChild) slot.replaceChildren(next);
-      showMoveArrow(next.firstElementChild, frame.move, side);
+      const labels = {
+        "legal move": "Blue · legal move",
+        "blocking piece": "Gold · blocker",
+        "attacking piece": "Red outline · attacker",
+        "controlled square": "Red fill · controlled square"
+      };
+      const legend = $("[data-legend]");
+      legend.textContent = [...new Set(highlights.values())].map(label => labels[label]).join("  •  ");
+      legend.hidden = !highlights.size;
       for (const square of slot.querySelectorAll(".square")) {
         const name = square.getAttribute("aria-label").split(",")[0];
-        const label = lesson.marks?.[name] ?? (Object.values(frame.attacks?.[name] ?? {}).length ? "A" : attacks.has(name) ? "!" : "");
-        if (label) {
-          const marker = document.createElement("span");
-          marker.className = "learn-square-mark";
-          marker.textContent = label;
-          marker.setAttribute("aria-hidden", "true");
-          square.append(marker);
-          const description = label === "!" ? "attacked or defended" : label === "×" ? "blocked or forbidden" : label === "A" ? "attacker" : `marked ${label}`;
-          square.setAttribute("aria-label", square.getAttribute("aria-label") + ", " + description);
-        }
-        if (targetMoves.some(move => move.to === name && move.special === "enpassant")) {
-          square.classList.add("learn-en-passant");
+        const highlight = highlights.get(name);
+        delete square.dataset.learnHighlight;
+        if (highlight) {
+          square.dataset.learnHighlight = highlight;
+          square.setAttribute("aria-label", square.getAttribute("aria-label") + ", " + highlight);
         }
         if (canMove && (lesson.setup.line || lesson.promotion) && state.board[name]?.[0] === state.turn) {
           square.classList.add("drag-enabled");
@@ -265,7 +255,7 @@ export default function learn(content) {
         playing = false;
         if (isDemo) {
           solved = true;
-          report(lesson.feedback + " Reset the example to try it yourself.");
+          report(lesson.feedback);
         } else success();
         render();
         return;
@@ -273,7 +263,7 @@ export default function learn(content) {
       if (!isDemo && frames[ply].state.turn === frames[start].state.turn) {
         playing = false;
         selected = frames[ply + 1].move.from;
-        report("Find the next move in the sequence.");
+        report(lesson.followUp ?? "Find the next move in the sequence.");
         render();
         return;
       }
@@ -337,12 +327,13 @@ export default function learn(content) {
       ply = plyNumber;
       frame = frames[ply];
       selected = lesson.focus ?? frames[ply + 1]?.move.from ?? lesson.setup.promotion?.from;
-      report("Try the practice goal on the board.");
+      report("");
       render();
     }
 
     const drag = bindBoardDrag(slot, {
-      begin(from) { return !playing && !solved && Boolean(frame?.state.board[from]); },
+      begin(from) { return !playing && !solved && !promotion && Boolean(lesson.setup.line || lesson.promotion)
+        && frame?.state.board[from]?.[0] === frame?.state.turn; },
       end() {},
       drop: choose
     });
@@ -370,6 +361,7 @@ export default function learn(content) {
     $("[data-course]").onclick = () => { openHome(); panel.querySelector("h1").focus(); };
     $("[data-lesson]").onchange = event => openLesson(moduleIndex, Number(event.target.value));
     $("[data-flip]").onclick = () => { side = side === "w" ? "b" : "w"; render(); };
+    reset.hidden = Boolean(lesson.options);
     reset.onclick = () => restart();
     demo.onclick = () => {
       restart(0);
