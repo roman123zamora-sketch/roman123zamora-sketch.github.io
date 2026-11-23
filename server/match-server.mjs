@@ -11,7 +11,7 @@ const dataFile = resolve(process.env.EXALTED_DATA ?? resolve(homedir(), ".exalte
 const publicOrigin = process.env.EXALTED_SITE_ORIGIN;
 const files = /^(?:index\.html|assets\/[a-z0-9-]+\.svg|styles\/[a-z0-9-]+\.css|(?:ui|tabs)\/[a-z0-9-]+\.js|game\/(?:[a-z0-9-]+\.(?:js|luau)|(?:rules|engine)\/[a-z0-9-]+\.luau|vendor\/(?:luau-web\.js|lib\/[a-z0-9-]+\.js)))$/;
 const actions = new Set([
-  "profile", "buyBoard", "equipBoard", "bot", "fourBot", "queue", "queueFour", "challenge",
+  "profile", "clearBotHistory", "buyBoard", "equipBoard", "bot", "fourBot", "queue", "queueFour", "challenge",
   "challengeRespond", "move", "claimDraw", "reset", "legal", "undo", "resign", "abort", "leave", "cancelQueue",
   "rematch", "rematchRespond", "rematchCancel"
 ]);

@@ -5,12 +5,32 @@ import { action, session, subscribe } from "../game/session.js";
 export default function shop(content) {
   content.innerHTML = `
     <section class="panel page">
-      <h1>Board Shop</h1>
-      <p>Earn stored pieces by capturing in matches. Equip purchased themes in <a href="#boards">Boards</a>.</p>
+      <h1>Shop</h1>
+      <div class="action-row shop-sections" role="group" aria-label="Shop sections">
+        <button type="button" data-shop="boards" aria-pressed="true" aria-controls="shop-boards">Boards</button>
+        <button type="button" data-shop="pieces" aria-pressed="false" aria-controls="shop-pieces">Pieces</button>
+        <button type="button" data-shop="accessories" aria-pressed="false" aria-controls="shop-accessories">Accessories</button>
+      </div>
       <p class="balance" aria-live="polite"></p>
-      <div class="theme-grid"></div>
+      <section id="shop-boards" aria-label="Boards">
+        <p class="help">Equip purchased boards in your <a href="#inventory">Inventory</a>.</p>
+        <div class="theme-grid"></div>
+      </section>
+      <section id="shop-pieces" aria-label="Pieces" hidden><p class="help">No pieces available yet.</p></section>
+      <section id="shop-accessories" aria-label="Accessories" hidden><p class="help">No accessories available yet.</p></section>
     </section>`;
   const grid = content.querySelector(".theme-grid");
+
+  const sections = [...content.querySelectorAll("[data-shop]")];
+  for (const button of sections) {
+    button.addEventListener("click", () => {
+      for (const section of sections) {
+        const active = section === button;
+        section.setAttribute("aria-pressed", String(active));
+        content.querySelector("#shop-" + section.dataset.shop).hidden = !active;
+      }
+    });
+  }
 
   function draw() {
     const { pieceStorage, ownedBoards } = session.profile;

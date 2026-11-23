@@ -3,7 +3,7 @@ import { connect, soundEnabled, toggleSound, unlockSound, playSound, subscribe }
 import chess from "../tabs/chess.js";
 import fourPlayerChess from "../tabs/four-player-chess.js";
 import shop from "../tabs/shop.js";
-import boards from "../tabs/boards.js";
+import inventory from "../tabs/inventory.js";
 import profile from "../tabs/profile.js";
 import learn from "../tabs/learn.js";
 import puzzles from "../tabs/puzzles.js";
@@ -12,7 +12,7 @@ const pages = new Map([
   ["chess", chess],
   ["4-player-chess", fourPlayerChess],
   ["shop", shop],
-  ["boards", boards],
+  ["inventory", inventory],
   ["profile", profile],
   ["learn", learn],
   ["puzzles", puzzles]
@@ -24,7 +24,7 @@ let cleanup;
 
 function navigate() {
   cleanup?.();
-  const hash = location.hash.slice(1);
+  const hash = location.hash === "#boards" ? "inventory" : location.hash.slice(1);
   const page = pages.has(hash) ? hash : "chess";
   for (const link of links) {
     if (link.hash === "#" + page) {

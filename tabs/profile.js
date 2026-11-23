@@ -3,7 +3,7 @@ import { createEvaluationBar } from "../ui/evaluation-bar.js";
 import { createBestMoveControl } from "../ui/review-best-move.js";
 import { board } from "../ui/chessboard.js";
 import { getTheme } from "../ui/board-themes.js";
-import { replay, session, subscribe } from "../game/session.js";
+import { action, replay, session, subscribe } from "../game/session.js";
 
 export default function profile(content) {
   let disposed = false;
@@ -19,7 +19,8 @@ export default function profile(content) {
     closeReplay = undefined;
     opening = false;
     const data = session.profile;
-    const stars = Object.values(data.botStars ?? {}).reduce((sum, value) => sum + value, 0);
+    const records = Object.values(data.history ?? {});
+    const hasBotHistory = records.some(record => ["bot", "fourBot"].includes(record.mode));
     panel.innerHTML = `
       <h1>Profile</h1>
       <dl class="profile-stats">
@@ -27,12 +28,21 @@ export default function profile(content) {
         <div><dt>4-Player Elo</dt><dd>${data.fourElo}</dd></div>
         <div><dt>League points</dt><dd>${data.leaguePoints}</dd></div>
         <div><dt>Piece Storage</dt><dd>${data.pieceStorage}</dd></div>
-        <div><dt>Bot Stars</dt><dd>${stars}</dd></div>
+        <div><dt>All-time pieces captured</dt><dd>${Number(data.allTimeCaptures ?? 0).toLocaleString()}</dd></div>
       </dl>
-      <h2>Game history</h2>
+      <div class="replay-heading">
+        <h2>Game history</h2>
+        ${hasBotHistory ? '<button type="button" data-clear-bot-history>Delete bot match history</button>' : ""}
+      </div>
+      <p class="help history-notice" role="status"></p>
       <div class="game-history"></div>`;
     const list = panel.querySelector(".game-history");
-    const records = Object.values(data.history ?? {});
+    const clear = panel.querySelector("[data-clear-bot-history]");
+    clear?.addEventListener("click", () => {
+      if (!confirm("Permanently delete your saved standard and four-player bot matches?")) return;
+      clear.disabled = true;
+      action("clearBotHistory");
+    });
     if (!records.length) list.innerHTML = '<p class="inset">No games recorded.</p>';
     for (const record of records) {
       const item = document.createElement("button");
@@ -122,6 +132,15 @@ export default function profile(content) {
   }
 
   history();
-  const stop = subscribe(kind => { if (kind === "profile" && !opening) history(); });
+  const stop = subscribe(kind => {
+    if (kind === "profile" && !opening) history();
+    if (kind === "error" && !opening) {
+      const clear = panel.querySelector("[data-clear-bot-history]");
+      if (clear?.disabled) {
+        clear.disabled = false;
+        panel.querySelector(".history-notice").textContent = session.notice;
+      }
+    }
+  });
   return () => { disposed = true; replayTools?.close(); closeReplay?.(); stop(); };
 }

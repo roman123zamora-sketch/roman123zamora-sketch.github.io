@@ -2,10 +2,10 @@ import { board } from "../ui/chessboard.js";
 import { getThemes } from "../ui/board-themes.js";
 import { action, session, subscribe } from "../game/session.js";
 
-export default function boards(content) {
+export default function inventory(content) {
   content.innerHTML = `
     <section class="panel page">
-      <h1>My Boards</h1>
+      <h1>Inventory</h1>
       <p>Equip an owned board to change both chess boards and the site colors.</p>
       <div class="theme-grid"></div>
     </section>`;

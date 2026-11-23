@@ -115,3 +115,15 @@
 .review-controls { margin-block-start: .75rem; }
 .review-controls output { min-inline-size: 7rem; text-align: center; }
 .review-analysis { margin-block: .4rem 0; }
+
+.result-dialog {
+  box-sizing: border-box;
+  inline-size: min(calc(100% - 2rem), 30rem);
+  max-inline-size: none;
+  padding: clamp(1.25rem, 5vw, 2rem);
+}
+.result-dialog h2 { font-size: clamp(1.4rem, 4vw, 1.8rem); }
+.result-dialog p { margin-block: .65rem 0; }
+.result-dialog .action-row { gap: .65rem; margin-block-start: 1.35rem; }
+.result-dialog .action-row button { min-block-size: 2.85rem; padding: .6rem 1rem; flex: 1 0 auto; }
+.result-close { min-inline-size: 2.75rem; min-block-size: 2.75rem; font-size: 1.25rem; }

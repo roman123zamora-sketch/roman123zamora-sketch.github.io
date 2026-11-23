@@ -1,4 +1,4 @@
--- Server-owned matchmaking, chess state, bot games, Elo, league points, and bot stars.
+-- Server-owned matchmaking, chess state, bot games, Elo, league points, and player profiles.
 local Players=game:GetService("Players")
 local ReplicatedStorage=game:GetService("ReplicatedStorage")
 local DataStoreService=game:GetService("DataStoreService")
@@ -20,7 +20,7 @@ local matches,playerMatch,lastMatchId={},{},{}
 local queue,queueFour,queueControls={},{},{}
 local challengeOffers={}; local challengeGroups={}; local challengeInvite={}
 local profileCache={}
-local defaultProfile={chessElo=1000,fourElo=1000,leaguePoints=0,botStars={},pieceStorage=0,history={},ownedBoards={"classic"},equippedBoard="classic"}
+local defaultProfile={chessElo=1000,fourElo=1000,leaguePoints=0,allTimeCaptures=0,pieceStorage=0,history={},ownedBoards={"classic"},equippedBoard="classic"}
 local POINTS={Soil={20,6,-5},Grass={18,5,-6},Copper={16,4,-7},Silver={14,3,-8},Gold={12,3,-9},Stone={10,2,-10},Sapphire={8,2,-11}}
 local THRESHOLDS={{"Soil",0},{"Grass",300},{"Copper",600},{"Silver",900},{"Gold",1200},{"Stone",1500},{"Sapphire",1800}}
 local function copy(t) local r={}; for k,v in pairs(t) do r[k]=type(v)=="table" and copy(v) or v end; return r end
@@ -33,7 +33,8 @@ local function getProfile(p)
  local profile=copy(defaultProfile); local ok,saved=false,nil
  if Profiles then ok,saved=pcall(function() return Profiles:GetAsync(id) end) end
  if ok and type(saved)=="table" then for k,v in pairs(saved) do profile[k]=v end end
- profile.botStars=profile.botStars or {}; profile.leaguePoints=math.clamp(tonumber(profile.leaguePoints) or 0,0,2100)
+ profile.botStars=nil; profile.leaguePoints=math.clamp(tonumber(profile.leaguePoints) or 0,0,2100)
+ profile.allTimeCaptures=math.max(0,math.floor(tonumber(profile.allTimeCaptures) or 0))
  profile.pieceStorage=math.max(0,math.floor(tonumber(profile.pieceStorage) or 0))
  profile.chessElo=tonumber(profile.chessElo) or 1000; profile.fourElo=tonumber(profile.fourElo) or 1000; profile.history=type(profile.history)=="table" and profile.history or {}
  -- Board themes: Void was retired and replaced by Galaxy — carry ownership/equip over.
@@ -66,7 +67,7 @@ local function saveProfile(p)
  local profile=profileCache[tostring(p.UserId)]; if profile and Profiles then pcall(function() Profiles:SetAsync(tostring(p.UserId),profile) end) end
 end
 local function profileView(p)
- local v=getProfile(p); return {chessElo=v.chessElo,fourElo=v.fourElo,leaguePoints=v.leaguePoints,league=league(v.leaguePoints),botStars=v.botStars,pieceStorage=v.pieceStorage,history=v.history or {},ownedBoards=v.ownedBoards,equippedBoard=v.equippedBoard}
+ local v=getProfile(p); return {chessElo=v.chessElo,fourElo=v.fourElo,leaguePoints=v.leaguePoints,league=league(v.leaguePoints),allTimeCaptures=v.allTimeCaptures,pieceStorage=v.pieceStorage,history=v.history or {},ownedBoards=v.ownedBoards,equippedBoard=v.equippedBoard}
 end
 -- Piece storage: every capture banks 1 piece; checkmating banks all remaining defender pieces (king included).
 local function awardPieces(p,amount)
@@ -197,19 +198,11 @@ local function finish(m,winner,reason,placements)
   local res=win and "win" or (winner or place==4) and "loss" or "draw"
   if m.noResult and m.noResult[p.UserId] then m.resultsSent[p.UserId]=true; playerMatch[p.UserId]=nil
   elseif not m.resultsSent[p.UserId] then
-  local stars=(win and (m.mode=="bot" or m.mode=="fourBot")) and m.undoMax or 0
-  if m.mode=="bot" and win then
-   local prof=getProfile(p); local key=tostring(m.botRating); local old=prof.botStars[key] or 0; prof.botStars[key]=math.max(old,stars); saveProfile(p)
-   send(p,"result",{matchId=m.id,result="win",reason=reason,stars=stars,best=prof.botStars[key],improved=stars>old,placements=placements,clocks=m.clocks,review=review,final=true})
-  elseif m.mode=="fourBot" and placements and placements[side]==1 then
-   local prof=getProfile(p); local best=stars
-   for _,c in ipairs({"B","Y","G"}) do local key=tostring(m.botRatings[c]); local old=prof.botStars[key] or 0; prof.botStars[key]=math.max(old,best) end
-   saveProfile(p); send(p,"result",{matchId=m.id,result="win",reason=reason,stars=best,placements=placements,clocks=m.clocks,review=review,final=true})
-  else send(p,"result",{matchId=m.id,result=res,reason=reason,stars=0,placements=placements,clocks=m.clocks,review=review,final=true}) end
+  send(p,"result",{matchId=m.id,result=res,reason=reason,placements=placements,clocks=m.clocks,review=review,final=true})
   if place then res=place==1 and "win" or (place==4 and "loss" or "placed") end
   recordHistory(m,p,side,res,reason,place)
   m.resultsSent[p.UserId]=true; playerMatch[p.UserId]=nil; lastMatchId[p.UserId]=m.id
-  else send(p,"result",{matchId=m.id,result=res,reason=reason,stars=0,placements=placements,clocks=m.clocks,review=review,final=true}) end
+  else send(p,"result",{matchId=m.id,result=res,reason=reason,placements=placements,clocks=m.clocks,review=review,final=true}) end
  end
 end
 local function clearQueue(p,q)
@@ -236,7 +229,7 @@ local function newMatch(players,mode,setting)
   for i=#colors,2,-1 do local j=math.random(i); colors[i],colors[j]=colors[j],colors[i] end
   for i,p in ipairs(players) do sides[p.UserId]=colors[i] end
  end
- local m={id=id,players=players,mode=mode,sides=sides,resultsSent={},state=(mode=="fourBot" or mode=="fourOnline") and Four.initial() or Chess.initial(),snapshots={},undoMax=3,undoOpen=false,didMoveAfterUndo=false,humanTurns={},over=false,botGeneration=0,botRating=setting,botRatings={},firstWindow={},abortedSides={}}
+ local m={id=id,players=players,mode=mode,sides=sides,resultsSent={},state=(mode=="fourBot" or mode=="fourOnline") and Four.initial() or Chess.initial(),snapshots={},humanTurns={},over=false,botGeneration=0,botRating=setting,botRatings={},firstWindow={},abortedSides={}}
  if mode=="online" then
   local control=type(setting)=="table" and setting or {}; local base=math.clamp(tonumber(control.baseSeconds) or 180,60,900); local increment=math.clamp(tonumber(control.increment) or 0,0,10)
   m.clocks={w=base,b=base}; m.increment=increment; m.turnStarted=workspace:GetServerTimeNow()+20; m.rematchControl={baseSeconds=base,increment=increment}
@@ -324,7 +317,7 @@ local function abortMatch(m,side)
  for _,p in ipairs(m.players) do
  if not m.resultsSent[p.UserId] then
  local mine=m.sides[p.UserId]==side
- send(p,"result",{matchId=m.id,result="aborted",reason=mine and "You aborted" or "Opponent aborted",stars=0,final=true})
+ send(p,"result",{matchId=m.id,result="aborted",reason=mine and "You aborted" or "Opponent aborted",final=true})
  m.resultsSent[p.UserId]=true; playerMatch[p.UserId]=nil; lastMatchId[p.UserId]=m.id
  end
  end
@@ -340,7 +333,7 @@ local function abortFour(m,side)
  for _,p in ipairs(m.players) do
  if m.sides[p.UserId]==side and not m.resultsSent[p.UserId] then
  m.resultsSent[p.UserId]=true; playerMatch[p.UserId]=nil
- send(p,"result",{matchId=m.id,result="aborted",reason="You aborted",stars=0})
+ send(p,"result",{matchId=m.id,result="aborted",reason="You aborted"})
  end
  end
  normalizeFour(m); pair(m)
@@ -440,7 +433,7 @@ local function requestMove(p,data)
   if remaining<=0 then
    if m.mode=="fourOnline" then
     m.state.eliminated[side]=true; m.state.eliminationReason[side]="Timeout"; table.insert(m.state.eliminationOrder,side); m.state.turn=Four.nextColor(side)
-    m.resultsSent[p.UserId]=true; playerMatch[p.UserId]=nil; send(p,"result",{matchId=m.id,result="loss",reason="Timeout",stars=0,review=fourReview(m)})
+    m.resultsSent[p.UserId]=true; playerMatch[p.UserId]=nil; send(p,"result",{matchId=m.id,result="loss",reason="Timeout",review=fourReview(m)})
     normalizeFour(m); pair(m)
    else finish(m,side=="w" and "b" or "w","Timeout") end
    return
@@ -453,9 +446,11 @@ local function requestMove(p,data)
  snapshot(m); m.botGeneration+=1; m.state=engine.apply(m.state,chosen)
  if capturedTarget then
   local grey=capPiece and fourMode(m) and m.state.eliminated and m.state.eliminated[string.sub(capPiece,1,1)]
-  if not grey then awardPieces(p,1) end
+  local profile=getProfile(p)
+  profile.allTimeCaptures+=1
+  if not grey then awardPieces(p,1)
+  else saveProfile(p); send(p,"profile",profileView(p)) end
  end
- if m.undoOpen then m.didMoveAfterUndo=true; m.undoOpen=false end
  if fourMode(m) and normalizeFour(m) then return end
  m.firstWindow[side]=nil
  if not m.over and m.clocks and (m.mode=="online" or m.mode=="fourOnline") then
@@ -470,10 +465,9 @@ local function undo(p)
  local id=playerMatch[p.UserId]; local m=id and matches[id]
  if not m or (m.mode~="bot" and m.mode~="fourBot") or m.over or #m.humanTurns==0 then return end
  m.botGeneration+=1
- if not m.undoOpen then if m.undoMax==3 then m.undoMax=2 elseif m.didMoveAfterUndo then m.undoMax=1 end; m.undoOpen=true; m.didMoveAfterUndo=false end
  local target=table.remove(m.humanTurns)
  m.state=copy(m.snapshots[target]); for i=#m.snapshots,target,-1 do m.snapshots[i]=nil end
- send(p,"undoState",{maxStars=m.undoMax}); pair(m)
+ send(p,"undoState",{}); pair(m)
 end
 local function isQueued(p,q) for _,queued in ipairs(q) do if queued==p then return true end end; return false end
 local function makeQueueMatch(p,q,mode,count)
@@ -511,6 +505,14 @@ local function makeQueueMatch(p,q,mode,count)
 end
 Action.OnServerEvent:Connect(function(p,kind,data)
  if kind=="profile" then send(p,"profile",profileView(p))
+ elseif kind=="clearBotHistory" then
+  local profile=getProfile(p)
+  local history={}
+  for _,record in ipairs(profile.history) do
+   if record.mode~="bot" and record.mode~="fourBot" then table.insert(history,record) end
+  end
+  profile.history=history
+  saveProfile(p); send(p,"profile",profileView(p))
  elseif kind=="resume" then
   send(p,"profile",profileView(p))
   local m=matches[playerMatch[p.UserId]]
@@ -632,12 +634,12 @@ Action.OnServerEvent:Connect(function(p,kind,data)
   if m then
    local side=m.sides[p.UserId]
    if (m.mode=="fourOnline" or m.mode=="fourBot") and m.state.eliminated and m.state.eliminated[side] then
-    if not m.resultsSent[p.UserId] then m.resultsSent[p.UserId]=true; send(p,"result",{matchId=m.id,result="loss",reason=(m.state.eliminationReason and m.state.eliminationReason[side]) or "Eliminated",stars=0,review=fourReview(m)}) end
+    if not m.resultsSent[p.UserId] then m.resultsSent[p.UserId]=true; send(p,"result",{matchId=m.id,result="loss",reason=(m.state.eliminationReason and m.state.eliminationReason[side]) or "Eliminated",review=fourReview(m)}) end
     playerMatch[p.UserId]=nil
    elseif m.mode=="fourOnline" then
     if not m.over and not hasMoved(m,side) then abortFour(m,side)
     else
-     m.state.eliminated[side]=true; m.state.eliminationReason[side]="Resignation"; table.insert(m.state.eliminationOrder,side); if m.state.turn==side then m.state.turn=Four.nextColor(side) end; m.firstWindow[side]=nil; distributeSpoils(m,side); playFart(m); m.resultsSent[p.UserId]=true; playerMatch[p.UserId]=nil; send(p,"result",{matchId=m.id,result="loss",reason="Resignation",stars=0,review=fourReview(m)}); normalizeFour(m); pair(m)
+     m.state.eliminated[side]=true; m.state.eliminationReason[side]="Resignation"; table.insert(m.state.eliminationOrder,side); if m.state.turn==side then m.state.turn=Four.nextColor(side) end; m.firstWindow[side]=nil; distributeSpoils(m,side); playFart(m); m.resultsSent[p.UserId]=true; playerMatch[p.UserId]=nil; send(p,"result",{matchId=m.id,result="loss",reason="Resignation",review=fourReview(m)}); normalizeFour(m); pair(m)
     end
    elseif m.mode=="online" and not m.over and not hasMoved(m,side) then abortMatch(m,side)
    elseif m.mode=="fourBot" then
@@ -807,7 +809,7 @@ task.spawn(function()
      elseif m.mode=="fourOnline" then
       m.state.eliminated[side]=true; m.state.eliminationReason[side]="Timeout"; table.insert(m.state.eliminationOrder,side); m.state.turn=Four.nextColor(side)
       for _,p in ipairs(m.players) do
-       if m.sides[p.UserId]==side and not m.resultsSent[p.UserId] then m.resultsSent[p.UserId]=true; playerMatch[p.UserId]=nil; send(p,"result",{matchId=m.id,result="loss",reason="Timeout",stars=0,review=fourReview(m)}) end
+       if m.sides[p.UserId]==side and not m.resultsSent[p.UserId] then m.resultsSent[p.UserId]=true; playerMatch[p.UserId]=nil; send(p,"result",{matchId=m.id,result="loss",reason="Timeout",review=fourReview(m)}) end
       end
       normalizeFour(m); pair(m)
      end

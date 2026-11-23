@@ -79,3 +79,29 @@ const winningMove = await dispatch("bestMove", time, 0, { variant: "chess", stat
 assert.deepEqual(winningMove.move, { from: "d8", to: "h4" });
 assert.deepEqual(await dispatch("bestMove", time, 0, { variant: "chess", state: mateFrames[4] }), {});
 console.log("Best-move analysis returns a legal reply or forced mate, and handles game over.");
+
+await send("join", 4, "Collector", {
+  pieceStorage: 9, allTimeCaptures: 12, botStars: { 400: 3 },
+  history: [{ mode: "bot" }, { mode: "fourBot" }, { mode: "online" }]
+});
+const cleanProfile = (await action(4, "clearBotHistory")).find(event => event.kind === "profile").data;
+assert.deepEqual(cleanProfile.history, [{ mode: "online" }]);
+assert.equal(cleanProfile.botStars, undefined);
+assert.equal(cleanProfile.allTimeCaptures, 12);
+assert.equal(cleanProfile.pieceStorage, 9);
+
+await send("join", 5, "Opponent");
+await action(black, "cancelQueue");
+await action(4, "queue");
+const captureMatch = (await action(5, "queue")).filter(event => event.kind === "state");
+const capturingWhite = captureMatch.find(event => event.data.side === "w").user;
+const defendingBlack = captureMatch.find(event => event.data.side === "b").user;
+await action(capturingWhite, "move", { from: "e2", to: "e4" });
+await action(defendingBlack, "move", { from: "d7", to: "d5" });
+const capture = (await action(capturingWhite, "move", { from: "e4", to: "d5" })).find(event => event.kind === "profile");
+assert.equal(capture.data.allTimeCaptures, capturingWhite === 4 ? 13 : 1);
+await action(defendingBlack, "resign");
+const afterResult = (await action(capturingWhite, "profile")).find(event => event.kind === "profile").data;
+assert.equal(afterResult.allTimeCaptures, capture.data.allTimeCaptures);
+assert(afterResult.pieceStorage > capture.data.pieceStorage);
+console.log("Bot-only history deletion, actual captures, and independent piece storage passed.");

@@ -28,7 +28,7 @@ tabs/
   chess.js                     Standard chess tab
   four-player-chess.js         Four-player chess tab
   shop.js                      Board purchases
-  boards.js                    Owned boards and equipping
+  inventory.js                 Owned boards and equipping
   profile.js                   Ratings, match history, and replay controls
 game/
   session.js                   Browser state, storage, audio, and match commands

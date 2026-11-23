@@ -29,7 +29,7 @@ export function writeSetting(name, value) {
 
 export const session = {
   catalog: null,
-  profile: { chessElo: 1000, fourElo: 1000, league: "Soil", leaguePoints: 0, pieceStorage: 0, ownedBoards: ["classic"], equippedBoard: "classic" },
+  profile: { chessElo: 1000, fourElo: 1000, league: "Soil", leaguePoints: 0, pieceStorage: 0, allTimeCaptures: 0, ownedBoards: ["classic"], equippedBoard: "classic" },
   match: null,
   result: null,
   legal: null,

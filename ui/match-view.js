@@ -331,7 +331,7 @@ export function renderMatch(content, { title, fourPlayer }) {
       const labels = { win: "Victory", loss: "Defeat", draw: "Draw", aborted: "Match aborted" };
       const place = outcome.placements?.[data.side];
       status.textContent = (place > 1 ? `Placed ${place} of 4` : labels[outcome.result]) +
-        " · " + outcome.reason + (outcome.stars ? ` · ${"★".repeat(outcome.stars)}` : "");
+        " · " + outcome.reason;
     } else if (data) {
       status.textContent = data.state.terminal ? "Game ended" :
         data.state.eliminated?.[data.side] ? "Eliminated · Watching the remaining players" :
