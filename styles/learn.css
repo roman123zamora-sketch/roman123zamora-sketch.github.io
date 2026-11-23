@@ -60,6 +60,9 @@
 .learn-example-controls:has(button:not([hidden])) { margin-block-end: .55rem; }
 .learn-example-controls [data-example] { grid-column: 2; }
 .learn-example-controls [hidden] { display: none; }
+@media (hover: hover) {
+  .learn-position button.square:hover { box-shadow: none; }
+}
 .learn-fade { position: fixed; z-index: 4; pointer-events: none; }
 @media (max-width: 64rem) {
   .learn-workspace {
