@@ -15,6 +15,11 @@ async function generate(category, rating, seeds, length, recent = []) {
 const material = await generate("material", 400, [1, 17211, 3]);
 const mate = await generate("checkmate", 400, [3, 8, 4, 5, 7, 6, 2], 1);
 const different = await generate("checkmate", 400, [4, 5, 7, 8, 3, 6, 2], 1, [mate.id]);
+for (const category of ["material", "checkmate"]) {
+  const targeted = await generate(category, 600, [17211, 3, 2, 97, 11]);
+  assert.equal(targeted.targetRating, 600);
+  assert(targeted.difficulty >= 600 && targeted.difficulty <= 800);
+}
 const puzzles = [material, mate, different];
 assert(material.gain >= 300);
 assert.equal(material.materialProof, 2);
@@ -198,62 +203,60 @@ end
 const storage = new Map();
 globalThis.localStorage = { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) };
 const { loadPractice, possibleRatings, puzzleRating, resolvePuzzle } = await import("../game/puzzle-progress.js");
-for (const [result, hearts, delta] of [
-  ["solved", 3, 50], ["solved", 2, 30], ["solved", 1, 20], ["failed", 0, -16], ["skipped", 3, 0]
-]) {
-  const practice = { rating: 400, recent: [], active: { puzzle: { id: "used", difficulty: 400 }, hearts } };
-  const assisted = { ...practice, active: { ...practice.active, assisted: true } };
-  assert.deepEqual([...possibleRatings(assisted)], [400]);
-  assert.equal(resolvePuzzle(assisted, result), 0);
-  assert.equal(assisted.rating, 400);
-  assert(possibleRatings(practice).has(400 + delta));
-  assert.equal(resolvePuzzle(practice, result), delta);
-  assert.equal(practice.rating, 400 + delta);
-  assert.equal(practice.active, null);
-  assert.deepEqual(practice.recent, ["used"]);
-}
-assert.deepEqual([...possibleRatings({
-  rating: 400, active: { puzzle: { difficulty: 400 }, hearts: 3 }
-})].sort((a, b) => a - b), [384, 400, 420, 430, 450]);
-for (const [rating, rewards] of [
-  [100, [50, 30, 20]], [1200, [30, 20, 15]], [1999, [11, 11, 11]],
-  [2000, [10, 10, 10]], [2399, [10, 10, 10]], [2400, [10, 10, 10]]
-]) {
-  for (const [index, reward] of rewards.entries()) {
-    for (const difficulty of [400, 1400]) {
-      assert.equal(puzzleRating(rating, { puzzle: { difficulty }, hearts: 3 - index }, "solved"), rating + reward);
-    }
+for (const [hearts, deltas] of [[3, [15, 10, 5]], [2, [10, 5, 0]], [1, [5, 0, -5]]]) {
+  for (const [hintsUsed, delta] of deltas.entries()) {
+    const active = { puzzle: { id: "used", difficulty: 400, targetRating: 400 }, hearts, hintsUsed };
+    const practice = { rating: 400, recent: [], active };
+    assert(possibleRatings(practice).has(400 + delta));
+    assert.equal(resolvePuzzle(practice, "solved"), delta);
+    assert.equal(practice.rating, 400 + delta);
+    practice.active = { ...active, puzzle: { ...active.puzzle, targetRating: practice.rating } };
+    assert.equal(resolvePuzzle(practice, "solved"), 0);
+    assert.equal(practice.active, null);
+    assert.deepEqual(practice.rated, ["used"]);
+    assert.equal(puzzleRating(400, { hearts: 0, hintsUsed }, "failed"), 390);
+    assert.equal(puzzleRating(400, { hearts, hintsUsed }, "skipped"), 400);
   }
 }
-const measured = { rating: 1234, recent: [], active: {
-  puzzle: { id: "timed", category: "material", difficulty: 1200 },
-  hearts: 2, elapsedMs: 2345.6
-} };
+const active = { puzzle: { id: "timed", category: "material", difficulty: 1200, targetRating: 1235 },
+  hearts: 2, hintsUsed: 1, elapsedMs: 2345.6 };
+const measured = { rating: 1235, recent: [], active };
+assert.equal(resolvePuzzle(measured, "skipped"), 0);
+assert.deepEqual(measured.rated, []);
+measured.active = active;
 resolvePuzzle(measured, "solved");
 assert.deepEqual(JSON.parse(storage.get("exalted-chess-puzzle-attempts-v1")).at(-1), {
   id: "timed", category: "material", difficulty: 1200, ratingBand: 1200,
-  outcome: "solved", assisted: false, mistakes: 1, elapsedMs: 2346
+  outcome: "solved", assisted: true, mistakes: 1, elapsedMs: 2346
 });
-localStorage.getItem = () => JSON.stringify({
-  rating: 567, category: "checkmate", recent: ["last-puzzle"], seed: 0, active: { step: 5, hearts: 2 }
-});
+storage.set("exalted-chess-puzzles-v1", JSON.stringify({
+  rating: 1926, category: "checkmate", recent: ["last-puzzle"], seed: 0, active: { step: 5, hearts: 2 }
+}));
 assert.deepEqual(loadPractice(), {
-  rating: 567, category: "checkmate", recent: ["last-puzzle"], seed: 1, active: null
+  rating: 1925, category: "checkmate", recent: ["last-puzzle"], seed: 1, active: null, rated: ["used", "timed"]
 });
-console.log("Legal histories, one- and two-move mates, all mate defenses, settled material, fresh seeds, and every rating outcome passed.");
+assert.equal(JSON.parse(storage.get("exalted-chess-puzzles-v1")).rating, 1925);
+console.log("Puzzle proofs, all rating outcomes, replay protection and migration passed.");
 
 const { puzzleTargetBucket } = await import("../game/puzzle-prefetch.js");
 const labels = Array.from({ length: 14 }, (_, index) => 400 + index * 200);
 const profilesByBucket = new Map();
 for (let rating = 100; rating <= 3200; rating++) {
-  const target = Math.min(rating, 3000);
+  const target = Math.max(400, Math.min(rating, 3000));
   const bucket = puzzleTargetBucket(rating);
   const order = [...labels].sort((a, b) => Math.abs(a - target) - Math.abs(b - target));
   const policy = JSON.stringify([
-    Math.floor((target - 400) / 200), order, labels.filter(label => Math.abs(label - target) <= 200)
+    Math.floor((target - 400) / 200), order, labels.filter(label => label >= (target >= 600 ? 600 : 400) && Math.abs(label - target) <= 200)
   ]);
   assert.equal(profilesByBucket.get(bucket) ?? policy, policy);
   profilesByBucket.set(bucket, policy);
 }
-assert.equal(new Set([384, 400, 420, 430, 450].map(puzzleTargetBucket)).size, 3);
+assert.equal(new Set([390, 395, 400, 405, 410, 415].map(puzzleTargetBucket)).size, 2);
 assert.equal(new Set([416, 432, 452, 462, 482].map(puzzleTargetBucket)).size, 1);
+
+const { findPuzzle } = await import("../game/puzzle-prefetch.js");
+const selected = await findPuzzle({ run: async (_, payload) => {
+  assert.equal(payload.rating, 415);
+  return { id: "verified", difficulty: 400 };
+} }, { category: "material", rating: 415, recent: [] }, () => 17211);
+assert.equal(selected.targetRating, 415);

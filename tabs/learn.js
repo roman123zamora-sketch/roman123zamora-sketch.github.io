@@ -93,7 +93,6 @@ export default function learn(content) {
             <button type="button" data-reset disabled>Reset example</button>
             <button type="button" data-example hidden>Play example</button>
           </div>
-          <p class="help learn-legend" data-legend hidden></p>
         </section>
         <section class="inset learn-practice" aria-label="Practice">
           <h2>Practice</h2>
@@ -153,44 +152,18 @@ export default function learn(content) {
 
     function render() {
       if (!frame) return;
-      const state = { ...frame.state, checkedColors: [] };
+      const state = { ...frame.state, checkedColors: [], lastMove: null };
       const canMove = !playing && !solved && !promotion;
       const moves = canMove && !lesson.options
         ? Object.values(frame.legal ?? {}).filter(move => move.from === selected)
         : [];
-      const highlights = new Map(moves.map(move => [move.to, "legal move"]));
-      for (const square of lesson.blockers ?? []) {
-        if (state.board[square]) highlights.set(square, "blocking piece");
-      }
-      for (const [from, squares] of Object.entries(frame.attacks ?? {})) {
-        for (const square of Object.values(squares)) {
-          if (!lesson.attackSquares?.includes(square)) continue;
-          highlights.set(from, "attacking piece");
-          highlights.set(square, "controlled square");
-        }
-      }
       const next = board(getTheme(), false, false, {
-        frame: slot.firstElementChild, state, side, selected,
+        frame: slot.firstElementChild, state, side, targets: moves,
         select: canMove ? select : undefined
       });
       if (next !== slot.firstElementChild) slot.replaceChildren(next);
-      const labels = {
-        "legal move": "Blue · legal move",
-        "blocking piece": "Gold · blocker",
-        "attacking piece": "Red outline · attacker",
-        "controlled square": "Red fill · controlled square"
-      };
-      const legend = $("[data-legend]");
-      legend.textContent = [...new Set(highlights.values())].map(label => labels[label]).join("  •  ");
-      legend.hidden = !highlights.size;
       for (const square of slot.querySelectorAll(".square")) {
-        const name = square.getAttribute("aria-label").split(",")[0];
-        const highlight = highlights.get(name);
-        delete square.dataset.learnHighlight;
-        if (highlight) {
-          square.dataset.learnHighlight = highlight;
-          square.setAttribute("aria-label", square.getAttribute("aria-label") + ", " + highlight);
-        }
+        const name = square.dataset.square;
         if (canMove && (lesson.setup.line || lesson.promotion) && state.board[name]?.[0] === state.turn) {
           square.classList.add("drag-enabled");
         }
@@ -397,7 +370,7 @@ export default function learn(content) {
       dialog.close();
     };
     $("h1").focus();
-    tools.run("courseLesson", { ...lesson.setup, attackFrom: lesson.attackFrom ?? lesson.setup.attackFrom })
+    tools.run("courseLesson", { ...lesson.setup, attackFrom: undefined })
       .then(result => {
         if (controller.signal.aborted) return;
         frames = Object.values(result.frames);

@@ -60,27 +60,6 @@
 .learn-example-controls:has(button:not([hidden])) { margin-block-end: .55rem; }
 .learn-example-controls [data-example] { grid-column: 2; }
 .learn-example-controls [hidden] { display: none; }
-.learn-legend { line-height: 1.5; }
-.learn-position .square[data-learn-highlight="legal move"] {
-  box-shadow: inset 0 0 0 2px #154de0;
-  background: color-mix(in srgb, var(--light) 74%, #4384ff);
-}
-.learn-position .square.dark[data-learn-highlight="legal move"] {
-  background: color-mix(in srgb, var(--dark) 70%, #8ccaff);
-}
-.learn-position .square[data-learn-highlight="blocking piece"] {
-  box-shadow: inset 0 0 0 3px #8a5a00;
-}
-.learn-position .square[data-learn-highlight="attacking piece"],
-.learn-position .square[data-learn-highlight="controlled square"] {
-  box-shadow: inset 0 0 0 3px #921b38;
-}
-.learn-position .square[data-learn-highlight="controlled square"] {
-  background: color-mix(in srgb, var(--light) 67%, #ec748b);
-}
-.learn-position .square.dark[data-learn-highlight="controlled square"] {
-  background: color-mix(in srgb, var(--dark) 62%, #ec748b);
-}
 .learn-fade { position: fixed; z-index: 4; pointer-events: none; }
 @media (max-width: 64rem) {
   .learn-workspace {

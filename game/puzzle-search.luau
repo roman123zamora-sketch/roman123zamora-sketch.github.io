@@ -74,9 +74,9 @@ end
 
 -- Maximum target lengths count solver moves, not individual plies.
 local mateTargets={1,2,2,3,3,4,4,5,5,6,7,8,9,10}
-local materialTargets={1,1,2,2,3,3,3,4,4,5,5,6,7,8}
+local materialTargets={1,2,2,2,3,3,3,4,4,5,5,6,7,8}
 local mateRatings={400,600,1000,1400,1800,2200,2400,2600,2800,2800}
-local materialRatings={400,800,1200,1800,2200,2500,2700,2900}
+local materialRatings={400,600,1200,1800,2200,2500,2700,2900}
 local function ratingBand(rating)
  return math.clamp(math.floor((rating-400)/200)+1,1,14)
 end
@@ -261,6 +261,14 @@ local function potential(state,move)
   +(move.promotion and values[move.promotion]-100 or 0)
 end
 
+-- Beginner material puzzles require an immediate meaningful capture.
+local function hasMaterialCapture(state,moves)
+ for _,move in ipairs(moves) do
+  if potential(state,move)>=300 then return true end
+ end
+ return false
+end
+
 local function prepend(move,line)
  local result={move}
  for _,nextMove in ipairs(line) do table.insert(result,nextMove) end
@@ -350,13 +358,13 @@ local function material(engine,state,moves,rating,stop)
   local delta=potential(state,a)-potential(state,b)
   return delta>0 or (delta==0 and moveID(a)<moveID(b))
  end)
- if rating<800 and potential(state,moves[1])<300 then return nil end
+ if rating<600 and potential(state,moves[1])<300 then return nil end
  local choice,score,tail
  local tested={}
  local qualifying=math.max(100,initial+300)
  for _,move in ipairs(moves) do
   local capture=potential(state,move)>=300
-  if not capture and rating<800 then break end
+  if not capture and rating<600 then break end
   local setup=false
   if not capture then
    stop()
@@ -444,7 +452,7 @@ local function serialize(engine,state,line,options,id,gain,difficulty)
  origin.castling=state.castling
  origin.ep=state.ep
  return {id=id,category=options.category,seed=options.seed,side=state.turn,
-  difficulty=difficulty,gain=gain,materialProof=options.category=="material" and 2 or nil,origin=origin,steps=steps,line=line}
+  difficulty=difficulty,targetRating=options.rating,gain=gain,materialProof=options.category=="material" and 2 or nil,origin=origin,steps=steps,line=line}
 end
 
 local function verifyBlackReplies(engine,bot,state,line,category,gain,deadline,stop)
@@ -520,6 +528,7 @@ function Puzzle.validate(engine,bot,state,moves,category,rating,deadline)
   if index%2==1 then afterSolver=position end
  end
  local base
+ local closeAlternatives=0
  if category=="material" then
   local settled=balance(position,state.turn)
   -- Check both the resolved exchange and the board shown after the last
@@ -536,23 +545,31 @@ function Puzzle.validate(engine,bot,state,moves,category,rating,deadline)
     if reply.to==finalLine[1].to then return nil end
    end
   end
+  if choices==1 then
+   for _,move in ipairs(moves) do
+    if moveID(move)~=moveID(finalLine[1]) and potential(state,move)>=300 then
+     closeAlternatives+=1
+    end
+   end
+  end
   base=materialRatings[math.min(choices,#materialRatings)]+(quiet and (choices==1 and 400 or 100) or 0)
  else
   base=mateRatings[choices]
  end
  local bonus=choices>1 and math.min(400,pressure*100) or (category=="checkmate" and pressure>0 and 200 or 0)
+ if category=="material" and choices==1 and (closeAlternatives>0 or #finalLine>1) then bonus=200 end
  if choices>=3 and pressure==0 then bonus=-400 end
  difficulty=math.clamp(200*math.floor((base+bonus+100)/200),400,3000)
  return finalLine,gain,difficulty
 end
 
 function Puzzle.generate(engine,bot,options)
- local rating=options.rating
+ local rating=math.clamp(options.rating,400,3000)
  local deadline=os.clock()+math.clamp(options.timeMs or (rating>=1000 and 4500 or 2400),100,6000)/1000
  local random=randomSource(options.seed)
  local seen={}
  for _,id in ipairs(options.recent or {}) do seen[id]=true end
- local fallback
+ local minimumDifficulty=rating>=600 and 600 or 400
  while os.clock()<deadline do
   local state=engine.initial()
   local minimum=options.category=="checkmate" and 16 or 12
@@ -560,14 +577,13 @@ function Puzzle.generate(engine,bot,options)
    if os.clock()>=deadline then break end
    local moves=engine.allLegal(state)
    if #moves==0 or engine.insufficientMaterial(state) or state.halfmove>=100 then break end
-   if ply>=minimum and not claimable(engine,state) then
+   if ply>=minimum and (options.category~="material" or rating>=600 or hasMaterialCapture(state,moves))
+     and not claimable(engine,state) then
     local id=fingerprint(engine,state)
     if not seen[id] then
      local line,gain,difficulty=Puzzle.validate(engine,bot,state,moves,options.category,rating,deadline)
-     if line then
-      local candidate=serialize(engine,state,line,options,id,gain,difficulty)
-      if math.abs(difficulty-rating)<=200 then return candidate end
-      if not fallback or math.abs(difficulty-rating)<math.abs(fallback.difficulty-rating) then fallback=candidate end
+     if line and difficulty>=minimumDifficulty and math.abs(difficulty-rating)<=200 then
+      return serialize(engine,state,line,options,id,gain,difficulty)
      end
     end
    end
@@ -581,7 +597,7 @@ function Puzzle.generate(engine,bot,options)
    state=engine.apply(state,move)
   end
  end
- return fallback or {retry=true}
+ return {retry=true}
 end
 
 return Puzzle

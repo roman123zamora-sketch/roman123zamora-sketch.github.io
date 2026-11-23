@@ -1,5 +1,7 @@
-export function createPositionTools() {
-  const worker = new Worker(new URL("./position-worker.js", import.meta.url), { type: "module" });
+export function createPositionTools({ puzzleOnly = false } = {}) {
+  const url = new URL("./position-worker.js", import.meta.url);
+  if (puzzleOnly) url.searchParams.set("puzzle", "1");
+  const worker = new Worker(url, { type: "module" });
   const pending = new Map();
   let id = 0;
   let failure;

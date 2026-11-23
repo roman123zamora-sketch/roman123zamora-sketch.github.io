@@ -4,7 +4,7 @@ const runtime = createRuntime(async path => {
   const response = await fetch(new URL(path, import.meta.url));
   if (!response.ok) throw new Error("Could not load " + path);
   return response.text();
-});
+}, { puzzleOnly: new URL(import.meta.url).searchParams.has("puzzle") });
 
 self.onmessage = async ({ data: { op, payload, id } }) => {
   try {

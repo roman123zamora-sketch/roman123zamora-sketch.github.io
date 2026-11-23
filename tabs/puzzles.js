@@ -21,7 +21,7 @@ export default function puzzles(content) {
         <div class="divider"></div>
         <dl class="puzzle-stats">
           <div><dt>Your Puzzle Rating</dt><dd data-rating></dd></div>
-          <div><dt>Puzzle Difficulty</dt><dd data-difficulty></dd></div>
+          <div><dt>Puzzle Difficulty (target)</dt><dd data-difficulty></dd></div>
         </dl>
       </aside>
       <section class="board-area aligned-board-area" aria-label="Puzzle board">
@@ -41,6 +41,7 @@ export default function puzzles(content) {
           <button type="button" data-solution aria-expanded="false">See solution</button>
           <button type="button" data-skip>Skip</button>
           <button type="button" data-next hidden>Next puzzle</button>
+          <button type="button" data-replay hidden>Replay last puzzle</button>
         </div>
         <ol class="puzzle-solution" hidden></ol>
         <p class="help">Active puzzles and ratings are saved in this browser.</p>
@@ -63,6 +64,7 @@ export default function puzzles(content) {
   const solution = content.querySelector("[data-solution]");
   const instructions = content.querySelector(".puzzle-solution");
   const next = content.querySelector("[data-next]");
+  const replay = content.querySelector("[data-replay]");
   const controller = new AbortController();
   const listeners = { signal: controller.signal };
   let selected;
@@ -75,13 +77,13 @@ export default function puzzles(content) {
   let pendingPool;
   let showSolution = false;
   let transition;
-  let advanceTimer;
   let wrong;
   let wrongTimer;
   let animationPosition;
   let finished;
   let retry;
-  const playable = () => practice.active ?? retry;
+  let lastCompleted;
+  const playable = () => retry ?? practice.active;
   let message = "";
   let outcome;
 
@@ -131,14 +133,14 @@ export default function puzzles(content) {
       button.setAttribute("aria-pressed", String(button.dataset.category === practice.category));
     }
     content.querySelector("[data-rating]").textContent = practice.rating;
-    content.querySelector("[data-difficulty]").textContent = puzzle?.difficulty ?? "—";
+    content.querySelector("[data-difficulty]").textContent = puzzle?.targetRating ?? puzzle?.difficulty ?? "—";
     const heartLabel = content.querySelector(".puzzle-hearts");
     heartLabel.hidden = !puzzle || Boolean(retry);
     heartLabel.setAttribute("aria-label", `${hearts} of 3 hearts remaining`);
     heartLabel.innerHTML = `<span aria-hidden="true">${"♥".repeat(hearts)}${"♡".repeat(3 - hearts)}</span>`;
     content.querySelector(".puzzle-objective").textContent = transition
       ? `${colors[position.turn]} replies · ${categories[puzzle.category]}`
-      : active ? `${colors[puzzle.side]} to move · ${retry ? "Unrated practice" : categories[puzzle.category]}`
+      : active ? `${colors[puzzle.side]} to move · ${retry || puzzle.targetRating !== practice.rating ? "Unrated practice" : categories[puzzle.category]}`
       : puzzle ? categories[puzzle.category] : "";
     status.textContent = message;
     status.dataset.outcome = outcome ?? "";
@@ -165,7 +167,10 @@ export default function puzzles(content) {
         instructions.append(item);
       }
     }
-    skip.hidden = !practice.active;
+    replay.hidden = !lastCompleted || generating || (!retry && !practice.active);
+    replay.disabled = Boolean(transition || promotion);
+    replay.textContent = retry ? (practice.active ? "Return to rated puzzle" : "End practice") : "Replay last puzzle";
+    skip.hidden = !practice.active || Boolean(retry);
     skip.disabled = Boolean(transition);
     next.hidden = Boolean(practice.active || generating);
     next.disabled = Boolean(transition);
@@ -175,7 +180,7 @@ export default function puzzles(content) {
   let attemptStarted;
 
   function startAttemptClock() {
-    if (practice.active && !document.hidden && attemptStarted == null) {
+    if (practice.active && !retry && !document.hidden && attemptStarted == null) {
       practice.active.elapsedMs ??= 0;
       attemptStarted = performance.now();
     }
@@ -197,7 +202,6 @@ export default function puzzles(content) {
 
   function stopAnimation() {
     clearTimeout(transition);
-    clearTimeout(advanceTimer);
     clearTimeout(wrongTimer);
     transition = undefined;
     wrong = null;
@@ -219,7 +223,7 @@ export default function puzzles(content) {
     if (!prepared) pool?.close();
     showSolution = false;
     stopAnimation();
-    finished = null;
+    if (!prefix) finished = null;
     retry = null;
     outcome = null;
     generating = true;
@@ -231,7 +235,7 @@ export default function puzzles(content) {
       if (pendingPool === pool) pendingPool = undefined;
       if (disposed || request !== generation) return;
       if (!candidate) {
-        tools = createPositionTools();
+        tools = createPositionTools({ puzzleOnly: true });
         const takeSeed = () => {
           const seed = nextSeed(practice);
           savePractice(practice);
@@ -247,6 +251,7 @@ export default function puzzles(content) {
       }
       if (disposed || request !== generation) return;
       if (candidate) {
+        finished = null;
         practice.active = { puzzle: candidate, step: 0, hearts: 3 };
         startAttemptClock();
         savePractice(practice);
@@ -270,6 +275,7 @@ export default function puzzles(content) {
   function resolve(result) {
     pauseAttemptClock();
     const active = practice.active;
+    if (result !== "skipped") lastCompleted = active.puzzle;
     const delta = resolvePuzzle(practice, result);
     prefetch?.take(practice.rating);
     outcome = result;
@@ -277,8 +283,7 @@ export default function puzzles(content) {
       ? active.puzzle.steps[active.step - 1].afterMove ?? currentPosition(active)
       : currentPosition(active) };
     if (result === "failed") retry = { ...active, hint: 0 };
-    message = delta > 0 ? `Solved. Rating +${delta}.`
-      : `${result === "solved" ? "Solved" : result === "skipped" ? "Skipped" : "Out of hearts"}. Rating ${delta < 0 ? "−" + Math.abs(delta) : "unchanged"}.`;
+    message = `${result === "solved" ? "Solved" : result === "skipped" ? "Skipped" : "Out of hearts"}. Rating ${delta > 0 ? "+" + delta : delta < 0 ? "−" + Math.abs(delta) : "unchanged"}.`;
     if (retry) message += " Keep trying in unrated practice.";
   }
 
@@ -309,16 +314,17 @@ export default function puzzles(content) {
     active.hint = 0;
     const solved = active.step === active.puzzle.steps.length;
     if (solved && retry) {
-      finished.position = step.afterMove ?? step.position;
+      if (!practice.active) finished.position = step.afterMove ?? step.position;
       retry = null;
       outcome = "solved";
       message = "Practice complete. Rating unchanged.";
       playSound("solved");
+      startAttemptClock();
     } else if (solved) {
       resolve("solved");
       playSound("solved");
-      const resultMessage = message;
-      advanceTimer = setTimeout(() => generate(resultMessage), 1000);
+      generate(message);
+      return;
     } else {
       playSound("move");
       outcome = "correct";
@@ -382,23 +388,33 @@ export default function puzzles(content) {
     if (!canMove()) return;
     const active = playable();
     active.hint = Math.min(2, (active.hint ?? 0) + 1);
-    active.assisted = true;
+    active.hintsUsed = Math.min(2, (active.hintsUsed ?? 0) + 1);
     const { from, to } = active.puzzle.steps[active.step].move;
-    message = `${active.hint === 1 ? `Move the piece on ${from}.` : `Move from ${from} to ${to}.`} Rating stays unchanged.`;
+    message = `${active.hint === 1 ? `Move the piece on ${from}.` : `Move from ${from} to ${to}.`}`;
     if (!retry) savePractice(practice);
     render();
   }, listeners);
   solution.addEventListener("click", () => {
     showSolution = !showSolution;
-    if (showSolution && practice.active) {
-      practice.active.assisted = true;
-      message = "Solution shown. Rating stays unchanged.";
+    if (showSolution && practice.active && !retry) {
+      practice.active.hintsUsed = 2;
+      message = "Solution shown. Counts as two hints.";
       savePractice(practice);
     }
     render();
   }, listeners);
+  replay.addEventListener("click", () => {
+    pauseAttemptClock();
+    stopAnimation();
+    retry = retry ? null : { puzzle: lastCompleted, step: 0 };
+    showSolution = false;
+    outcome = null;
+    message = retry ? "Unrated practice. Your current puzzle is paused." : "";
+    startAttemptClock();
+    render();
+  }, listeners);
   skip.addEventListener("click", () => {
-    if (!practice.active || transition) return;
+    if (!practice.active || retry || transition) return;
     resolve("skipped");
     generate(message);
   }, listeners);

@@ -1,7 +1,7 @@
 const move = (from, to, promotion) => ({ from, to, promotion });
 const position = (pieces, turn = "w") => ({ board: { a1: "wK", h8: "bK", ...pieces }, turn });
 const exercise = (title, explanation, setup, line, feedback, notes = {}) => ({
-  title, explanation, setup: { ...setup, line }, goal: "Play the highlighted piece’s best move for this exercise.",
+  title, explanation, setup: { ...setup, line }, goal: "Make the move described in the lesson.",
   feedback, ...notes
 });
 const question = (title, explanation, setup, goal, options, answer, feedback, notes = {}) => ({
@@ -85,7 +85,7 @@ export const course = [
   {
     title: "Attacks, defenses, and danger", description: "Separate where pieces can move from the squares they control.",
     lessons: [
-      { title: "A pawn’s attack is diagonal", explanation: "Blue highlights show legal forward moves. Red highlights show the diagonals the pawn controls. A pawn controls its forward diagonals even when they are empty, and defends a friendly piece on either one.",
+      { title: "A pawn’s attack is diagonal", explanation: "Move markers show that the pawn can move to d3 or d4. The pawn attacks c3 and e3. A pawn controls its forward diagonals even when they are empty, and defends a friendly piece on either one.",
         setup: { ...position({ d2: "wP", c3: "wN" }), attackFrom: ["d2"] }, focus: "d2",
         attackSquares: ["c3", "e3"], goal: "Select the empty square the pawn attacks.", square: "e3", feedback: "e3 is attacked. The pawn defends the knight on c3, and moves forward to d3 or d4.",
         mistakes: { d3: "The pawn can move to d3, but attacks diagonally.", c3: "c3 is controlled, but it isn’t empty. The pawn defends the knight there." } },

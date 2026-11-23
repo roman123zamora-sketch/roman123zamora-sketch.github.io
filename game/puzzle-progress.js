@@ -6,6 +6,15 @@ const historyLimit = 128;
 const attemptsKey = "exalted-chess-puzzle-attempts-v1";
 const attemptsLimit = 512;
 
+function readAttempts() {
+  try {
+    const attempts = JSON.parse(readSetting(attemptsKey));
+    return Array.isArray(attempts) ? attempts : [];
+  } catch {
+    return [];
+  }
+}
+
 function validActive(active, category) {
   if (active == null) return true;
   const { puzzle, step, hearts } = active;
@@ -22,8 +31,20 @@ export function loadPractice() {
     const saved = JSON.parse(readSetting(key));
     if (saved && Array.isArray(saved.recent) && Number.isInteger(saved.seed) &&
         Number.isFinite(saved.rating) && ["checkmate", "material"].includes(saved.category)) {
+      const rating = Math.round(saved.rating / 5) * 5;
+      const migrated = rating !== saved.rating || !Array.isArray(saved.rated);
+      saved.rating = rating;
+      if (!Array.isArray(saved.rated)) {
+        const completed = readAttempts().filter(attempt =>
+          typeof attempt?.id === "string" && (attempt.outcome === "solved" || attempt.outcome === "failed"));
+        saved.rated = [...new Set(completed.map(attempt => attempt.id))];
+      }
       if (!validActive(saved.active, saved.category)) saved.active = null;
+      if (saved.active && !Number.isFinite(saved.active.hintsUsed)) {
+        saved.active.hintsUsed = saved.active.assisted ? Math.max(1, saved.active.hint ?? 0) : 0;
+      }
       if (saved.seed <= 0 || saved.seed >= modulus) saved.seed = 1;
+      if (migrated) savePractice(saved);
       return saved;
     }
   } catch {
@@ -34,6 +55,7 @@ export function loadPractice() {
     rating: 400,
     seed: crypto.getRandomValues(new Uint32Array(1))[0] % (modulus - 1) + 1,
     recent: [],
+    rated: [],
     active: null
   };
 }
@@ -47,39 +69,34 @@ export function nextSeed(practice) {
   return practice.seed;
 }
 
-export function puzzleRating(rating, { puzzle, hearts, assisted }, outcome) {
-  if (assisted || outcome === "skipped") return rating;
-  if (outcome === "failed") {
-    const expected = 1 / (1 + 10 ** ((puzzle.difficulty - rating) / 400));
-    const penalty = Math.max(2, 2 * Math.round(16 * (1 - expected)));
-    return Math.max(100, rating - penalty);
-  }
-  const startingReward = hearts === 3 ? 50 : hearts === 2 ? 30 : 20;
-  const remaining = 1 - Math.max(0, Math.min(1, (rating - 400) / 1600));
-  return rating + 10 + Math.ceil((startingReward - 10) * remaining);
+export function puzzleRating(rating, { hearts, hintsUsed = 0 }, outcome) {
+  if (outcome === "failed") return rating - 10;
+  if (outcome !== "solved") return rating;
+  return rating + hearts * 5 - Math.min(2, hintsUsed) * 5;
 }
 
-export function possibleRatings(practice) {
-  const { active, rating } = practice;
-  const ratings = new Set([rating, puzzleRating(rating, active, "failed")]);
+export function possibleRatings({ active, rating, rated }) {
+  const ratings = new Set([rating]);
+  if (active.puzzle.targetRating !== rating || rated?.includes(active.puzzle.id)) return ratings;
+  ratings.add(puzzleRating(rating, active, "failed"));
   for (let hearts = active.hearts; hearts > 0; hearts--) {
-    ratings.add(puzzleRating(rating, { ...active, hearts }, "solved"));
+    for (let hintsUsed = Math.min(2, active.hintsUsed ?? 0); hintsUsed <= 2; hintsUsed++) {
+      ratings.add(puzzleRating(rating, { hearts, hintsUsed }, "solved"));
+    }
   }
   return ratings;
 }
 
 function recordAttempt(rating, active, outcome) {
-  let recent;
-  try { recent = JSON.parse(readSetting(attemptsKey)); }
-  catch { recent = []; }
-  const { puzzle, hearts, elapsedMs, assisted } = active;
+  const recent = readAttempts();
+  const { puzzle, hearts, elapsedMs, hintsUsed } = active;
   const attempt = {
     id: puzzle.id,
     category: puzzle.category,
     difficulty: puzzle.difficulty,
     ratingBand: Math.floor(rating / 200) * 200,
     outcome,
-    assisted: Boolean(assisted),
+    assisted: Boolean(hintsUsed),
     mistakes: 3 - hearts,
     elapsedMs: Number.isFinite(elapsedMs) ? Math.max(0, Math.round(elapsedMs)) : null
   };
@@ -91,7 +108,12 @@ function recordAttempt(rating, active, outcome) {
 export function resolvePuzzle(practice, outcome) {
   const { puzzle } = practice.active;
   const prior = practice.rating;
-  practice.rating = puzzleRating(prior, practice.active, outcome);
+  practice.rated ??= [];
+  const firstCompletion = outcome !== "skipped" && !practice.rated.includes(puzzle.id);
+  if (firstCompletion) {
+    if (puzzle.targetRating === prior) practice.rating = puzzleRating(prior, practice.active, outcome);
+    practice.rated.push(puzzle.id);
+  }
   practice.recent = [...practice.recent, puzzle.id].slice(-historyLimit);
   const active = practice.active;
   practice.active = null;

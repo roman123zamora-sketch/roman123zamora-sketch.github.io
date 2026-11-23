@@ -2,21 +2,21 @@ import { createPositionTools } from "./position-tools.js";
 import { nextSeed, possibleRatings, savePractice } from "./puzzle-progress.js";
 
 export async function findPuzzle(worker, { category, rating, recent }, takeSeed) {
-  const targetRating = Math.min(rating, 3000);
-  let candidate;
+  const matchingTarget = Math.max(400, Math.min(rating, 3000));
   for (let attempt = 0; attempt < 3; attempt++) {
-    const puzzle = await worker.run("puzzle", { category, rating: targetRating, recent, seed: takeSeed() });
-    if (!puzzle.retry && (!candidate ||
-        Math.abs(puzzle.difficulty - targetRating) < Math.abs(candidate.difficulty - targetRating))) candidate = puzzle;
-    if (candidate && Math.abs(candidate.difficulty - targetRating) <= 200) break;
+    const puzzle = await worker.run("puzzle", { category, rating, recent, seed: takeSeed() });
+    if (!puzzle.retry && Number.isFinite(puzzle.difficulty) &&
+        puzzle.difficulty >= (matchingTarget >= 600 ? 600 : 400) &&
+        Math.abs(puzzle.difficulty - matchingTarget) <= 200) {
+      return { ...puzzle, targetRating: rating };
+    }
   }
-  return candidate;
 }
 
 // Labels are 200 points apart. Between two 100-point boundaries, targets
 // agree on both the difficulty ordering and whether a result is within 200.
 export function puzzleTargetBucket(rating) {
-  const target = Math.min(rating, 3000);
+  const target = Math.max(400, Math.min(rating, 3000));
   return 2 * Math.floor(target / 100) + (target % 100 === 0 ? 0 : 1);
 }
 
@@ -27,7 +27,7 @@ export function createPuzzlePrefetch(practice) {
   for (const rating of possibleRatings(practice)) {
     const bucket = puzzleTargetBucket(rating);
     if (jobs.has(bucket)) continue;
-    const worker = createPositionTools();
+    const worker = createPositionTools({ puzzleOnly: true });
     const result = findPuzzle(worker, { category, rating, recent: excluded }, () => {
       const seed = nextSeed(practice);
       savePractice(practice);
@@ -42,7 +42,8 @@ export function createPuzzlePrefetch(practice) {
       for (const job of jobs.values()) if (job !== chosen) job.worker.close();
       jobs.clear();
       if (chosen) jobs.set(bucket, chosen);
-      return chosen?.result;
+      // Ratings in this bucket have identical generation and acceptance rules.
+      return chosen?.result.then(puzzle => puzzle && { ...puzzle, targetRating: rating });
     },
     close() {
       for (const job of jobs.values()) job.worker.close();
