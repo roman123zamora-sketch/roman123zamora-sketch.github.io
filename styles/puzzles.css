@@ -113,4 +113,3 @@
 .puzzle-result-actions[hidden] { display: none; }
 .puzzle-stats dt:not(:first-child) { margin-block-start: .7rem; }
 .puzzle-stats dd.help { font-size: .85rem; }
-.puzzle-stats [data-recommendation] { padding-inline: .45rem; min-inline-size: 0; max-inline-size: 100%; }

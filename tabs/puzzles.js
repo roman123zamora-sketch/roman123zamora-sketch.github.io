@@ -1,4 +1,4 @@
-import { highestUnlocked, isRatedPuzzle, levelLabel, levelLock, levelOf, levelProgress, levels, solvesToUnlock,
+import { isRatedPuzzle, levelLabel, levelLock, levelOf, levelProgress, levels, solvesToUnlock,
   libraryEntries, openLibraryPuzzle, practiceQueue, puzzleCategories, puzzleChoice, recommendedLevel, updateRecommendation } from "../game/puzzle-library.js";
 import { loadPractice, migrateLibraryProgress, resolvePuzzle, savePractice } from "../game/puzzle-progress.js";
 import { playSound, subscribe } from "../game/session.js";
@@ -53,8 +53,6 @@ export default function puzzles(content) {
         <dl class="puzzle-stats">
           ${puzzleCategories.map(category => `<div>
             <dt>${categories[category]} Puzzle Rating</dt><dd data-rating="${category}"></dd>
-            <dt>Highest unlocked</dt><dd class="help" data-unlocked="${category}"></dd>
-            <dt>Recommended practice</dt><dd><button type="button" data-recommendation="${category}"></button></dd>
             <dt>Hardest Puzzle Solved</dt><dd class="help" data-hardest="${category}"></dd>
           </div>`).join("")}
         </dl>
@@ -163,13 +161,6 @@ export default function puzzles(content) {
     for (const entry of content.querySelectorAll("[data-rating]")) {
       const category = entry.dataset.rating;
       entry.textContent = practice.ratings[category];
-      const recommended = content.querySelector(`[data-recommendation="${category}"]`);
-      const level = recommendedLevel(entries, practice, category);
-      recommended.textContent = entries.length ? levelLabel(levels[level]) : "—";
-      recommended.setAttribute("aria-label", `Practice ${categories[category]} ${levelLabel(levels[level])}`);
-      recommended.disabled = !entries.length || generating || Boolean(transition || promotion);
-      const unlocked = highestUnlocked(entries, practice, category);
-      content.querySelector(`[data-unlocked="${category}"]`).textContent = entries.length ? levelLabel(levels[unlocked]) : "—";
       content.querySelector(`[data-hardest="${category}"]`).textContent = practice.hardest?.[category] || "—";
     }
     const mode = active?.rated ? "Rated" : active?.finishing ? "Practice after loss" : "Practice";
@@ -318,9 +309,9 @@ export default function puzzles(content) {
     }
   }
 
-  async function startPuzzle(category, requested, { automatic = false, replay = false } = {}) {
+  async function startPuzzle(category, level, { automatic = false, replay = false } = {}) {
     if (generating || transition || promotion) return;
-    if (!replay && practice.active?.puzzle.category === category && requested === levelOf(practice.active.puzzle.difficulty)) {
+    if (!replay && practice.active?.puzzle.category === category && level === levelOf(practice.active.puzzle.difficulty)) {
       slot.querySelector("button.square")?.focus({ preventScroll: true });
       return;
     }
@@ -341,7 +332,6 @@ export default function puzzles(content) {
     try {
       if (!entries.length) await loadLibrary();
       if (disposed || request !== generation) return;
-      const level = requested ?? recommendedLevel(entries, practice, category);
       if (level === undefined || levelLock(entries, practice, level, category)) {
         message = libraryFailed ? "Couldn’t load the puzzle library. Try again." : "Choose an unlocked level.";
         return;
@@ -391,7 +381,7 @@ export default function puzzles(content) {
           (automatic ? slot.querySelector("button.square") : turn)?.focus({ preventScroll: true });
         } else if (restoreSelector) {
           const menu = menus.find(item => item.dataset.category === category);
-          const levelButton = menu?.querySelector(`[data-level="${requested}"]:not(:disabled)`);
+          const levelButton = menu?.querySelector(`[data-level="${level}"]:not(:disabled)`);
           (levelButton ?? menu?.querySelector("summary"))?.focus({ preventScroll: true });
         }
       }
@@ -580,9 +570,6 @@ export default function puzzles(content) {
     const level = levelOf(difficulty);
     startPuzzle(category, level);
   }, listeners);
-  for (const button of content.querySelectorAll("[data-recommendation]")) {
-    button.addEventListener("click", () => startPuzzle(button.dataset.recommendation), listeners);
-  }
   practiceButton.addEventListener("click", () => {
     if (nextChoice) startPuzzle(nextChoice.category, Math.min(nextChoice.level, recommendedLevel(entries, practice, nextChoice.category)));
   }, listeners);
