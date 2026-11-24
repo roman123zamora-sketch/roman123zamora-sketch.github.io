@@ -14,8 +14,6 @@
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
   gap: var(--space);
 }
-.learn-module-grid .lesson-piece { padding: 1rem; }
-.learn-module-grid .lesson-piece .help { margin-block-start: auto; }
 .learn-workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 29rem) minmax(0, 1fr);
@@ -49,7 +47,6 @@
   overflow-wrap: anywhere;
 }
 .learn-position { min-inline-size: 0; }
-.learn-example-controls button { padding-inline: clamp(.35rem, 2vw, .75rem); }
 .learn-answers button, .learn-next button { flex: 1 1 auto; }
 .learn-practice .action-row:empty { display: none; }
 .learn-context p, .learn-practice p { line-height: 1.55; }
@@ -61,15 +58,6 @@
 .learn-feedback[data-outcome="wrong"] { color: var(--warning-text); }
 .learn-feedback[data-outcome="correct"] { color: var(--ice); box-shadow: inset 3px 0 var(--ice); }
 .learn-feedback:empty { display: none; }
-.learn-example-controls {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: .6rem;
-  margin-block-start: .65rem;
-}
-.learn-example-controls:has(button:not([hidden])) { margin-block-end: .55rem; }
-.learn-example-controls [data-example] { grid-column: 2; }
-.learn-example-controls [hidden] { display: none; }
 @media (hover: hover) {
   .learn-position button.square:hover { box-shadow: none; }
 }
@@ -90,5 +78,27 @@
 
 .learn-summary { padding: .8rem 1rem; border: 1px solid var(--stroke); border-radius: var(--radius); background: var(--recess); }
 .learn-summary [data-continue] { margin-inline-start: auto; }
-.learn-module-grid .lesson-piece h2 { letter-spacing: -.01em; line-height: 1.3; }
 .learn-feedback[data-outcome="correct"] { color: var(--good-text); box-shadow: inset 3px 0 var(--good-text); }
+
+.learn-module-title { margin: 0; text-transform: none; letter-spacing: normal; }
+.learn-module-card {
+  display: grid;
+  align-content: start;
+  gap: .45rem;
+  inline-size: 100%;
+  block-size: 100%;
+  padding: 1rem;
+  background: var(--recess);
+  text-align: start;
+}
+.learn-module-card strong { color: var(--text); font-size: 1.12rem; line-height: 1.2; }
+.learn-module-description { color: var(--muted); font-weight: 500; line-height: 1.45; }
+.learn-module-card small { margin-block-start: .2rem; color: var(--ice); font-size: .78rem; }
+.learn-task {
+  border-inline-start: 3px solid var(--focus);
+  padding: .5rem .65rem;
+  color: var(--text);
+  background: var(--recess);
+  border-radius: .3rem;
+  font-weight: 750;
+}
