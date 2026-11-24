@@ -33,38 +33,35 @@ export function levelProgress(entries, solved, level, category) {
   return { count, available: puzzles.length, complete };
 }
 
-export function levelLock(entries, practice, level) {
+export function levelLock(entries, practice, level, category) {
   for (let prior = 0; level > (practice.earnedLevel ?? 0) && prior < level; prior++) {
-    const { count, complete } = levelProgress(entries, practice.libraryProgress, prior);
+    const { count, complete } = levelProgress(entries, practice.libraryProgress, prior, category);
     if (!complete) {
-      const missing = puzzleCategories.map(category => {
-        const { count } = levelProgress(entries, practice.libraryProgress, prior, category);
-        const remaining = puzzlesPerCategory - count;
-        return remaining ? `${remaining} ${category}` : "";
-      }).filter(Boolean).join(" and ");
-      return `Solve ${missing} in ${levelLabel(levels[prior])} (${count} of ${puzzlesPerLevel} solved).`;
+      return `Finish ${levelLabel(levels[prior])} (${count} of ${puzzlesPerCategory} solved).`;
     }
   }
   const [minimum] = levels[level];
-  if (level && practice.rating < minimum) return `Reach ${minimum} puzzle Elo (current ${practice.rating}).`;
+  const rating = practice.ratings[category];
+  if (level && rating < minimum) return `Reach ${minimum} rating (current ${rating}).`;
   return "";
 }
 
 export function isRatedPuzzle(practice, puzzle) {
   const [low, high] = levels[levelOf(puzzle.difficulty)];
-  return practice.rating >= low && practice.rating <= high &&
+  const rating = practice.ratings[puzzle.category];
+  return rating >= low && rating <= high &&
     !practice.rated.includes(puzzle.id) && !practice.libraryProgress[puzzle.id];
 }
 
 export function nextPuzzleLevel(entries, practice, current, category) {
   const available = levels.map((_, index) => index).filter(index =>
-    !levelLock(entries, practice, index) && levelEntries(entries, index, category).length);
+    !levelLock(entries, practice, index, category) && levelEntries(entries, index, category).length);
   if (current !== undefined) {
     if (available.includes(current) && !levelProgress(entries, practice.libraryProgress, current, category).complete) {
       return current;
     }
     if (available.includes(current + 1)) return current + 1;
-    if (levelLock(entries, practice, current)) {
+    if (levelLock(entries, practice, current, category)) {
       return available.filter(index => index < current).at(-1);
     }
     return;

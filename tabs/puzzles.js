@@ -45,8 +45,8 @@ export default function puzzles(content) {
       <aside class="panel puzzle-progress-panel" aria-label="Puzzle progress">
         <h2>Puzzle progress</h2>
         <dl class="puzzle-stats">
-          <div><dt>Your Puzzle Elo</dt><dd data-rating></dd></div>
-          <div><dt>Your Elo band</dt><dd data-difficulty></dd></div>
+          <div><dt>Checkmate Puzzle Rating</dt><dd data-rating="checkmate"></dd></div>
+          <div><dt>Material Puzzle Rating</dt><dd data-rating="material"></dd></div>
         </dl>
         <p class="help puzzle-difficulty"></p>
       </aside>
@@ -144,8 +144,9 @@ export default function puzzles(content) {
     }
     if (focused) slot.querySelector(`[data-square="${focused}"]`)?.focus({ preventScroll: true });
 
-    content.querySelector("[data-rating]").textContent = practice.rating;
-    content.querySelector("[data-difficulty]").textContent = levelLabel(levels[levelOf(practice.rating)]);
+    for (const entry of content.querySelectorAll("[data-rating]")) {
+      entry.textContent = practice.ratings[entry.dataset.rating];
+    }
     const mode = active?.rated ? "Rated" : active?.finishing ? "Practice after loss" : "Practice";
     content.querySelector(".puzzle-difficulty").textContent = puzzle
       ? `Difficulty ${puzzle.difficulty}${active ? " · " + mode : ""}` : "Rated and practice puzzles";
@@ -236,12 +237,12 @@ export default function puzzles(content) {
     const current = practice.active ?? finished;
     const currentLevel = current ? levelOf(current.puzzle.difficulty) : practice.lastLevel;
     const currentCategory = current?.puzzle.category ?? practice.lastCategory;
-    const elo = levelOf(practice.rating);
     retry.hidden = !libraryFailed;
     retry.disabled = generating;
     picker.setAttribute("aria-busy", String(generating));
     for (const menu of menus) {
       const category = menu.dataset.category;
+      const elo = levelOf(practice.ratings[category]);
       const list = menu.querySelector(".puzzle-levels");
       list.replaceChildren();
       if (libraryFailed || !entries.length) {
@@ -251,7 +252,7 @@ export default function puzzles(content) {
       const lockDescriptions = new Map();
       for (const [index, level] of levels.entries()) {
         const { count, available } = levelProgress(entries, practice.libraryProgress, index, category);
-        const lock = levelLock(entries, practice, index);
+        const lock = levelLock(entries, practice, index, category);
         const button = document.createElement("button");
         button.type = "button";
         button.dataset.level = index;
@@ -306,7 +307,7 @@ export default function puzzles(content) {
       if (!entries.length) await loadLibrary();
       if (disposed || request !== generation) return;
       const level = requested ?? nextPuzzleLevel(entries, practice, practice.lastLevel, category);
-      if (level === undefined || levelLock(entries, practice, level)) {
+      if (level === undefined || levelLock(entries, practice, level, category)) {
         message = libraryFailed ? "Couldn’t load the puzzle library. Try again." : "Choose an unlocked level.";
         return;
       }
@@ -315,19 +316,19 @@ export default function puzzles(content) {
       const playableEntries = (unsolved.length || (automatic && !allowReplay) ? unsolved : candidates).sort((a, b) =>
         Number(a.id === finished?.puzzle.id) - Number(b.id === finished?.puzzle.id) ||
         Number(a.id === practice.lastSkipped) - Number(b.id === practice.lastSkipped) ||
-        Math.abs(a.difficulty - practice.rating) - Math.abs(b.difficulty - practice.rating));
+        Math.abs(a.difficulty - practice.ratings[category]) - Math.abs(b.difficulty - practice.ratings[category]));
       for (const entry of playableEntries) {
         const puzzle = await openLibraryPuzzle(entry);
         if (disposed || request !== generation) return;
         if (!puzzle) continue;
         practice.active = { id: crypto.randomUUID(), puzzle, step: 0, hearts: 3,
-          startElo: practice.rating, rated: isRatedPuzzle(practice, puzzle) };
+          rated: isRatedPuzzle(practice, puzzle) };
         practice.lastLevel = level;
         practice.lastCategory = category;
         savePractice(practice);
         finished = null;
         opened = true;
-        message = practice.active.rated ? "" : "Practice puzzle. Your Elo stays the same.";
+        message = practice.active.rated ? "" : "Practice puzzle. Your rating stays the same.";
         break;
       }
       if (!opened) message = playableEntries.length ? "Couldn’t load the puzzle. Try again."
@@ -376,18 +377,18 @@ export default function puzzles(content) {
     const delta = resolvePuzzle(practice, active, "solved");
     finished = { puzzle: active.puzzle, hearts: active.hearts, position: step.afterMove ?? step.position };
     outcome = "solved";
-    message = `Solved. Rating ${delta > 0 ? "+" + delta : delta < 0 ? "−" + Math.abs(delta) : "unchanged"}.`;
+    message = `Solved. ${categories[category]} rating ${delta > 0 ? "+" + delta : delta < 0 ? "−" + Math.abs(delta) : "unchanged"}.`;
     const { complete } = levelProgress(entries, practice.libraryProgress, level, category);
     const nextLevel = nextPuzzleLevel(entries, practice, level, category);
     if (complete && !prior.complete) {
       message += ` ${categories[category]} level complete.`;
       if (level < levels.length - 1 && nextLevel === undefined) {
-        const lock = levelLock(entries, practice, level + 1);
+        const lock = levelLock(entries, practice, level + 1, category);
         if (lock) message += ` ${lock}`;
       }
     }
     if (nextLevel !== undefined && nextLevel < level) {
-      message += ` ${levelLock(entries, practice, level)} Next up: ${levelLabel(levels[nextLevel])}.`;
+      message += ` ${levelLock(entries, practice, level, category)} Next up: ${levelLabel(levels[nextLevel])}.`;
     }
     if (nextLevel !== undefined && !prior.complete) {
       advanceTimer = setTimeout(() => {
@@ -524,7 +525,7 @@ export default function puzzles(content) {
     const { category, difficulty } = active.puzzle;
     const level = levelOf(difficulty);
     const unlocked = nextPuzzleLevel(entries, practice, level, category);
-    if (!levelLock(entries, practice, level)) startPuzzle(category, level);
+    if (!levelLock(entries, practice, level, category)) startPuzzle(category, level);
     else if (unlocked !== undefined) startPuzzle(category, unlocked);
     else {
       message = "Puzzle skipped. Choose an unlocked level.";

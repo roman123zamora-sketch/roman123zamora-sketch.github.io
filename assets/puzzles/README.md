@@ -7,11 +7,9 @@ source game, and a complete move history from the standard starting
 position. The tab fetches only the index and the current puzzle.
 
 Choose Checkmate or Material to see that category’s level progress.
-Automatic advancement stays in the selected category. New level unlocks
-still require the Elo threshold and all 30 tactical puzzles from each
-preceding level. Previously earned access is retained at the same Elo
-threshold. Removed positional puzzles cannot be played or count toward
-the new 30-puzzle requirements.
+Automatic advancement stays in the selected category. Each level requires
+the rating threshold and 15 solves in each preceding level of that category.
+Previously earned access is retained at the same rating threshold.
 
 Checkmate verification covers all legal defenses. Material verification
 uses a legal tactical search or bounded offline UCI review depending on

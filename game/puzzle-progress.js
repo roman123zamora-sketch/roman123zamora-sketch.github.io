@@ -14,7 +14,8 @@ function validActive(active) {
 export function loadPractice() {
   try {
     const saved = JSON.parse(readSetting(puzzleProgressKey));
-    if (saved && Number.isFinite(saved.rating) && Array.isArray(saved.rated) && saved.libraryProgress) {
+    const hasSplitRatings = Number.isFinite(saved?.ratings?.checkmate) && Number.isFinite(saved?.ratings?.material);
+    if ((hasSplitRatings || Number.isFinite(saved?.rating)) && Array.isArray(saved.rated) && saved.libraryProgress) {
       if (!validActive(saved.active)) saved.active = null;
       if (!Number.isInteger(saved.earnedLevel)) {
         let earned = 0;
@@ -30,12 +31,17 @@ export function loadPractice() {
         saved.tacticalLibraryMigrated = true;
         savePractice(saved);
       }
+      if (!hasSplitRatings) {
+        saved.ratings = { checkmate: saved.rating, material: saved.rating };
+        delete saved.rating;
+        savePractice(saved);
+      }
       return saved;
     }
   } catch {
     // Begin with a fresh record if the saved record cannot be read.
   }
-  const practice = { rating: startingPuzzleRating, rated: [], libraryProgress: {}, active: null, earnedLevel: 0, tacticalLibraryMigrated: true };
+  const practice = { ratings: { checkmate: startingPuzzleRating, material: startingPuzzleRating }, rated: [], libraryProgress: {}, active: null, earnedLevel: 0, tacticalLibraryMigrated: true };
   savePractice(practice);
   return practice;
 }
@@ -52,11 +58,11 @@ export function puzzleRating(rating, { hearts, hintsUsed = 0 }, outcome) {
 
 export function resolvePuzzle(practice, active, outcome) {
   if (active !== practice.active || !active) return 0;
-  const prior = practice.rating;
-  const id = active.puzzle.id;
+  const { category, id } = active.puzzle;
+  const prior = practice.ratings[category];
   if (outcome !== "skipped" && !active.finishing) {
     if (active.rated && !practice.rated.includes(id) && !practice.libraryProgress[id]) {
-      practice.rating = puzzleRating(prior, active, outcome);
+      practice.ratings[category] = puzzleRating(prior, active, outcome);
       practice.rated.push(id);
     }
     if (practice.libraryProgress[id] !== "solved") practice.libraryProgress[id] = outcome;
@@ -70,5 +76,5 @@ export function resolvePuzzle(practice, active, outcome) {
   }
   // Persist rating, credit, and the exact position together before advancing.
   savePractice(practice);
-  return practice.rating - prior;
+  return practice.ratings[category] - prior;
 }

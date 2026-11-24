@@ -173,16 +173,17 @@ node tests/learn-course-test.mjs
 ## Puzzles
 
 Puzzles uses a pre-verified ladder through 2500 Elo. Each level has fifteen
-checkmate and fifteen material puzzles. Players complete the
-lower levels and meet the next level's Elo requirement to unlock it. The
+checkmate and fifteen material puzzles. Each category has its own rating.
+Players complete earlier levels and meet the next level’s rating requirement
+in that category. The
 level list shows progress and lock reasons. After a solve, the next
 eligible position opens automatically. After a loss, the same position
 remains open in practice.
 
 The browser commits the outcome, rating, and attempt state together.
-The expansion preserves Elo, retained solves and previously earned level
-access. Rated credit is available on the first completed attempt in the
-player's Elo band.
+Existing shared ratings seed both category ratings once. Solves and previously
+earned access carry over. Rated credit is available on the first completed
+attempt in that category’s rating band.
 Lower-band attempts and replays leave Elo unchanged.
 
 See [the library documentation](assets/puzzles/README.md) for verification and
