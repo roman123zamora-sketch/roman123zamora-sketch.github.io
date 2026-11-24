@@ -31,6 +31,29 @@ function startingPosition(fourPlayer) {
   return squares;
 }
 
+const directions = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
+
+function bindKeyboardMoves(element, size) {
+  element.addEventListener("keydown", event => {
+    const direction = directions[event.key];
+    if (!direction || !event.target.matches("button.square")) return;
+    const index = [...element.children].indexOf(event.target);
+    const [rankStep, fileStep] = direction;
+    let rank = Math.floor(index / size) + rankStep;
+    let file = index % size + fileStep;
+    event.preventDefault();
+    while (rank >= 0 && rank < size && file >= 0 && file < size) {
+      const square = element.children[rank * size + file];
+      if (square.matches("button.square")) {
+        square.focus({ preventScroll: true });
+        return;
+      }
+      rank += rankStep;
+      file += fileStep;
+    }
+  });
+}
+
 export function board(theme, fourPlayer = false, sample = false, options = {}) {
   const size = sample ? 4 : fourPlayer ? 14 : 8;
   const layout = `${size}:${options.side === "b"}:${Boolean(options.select)}`;
@@ -140,6 +163,7 @@ export function board(theme, fourPlayer = false, sample = false, options = {}) {
   }
   if (sample) return element;
   if (reuse) return existing;
+  if (options.select) bindKeyboardMoves(element, size);
 
   const frame = document.createElement("div");
   frame.className = "board-frame";

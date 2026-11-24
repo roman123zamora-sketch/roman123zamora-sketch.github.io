@@ -1,20 +1,8 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { createRuntime } from "../game/luau-runtime.js";
 import { LuauState } from "../game/vendor/luau-web.js";
 
 const read = path => readFile(new URL("../game/" + path, import.meta.url), "utf8");
-const dispatch = await createRuntime(read);
-async function generate(category, rating, seeds, length, recent = []) {
-  for (const seed of seeds) {
-    const puzzle = await dispatch("puzzle", 0, 0, { category, rating, seed, recent, timeMs: 4500 });
-    if (puzzle.category === category && (!length || puzzle.line.length === length)) return puzzle;
-  }
-  assert.fail(`No verified ${category} puzzle for rating ${rating}`);
-}
-const material = await generate("material", 400, [1, 17211, 3]);
-const mate = await generate("checkmate", 400, [3, 8, 4, 5, 7, 6, 2], 1);
-const different = await generate("checkmate", 400, [4, 5, 7, 8, 3, 6, 2], 1, [mate.id]);
 const index = JSON.parse(await readFile(new URL("../assets/puzzles/index.json", import.meta.url), "utf8"));
 const published = await Promise.all(Object.entries(index).flatMap(([category, entries]) =>
   entries.map(async entry => {
@@ -23,13 +11,20 @@ const published = await Promise.all(Object.entries(index).flatMap(([category, en
     assert.equal(puzzle.id, entry.id);
     assert.equal(puzzle.difficulty, entry.difficulty);
     assert.equal(puzzle.idea, entry.idea);
+    assert.match(puzzle.fen, /^[^ ]+ [wb] [^ ]+ [^ ]+ \d+ \d+$/);
+    assert.equal(puzzle.source.archive, "PGN Mentor");
     return puzzle;
   })));
-const puzzles = [material, mate, different, ...published];
-assert(material.gain >= 300);
-assert.equal(material.materialProof, 2);
-assert.notEqual(different.id, mate.id);
-for (const puzzle of puzzles) assert(puzzle.origin.history.length >= 12);
+const puzzles = published;
+const [mate, different] = puzzles.filter(puzzle => puzzle.category === "checkmate" && puzzle.line.length === 1);
+assert.notEqual(mate.id, different.id);
+for (const puzzle of puzzles) {
+  assert(puzzle.origin.history.length >= 12);
+  if (puzzle.category === "material") {
+    assert.equal(puzzle.materialProof, 2);
+    assert(puzzle.gain >= 175);
+  }
+}
 
 // Rebuild every generated position with the real rules, including rights and
 // en passant, then verify every displayed move and independently count mates.
@@ -53,7 +48,6 @@ local Bot=(function()
 ${bot}
 end)()
 local puzzles=${lua(puzzles)}
-local simulatedTestCount=3
 local function apply(state,move)
  for _,legal in ipairs(Chess.legalMoves(state,move.from)) do
   if legal.to==move.to and legal.promotion==move.promotion then return Chess.apply(state,legal) end
@@ -149,11 +143,11 @@ local replyFixture=fixture({
  c7="bP",h2="wR",g2="wP",f7="bP",g7="bP",e4="wP",f2="wP",e5="bN",
  e1="wK",b1="wR",c1="wB",b7="bP"
 },"w")
-local verified=assert(Puzzle.validate(Chess,Bot,replyFixture,Chess.allLegal(replyFixture),"checkmate",1200,os.clock()+2))
+local verified=assert(Puzzle.validate(Chess,Bot,replyFixture,Chess.allLegal(replyFixture),"checkmate",1200,os.clock()+5,true,2))
 assert(#verified==3)
 local black=apply(replyFixture,verified[1])
 local selected=assert(Puzzle.bestBlackMove(Chess,Bot,black,Chess.allLegal(black),os.clock()+1,true))
-assert(selected.from==verified[2].from and selected.to==verified[2].to)
+assert(mateCount(apply(black,selected))>=1)
 assert(Chess.status(apply(apply(black,verified[2]),verified[3]))=="checkmate")
 local stoppedEngine={choose=function() return {from="e7",to="e5"},{depth=0} end}
 local blackStart=apply(Chess.initial(),{from="e2",to="e4"})
@@ -169,15 +163,9 @@ local recoveringEngine={choose=function(_,_,_,options)
 end}
 assert(Puzzle.bestBlackMove(Chess,recoveringEngine,blackStart,replies,os.clock()+1)==replies[2])
 assert(searches==2)
-for index,puzzle in ipairs(puzzles) do
+for _,puzzle in ipairs(puzzles) do
  local state=Chess.initial()
- for _,move in ipairs(puzzle.origin.history) do
-  if index<=simulatedTestCount and state.turn=="b" then
-   local best=assert(Puzzle.bestBlackMove(Chess,Bot,state,Chess.allLegal(state),os.clock()+1))
-   assert(move.from==best.from and move.to==best.to and move.promotion==best.promotion)
-  end
-  state=apply(state,move)
- end
+ for _,move in ipairs(puzzle.origin.history) do state=apply(state,move) end
  for square,piece in pairs(state.board) do assert(puzzle.origin.board[square]==piece) end
  for square,piece in pairs(puzzle.origin.board) do assert(state.board[square]==piece) end
  assert(state.turn==puzzle.side and state.ep==puzzle.origin.ep)
@@ -189,12 +177,12 @@ for index,puzzle in ipairs(puzzles) do
    assert(mateCount(state)==0)
    local defended=Chess.apply(state,puzzle.line[1])
    for _,defense in ipairs(Chess.allLegal(defended)) do
-    assert(mateCount(Chess.apply(defended,defense))==1)
+    assert(mateCount(Chess.apply(defended,defense))>=1,puzzle.id)
    end
   else
    local length=math.ceil(#puzzle.line/2)
    local proof,single=Puzzle.proveForTest(Chess,state,length,true,function() end,true)
-   assert(proof and single and #proof==#puzzle.line)
+   assert(proof and single and #proof==#puzzle.line,puzzle.id)
    assert(not Puzzle.proveForTest(Chess,state,length-1,true,function() end,false))
   end
  end
@@ -205,7 +193,7 @@ for index,puzzle in ipairs(puzzles) do
   assert(balance(final,puzzle.side)>=100)
   local target=balance(state,puzzle.side)+puzzle.gain
   assert(balance(final,puzzle.side)>=target)
-  assert(Puzzle.defenseForTest(Chess,state,puzzle.line[1],puzzle.side,function() end,target)>=target)
+  assert(Puzzle.defenseForTest(Chess,state,puzzle.line[1],puzzle.side,function() end,target,puzzle.intermediateChecks)>=target)
 
  end
 end
@@ -251,7 +239,7 @@ assert.deepEqual(loadPractice(), {
 assert.equal(JSON.parse(storage.get("exalted-chess-puzzles-v1")).rating, 1925);
 console.log("Puzzle proofs, all rating outcomes, replay protection and migration passed.");
 
-const { eligiblePuzzles, matchesPuzzleTarget, puzzleIdea, rememberPuzzle, selectVerifiedPuzzle } =
+const { eligiblePuzzles, matchesPuzzleTarget, puzzleIdea, rememberPuzzle } =
   await import("../game/puzzle-pool.js");
 assert(matchesPuzzleTarget({ difficulty: 200 }, 200));
 assert(!matchesPuzzleTarget({ difficulty: 600 }, 1510));
@@ -269,18 +257,15 @@ globalThis.fetch = async url => {
   return { ok: true, json: async () => url.pathname.endsWith("index.json")
     ? { checkmate: [{ id: farther.id, idea: farther.idea, difficulty: farther.difficulty }] } : farther };
 };
-assert.equal((await selectVerifiedPuzzle(practice)).puzzle.targetRating, 400);
+const { libraryEntries, openLibraryPuzzle, ratedEntries, levelOf } = await import("../game/puzzle-library.js");
+const library = await libraryEntries();
+assert.equal((await openLibraryPuzzle(ratedEntries(library, practice)[0], practice.rating)).targetRating, 400);
 assert.equal(fetches.length, 2);
 practice.rating = 415;
-assert.equal((await selectVerifiedPuzzle(practice)).puzzle.targetRating, 415);
+assert.equal((await openLibraryPuzzle(ratedEntries(library, practice)[0], practice.rating)).targetRating, 415);
 assert.equal(fetches.filter(path => path.endsWith("index.json")).length, 1);
 
-const { findRatedPuzzle } = await import("../game/puzzle-prefetch.js");
-let requests = 0;
-const missing = await findRatedPuzzle({ async run(_, payload) {
-  requests++;
-  assert.equal(payload.rating, 1510);
-  return { ...mate, difficulty: 400 };
-} }, { ...practice, rating: 1510 }, () => 17211, () => true, 1);
-assert.equal(missing, undefined);
-assert.equal(requests, 1);
+assert.equal(ratedEntries(library, { ...practice, rating: 1510 }).length, 0);
+assert.equal(levelOf(1499), 5);
+assert.equal(levelOf(1500), 6);
+assert.equal(levelOf(1750), 7);

@@ -97,6 +97,23 @@ function recordAttempt(rating, active, outcome) {
   writeSetting(attemptsKey, JSON.stringify(records));
 }
 
+export function libraryProgress(practice) {
+  if (!practice.libraryProgress) {
+    practice.libraryProgress = {};
+    for (const { id, outcome } of readAttempts()) {
+      if (typeof id === "string" && (outcome === "solved" || outcome === "failed")) {
+        markLibraryResult(practice, id, outcome);
+      }
+    }
+  }
+  return practice.libraryProgress;
+}
+
+export function markLibraryResult(practice, id, outcome) {
+  const progress = libraryProgress(practice);
+  if (outcome === "solved" || (outcome === "failed" && progress[id] !== "solved")) progress[id] = outcome;
+}
+
 export function resolvePuzzle(practice, outcome) {
   const { puzzle } = practice.active;
   const prior = practice.rating;
@@ -108,6 +125,7 @@ export function resolvePuzzle(practice, outcome) {
   }
   practice.recent = [...practice.recent, puzzle.id].slice(-historyLimit);
   const active = practice.active;
+  markLibraryResult(practice, puzzle.id, outcome);
   practice.active = null;
   savePractice(practice);
   recordAttempt(prior, active, outcome);

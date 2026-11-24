@@ -1,35 +1,41 @@
-# Verified puzzle pool
+# Verified puzzle library
 
-The static index holds each position's stable ID, difficulty estimate, and tactical identity. The website fetches one selected position and its playable line at a time. It can warm up to two nearby positions after the board becomes playable. GitHub Pages serves the same verified files to every player. Seen positions, rating, and the small generated reserve are stored in the player's browser.
+The public index lists stable position IDs, independently estimated Elo,
+and tactical identities. Each payload contains a FEN, the legal moves from
+the standard starting position, the objective, and the verified solution.
+The source field identifies the PGN Mentor game collection and record.
+The browser reads the index and fetches one selected payload. Rated
+selection uses the player's exact saved Elo, prefers the same band, and
+accepts adjacent bands within 200 points.
 
-Positions come from original legal simulations or recorded games. An individual archived position identifies its PGN Mentor collection and game number. The published data keeps the legal moves leading to each position, the verified line, and the legal destinations at solver steps. Difficulty is an estimate derived from the amount of calculation, competing moves, quiet setups, and defensive replies.
+Browse Levels and Review are practice. Solved counts and misses are stored
+locally. Previously published puzzles remain available for review through
+the archive index. A saved rated attempt resumes its original board and
+progress.
 
-`scripts/build-puzzle-pool.mjs` generates and verifies positions offline. `scripts/import-puzzle-games.mjs` replays games in standard algebraic notation and verifies candidates from competitive positions. `scripts/publish-puzzle-pool.mjs` combines verified outputs, removes duplicate identities, and writes the index and payloads.
+| Band | Material | Checkmate |
+| --- | ---: | ---: |
+| 200–399 | 5 | 5 |
+| 400–599 | 5 | 5 |
+| 600–799 | 5 | 5 |
+| 800–999 | 1 | 5 |
+| 1000–1249 | 0 | 5 |
+| 1250–1499 | 0 | 5 |
+| 1500–1749 | 1 | 5 |
+| 1750+ | 0 | 2 |
+| Total | 17 | 37 |
 
-Selection uses the exact current rating and a tolerance of 200 points. A miss starts one worker with that same target. Supply above the published range is sparse, especially for long material sequences and deeper forced mates. The browser keeps locally generated verified positions for its own reserve. Updating the shared pool requires publishing another verified batch.
+Prioritize Material above 800 and Checkmate above 1750 in the next batch.
+The verified library currently contains 54 of the planned 80 positions.
+Match history and puzzle attempt data are browser-local.
 
-The site's attempt history is browser-local. Difficulty estimates have no population-level calibration yet.
+## Adding verified games
 
-## Browser measurements
+1. Use the [PGN Mentor game collections](https://www.pgnmentor.com/files.html) as game histories. The optional offline `scripts/mine-puzzle-games.py` accepts PGN files and a local UCI engine to prioritize leads.
+2. Run `node scripts/verify-puzzle-leads.mjs <category> <leads.jsonl> <verified.json>`. Exalted replays the game and verifies the objective and replies. Suggested moves may order verification but have to pass it.
+3. Run `python scripts/estimate-puzzle-levels.py <estimated.json> <verified.json> ...` and `node scripts/publish-puzzle-pool.mjs <estimated.json>`. The offline estimator requires python-chess. The publisher limits each objective to five per band and spreads its choices across the available estimates.
+4. Run `node tests/puzzles-test.mjs`. It replays the published positions and checks the mate or settled material result.
 
-A local Chromium comparison used eight matched cases on each version. Each
-case used a fresh 390×844 browser context, one of Elo 225 or 600, one of the two
-categories, and one of two seeds. The script reloaded the active attempt,
-waited three seconds, solved it and measured delivery at the updated rating.
-The p95 below is the nearest-rank percentile of eight observations.
-
-| Path | Previous median / p95 | Verified-pool median / p95 |
-| --- | --- | --- |
-| First playable board | 2,465 / 5,153 ms | 414 / 704 ms |
-| Reload with saved active puzzle | 135 / 261 ms | 255 / 346 ms |
-| Correct final move to next puzzle | 99 / 1,274 ms | 85 / 104 ms |
-
-The pool served 16 of 16 first and next board requests, with zero foreground
-engine searches. The older version's first board spent a median of about
-1.7 seconds per search batch in the initial sample. Its startup events took
-about 0.15 seconds at the median. Storage reads were under one millisecond.
-The first route recorded 38 resource entries on the old version and 37 at
-the median on the pooled version, including the rest of the app. In an
-instrumented 1510 Checkmate batch, about four seconds of the 4.5-second
-budget went to verification. A playable high-rated board was unavailable in
-that sample, so it is excluded from the latency table.
+The source files can include already verified records when extending the
+library. Keep their stable IDs so review and solved progress continue to
+work.

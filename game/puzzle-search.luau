@@ -75,15 +75,15 @@ end
 -- Maximum target lengths count solver moves, not individual plies.
 local mateTargets={1,2,2,3,3,4,4,5,5,6,7,8,9,10}
 local materialTargets={2,2,2,2,3,3,3,4,4,5,5,6,7,8}
-local mateRatings={200,625,1125,1525,1925,2225,2425,2625,2800,2900}
-local materialRatings={200,575,1050,1500,1850,2200,2550,2800}
+local mateRatings={200,625,1275,1650,1925,2225,2425,2625,2800,2900}
+local materialRatings={200,575,1190,1540,1850,2200,2550,2800}
 local function ratingBand(rating)
  return math.clamp(math.floor((rating-400)/200)+1,1,14)
 end
 
 -- Find a mate within the remaining solver moves. Every legal reply must lose.
 -- At solver nodes, finding a second solution marks the proof ambiguous.
-local function mateProof(engine,state,remaining,attacking,stop,unique)
+local function mateProof(engine,state,remaining,attacking,stop,unique,hint,replies)
  stop()
  local legal=engine.allLegal(state)
  if #legal==0 then
@@ -115,10 +115,19 @@ local function mateProof(engine,state,remaining,attacking,stop,unique)
    return value>0 or (value==0 and moveID(a)<moveID(b))
   end)
  end
+ if hint then
+  for index,move in ipairs(preferred) do
+   if moveID(move)==hint then
+    table.remove(preferred,index)
+    table.insert(preferred,1,move)
+    break
+   end
+  end
+ end
  local longest,unambiguous
  for _,candidate in ipairs(preferred) do
   local child=engine.apply(state,candidate,false)
-  local line,single=mateProof(engine,child,remaining-(attacking and 1 or 0),not attacking,stop,unique)
+  local line,single=mateProof(engine,child,remaining-(attacking and 1 or 0),not attacking,stop,unique,replies and replies[moveID(candidate)])
   if attacking then
    if line then
     if longest then return longest,false end
@@ -129,11 +138,11 @@ local function mateProof(engine,state,remaining,attacking,stop,unique)
    end
   else
    if not line then return nil end
-   if not longest or #line>=#longest then
+   if not longest or #line>#longest or (#line==#longest and single and not unambiguous) then
     longest={candidate}
     for _,move in ipairs(line) do table.insert(longest,move) end
+    unambiguous=single
    end
-   unambiguous=unambiguous~=false and single
   end
  end
  return longest,unambiguous
@@ -314,14 +323,14 @@ end
 -- Search captures and promotions on the entire board. Include the defender's
 -- quiet checks so a counterattack can force the solver away from a recapture.
 -- When checked, every legal evasion is searched and standing pat is forbidden.
-local function exchange(engine,state,owner,depth,stop,alpha,beta,score)
+local function exchange(engine,state,owner,depth,stop,alpha,beta,score,checks)
  stop()
  local maximize=state.turn==owner
  local checked=engine.inCheck(state,state.turn)
  local moves
  local legalCount
  local hasQuiet
- if not maximize and not checked then
+ if not checked and (not maximize or checks) then
   local legal=engine.allLegal(state)
   local givesCheck=engine.checkingMoveTester(state)
   moves={}
@@ -336,9 +345,9 @@ local function exchange(engine,state,owner,depth,stop,alpha,beta,score)
   moves=checked and engine.allLegal(state) or engine.tacticalMoves(state)
  end
  if #moves==0 and (checked or legalCount==0 or (legalCount==nil and not engine.hasLegal(state))) then
-  error("Terminal exchange",0)
+  return checked and not maximize and math.huge or -math.huge,{}
  end
- if engine.insufficientMaterial(state) or (state.turn~=owner and claimable(engine,state)) then error("Draw exchange",0) end
+ if engine.insufficientMaterial(state) or (state.turn~=owner and claimable(engine,state)) then return -math.huge,{} end
  score=score or balance(state,owner)
  local best=score
  local line={}
@@ -353,7 +362,7 @@ local function exchange(engine,state,owner,depth,stop,alpha,beta,score)
  for _,move in ipairs(moves) do
   local gain=potential(state,move)
   local nextScore=score+(maximize and gain or -gain)
-  local value,tail=exchange(engine,engine.apply(state,move,false),owner,depth-1,stop,alpha,beta,nextScore)
+  local value,tail=exchange(engine,engine.apply(state,move,false),owner,depth-1,stop,alpha,beta,nextScore,checks and (not maximize or gain>0 or checked))
   if (maximize and value>best) or (not maximize and value<best) then
    best,line=value,prepend(move,tail)
   end
@@ -363,35 +372,39 @@ local function exchange(engine,state,owner,depth,stop,alpha,beta,score)
  return best,line
 end
 
-local function defense(engine,state,move,owner,stop,cutoff)
+local function defense(engine,state,move,owner,stop,cutoff,checks,hint)
  local child=engine.apply(state,move,false)
- if claimable(engine,child) then error("Draw defense",0) end
+ if claimable(engine,child) then return -math.huge,{} end
  local replies=engine.allLegal(child)
- if #replies==0 then error("Terminal defense",0) end
+ if #replies==0 then return engine.inCheck(child,child.turn) and math.huge or -math.huge,{} end
  local best=math.huge
  local line={}
  table.sort(replies,function(a,b)
+  if hint then
+   if moveID(a)==hint then return moveID(b)~=hint end
+   if moveID(b)==hint then return false end
+  end
   local delta=potential(child,a)-potential(child,b)
   return delta>0 or (delta==0 and moveID(a)<moveID(b))
  end)
  for _,reply in ipairs(replies) do
   stop()
-  local value,tail=exchange(engine,engine.apply(child,reply,false),owner,14,stop,-math.huge,best)
+  local value,tail=exchange(engine,engine.apply(child,reply,false),owner,14,stop,-math.huge,best,nil,checks)
   if value<best then best,line=value,prepend(reply,tail) end
   if best<cutoff then return best,line end
  end
  return best,line
 end
 
-local function uniqueContinuation(engine,state,line,owner,goal,stop)
+local function uniqueContinuation(engine,state,line,owner,goal,stop,checks)
  local step=state
  for index,move in ipairs(line) do
   if index>1 and step.turn==owner then
-   local score=defense(engine,step,move,owner,stop,goal)
+   local score=defense(engine,step,move,owner,stop,goal,checks)
    if score<goal then return false end
    for _,other in ipairs(engine.allLegal(step)) do
     if moveID(move)~=moveID(other) then
-     local alternate=defense(engine,step,other,owner,stop,goal-100)
+     local alternate=defense(engine,step,other,owner,stop,goal-100,checks)
      if alternate>=goal-100 then return false end
     end
    end
@@ -401,7 +414,7 @@ local function uniqueContinuation(engine,state,line,owner,goal,stop)
  return balance(step,owner)>=goal
 end
 
-local function material(engine,state,moves,rating,stop)
+local function material(engine,state,moves,rating,stop,hint,replies)
  local owner=state.turn
  local initial=balance(state,owner)
  table.sort(moves,function(a,b)
@@ -413,6 +426,7 @@ local function material(engine,state,moves,rating,stop)
  local tested={}
  local qualifying=math.max(100,initial+(rating>=800 and 175 or 300))
  for _,move in ipairs(moves) do
+  if hint and moveID(move)~=hint then continue end
   local capture=potential(state,move)>=300
   if not capture and rating<400 then break end
   local setup=false
@@ -429,12 +443,12 @@ local function material(engine,state,moves,rating,stop)
     end
    end
   end
-  if not capture and not setup then continue end
-  local value,line=defense(engine,state,move,owner,stop,qualifying)
+  if not capture and not setup and not hint then continue end
+  local value,line=defense(engine,state,move,owner,stop,qualifying,hint~=nil,replies and replies[moveID(move)])
   tested[move]=value
   if value>=qualifying and (not score or value>score) then choice,score,tail=move,value,line end
  end
- if not choice then return nil end
+ if not choice or score==math.huge then return nil end
  local threshold=score-100
  for _,move in ipairs(moves) do
   if move~=choice then
@@ -442,14 +456,14 @@ local function material(engine,state,moves,rating,stop)
    -- Below the qualifying cutoff, a stopped search gives an upper bound.
    -- Reuse it only when it already rules this alternative out.
    if value==nil or (value<qualifying and value>=threshold) then
-    value=defense(engine,state,move,owner,stop,threshold)
+    value=defense(engine,state,move,owner,stop,threshold,hint~=nil,replies and replies[moveID(move)])
    end
    if value>=threshold then return nil end
   end
  end
  local line=prepend(choice,tail)
  if #line>2 and rating<400 then return nil end
- if not uniqueContinuation(engine,state,line,owner,score,stop) then return nil end
+ if not uniqueContinuation(engine,state,line,owner,score,stop,hint~=nil) then return nil end
  return line,score-initial
 end
 
@@ -502,7 +516,7 @@ local function serialize(engine,state,line,options,id,gain,difficulty)
  origin.castling=state.castling
  origin.ep=state.ep
  return {id=id,category=options.category,seed=options.seed,side=state.turn,
-  difficulty=difficulty,targetRating=options.rating,gain=gain,materialProof=options.category=="material" and 2 or nil,origin=origin,steps=steps,line=line}
+  difficulty=difficulty,targetRating=options.rating,gain=gain,intermediateChecks=options.category=="material" and options.firstMove~=nil or nil,materialProof=options.category=="material" and 2 or nil,origin=origin,steps=steps,line=line}
 end
 
 local function verifyBlackReplies(engine,bot,state,line,category,gain,deadline,stop)
@@ -545,18 +559,43 @@ local function verifyBlackReplies(engine,bot,state,line,category,gain,deadline,s
  return line
 end
 
-function Puzzle.validate(engine,bot,state,moves,category,rating,deadline,offline)
+function Puzzle.validate(engine,bot,state,moves,category,rating,deadline,offline,knownMate,hint,replies)
  local lead,opposing=balance(state,state.turn)
  if not hasResistance(lead,opposing) or not plausibleStructure(state) then return nil end
 
  local verify=category=="checkmate" and checkmate or material
- local advanced=rating>=1000
- local stop=limit(math.min(deadline,os.clock()+(offline and 4 or advanced and .65 or .34)),offline and 180000 or advanced and 9500 or 2500)
- local ok,line,gain,difficulty=pcall(verify,engine,state,moves,rating,stop,bot,deadline)
+ local seconds,nodes=.34,2500
+ if rating>=1000 then seconds,nodes=.65,9500 end
+ if offline then seconds,nodes=4,180000 end
+ if replies then
+  seconds,nodes=12,650000
+  if knownMate and knownMate>=4 then seconds,nodes=27,2000000 end
+ end
+ local stop=limit(math.min(deadline,os.clock()+seconds),nodes)
+ local ok,line,gain,difficulty
+ if knownMate and category=="checkmate" then
+  ok,line=pcall(function()
+   local first=1
+   if knownMate>=4 and not mateProof(engine,state,knownMate-1,true,stop,false,hint,replies) then
+    first=knownMate
+   end
+   for horizon=first,knownMate do
+    local proof,single=mateProof(engine,state,horizon,true,stop,true,hint,replies)
+    if proof then return single and proof or nil end
+   end
+  end)
+ elseif offline and hint and category=="material" then
+  ok,line,gain=pcall(material,engine,state,moves,rating,stop,hint,replies)
+ else
+  ok,line,gain,difficulty=pcall(verify,engine,state,moves,rating,stop,bot,deadline)
+ end
  if not ok or not line then return nil end
  if isAlreadyWon(engine,bot,state,moves,line[1],category,lead,deadline) then return nil end
  local replyStop=limit(math.min(deadline,os.clock()+.34),2500)
- local verified,finalLine=pcall(verifyBlackReplies,engine,bot,state,line,category,gain,deadline,replyStop)
+ local verified,finalLine=true,line
+ if not offline then
+  verified,finalLine=pcall(verifyBlackReplies,engine,bot,state,line,category,gain,deadline,replyStop)
+ end
  if not verified or not finalLine then return nil end
  local choices=math.ceil(#finalLine/2)
  local position=state
@@ -565,6 +604,7 @@ function Puzzle.validate(engine,bot,state,moves,category,rating,deadline,offline
  local defenses=0
  local quietFirst=false
  local forcingReply=false
+ local sacrifice=false
  local afterSolver
  for index,move in ipairs(finalLine) do
   if index%2==1 then
@@ -587,6 +627,7 @@ function Puzzle.validate(engine,bot,state,moves,category,rating,deadline,offline
   end
   position=engine.apply(position,move,false)
   if index%2==1 then afterSolver=position end
+  if index==2 then sacrifice=balance(position,state.turn)<=lead-175 end
  end
  local base
  local closeAlternatives=0
@@ -620,6 +661,11 @@ function Puzzle.validate(engine,bot,state,moves,category,rating,deadline,offline
  -- Estimate how much a solver must compare and calculate after the proof.
  local bonus=math.min(180,competing*25)+math.min(250,defenses*30)
  if quietFirst then bonus+=150 end
+ if choices>=3 and sacrifice then bonus+=100 end
+ if category=="checkmate" and choices==1 then
+  -- Crowded forcing positions can hide mate even when it takes one move.
+  bonus=math.min(310,competing*32)
+ end
  if category=="material" and choices==1 then
   bonus=math.min(180,closeAlternatives*65)+(forcingReply and 110 or 0)
  end
@@ -696,6 +742,14 @@ function Puzzle.fromGame(engine,bot,options)
   if not move then return {retry=true} end
   table.insert(positions,state)
   state=engine.apply(state,move)
+ end
+ if options.exactPosition then
+  local moves=engine.allLegal(state)
+  if #moves==0 or claimable(engine,state) then return {} end
+  local line,gain,difficulty=Puzzle.validate(engine,bot,state,moves,options.category,
+   options.rating,os.clock()+29,true,options.knownMate,options.firstMove,options.replyHints)
+  if not line then return {} end
+  return {serialize(engine,state,line,options,fingerprint(engine,state),gain,difficulty)}
  end
  local results={}
  local deadline=os.clock()+8

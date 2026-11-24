@@ -1,7 +1,6 @@
-import { findRatedPuzzle } from "../game/puzzle-prefetch.js";
-import { rememberPuzzle, saveVerifiedPuzzle, selectVerifiedPuzzle, warmPuzzlePool } from "../game/puzzle-pool.js";
-import { createPositionTools } from "../game/position-tools.js";
-import { loadPractice, nextSeed, resolvePuzzle, savePractice } from "../game/puzzle-progress.js";
+import { levels, levelOf, levelLabel, libraryEntries, openLibraryPuzzle, ratedEntries } from "../game/puzzle-library.js";
+import { rememberPuzzle } from "../game/puzzle-pool.js";
+import { libraryProgress, loadPractice, markLibraryResult, resolvePuzzle, savePractice } from "../game/puzzle-progress.js";
 import { playSound, subscribe } from "../game/session.js";
 import { bindBoardDrag } from "../game/board-drag.js";
 import { getTheme } from "../ui/board-themes.js";
@@ -12,44 +11,43 @@ const colors = { w: "White", b: "Black" };
 
 export default function puzzles(content) {
   content.innerHTML = `
-    <div class="match">
-      <aside class="panel setup">
-        <h1>Puzzles</h1>
-        <div class="action-row puzzle-categories" aria-label="Puzzle category">
-          <button type="button" data-category="checkmate">Checkmate</button>
-          <button type="button" data-category="material">Material</button>
+    <div class="puzzle-library-layout">
+      <section class="board-area puzzle-play" aria-label="Puzzle board">
+        <div class="puzzle-heading">
+          <p class="puzzle-objective"></p><p class="help puzzle-difficulty"></p>
         </div>
-        <div class="divider"></div>
-        <dl class="puzzle-stats">
-          <div><dt>Your Puzzle Rating</dt><dd data-rating></dd></div>
-          <div><dt>Puzzle Difficulty (target)</dt><dd data-difficulty></dd></div>
-          <div><dt>Verified difficulty</dt><dd data-estimate></dd></div>
-        </dl>
-      </aside>
-      <section class="board-area aligned-board-area" aria-label="Puzzle board">
         <div class="board-and-eval">
           <div class="board-slot puzzle-board-slot"></div>
         </div>
-        <div class="puzzle-hud">
-          <p class="puzzle-objective"></p>
+        <div class="puzzle-game-controls">
           <p class="puzzle-hearts"></p>
+          <div class="action-row">
+            <button type="button" data-hint>Hint</button>
+            <button type="button" data-solution aria-expanded="false">See solution</button>
+            <button type="button" data-skip>Skip</button>
+          </div>
         </div>
         <p class="puzzle-message" role="status"></p>
-      </section>
-      <aside class="panel match-info">
-        <h2>Practice controls</h2>
-        <div class="action-row">
-          <button type="button" data-hint>Hint</button>
-          <button type="button" data-solution aria-expanded="false">See solution</button>
-          <button type="button" data-skip>Skip</button>
-          <button type="button" data-next hidden>Next puzzle</button>
-          <button type="button" data-replay hidden>Replay last puzzle</button>
-        </div>
         <ol class="puzzle-solution" hidden></ol>
-        <p class="help">Active puzzles and ratings are saved in this browser.</p>
+      </section>
+      <aside class="panel puzzle-library-panel">
+        <h1>Puzzles</h1>
+        <dl class="puzzle-stats">
+          <div><dt>Your Puzzle Elo</dt><dd data-rating></dd></div>
+          <div><dt>Difficulty target</dt><dd data-difficulty></dd></div>
+        </dl>
+        <button type="button" class="primary puzzle-primary" data-next>Play Rated</button>
+        <details class="puzzle-menu">
+          <summary>Browse Levels</summary>
+          <div class="puzzle-levels"></div>
+        </details>
+        <details class="puzzle-menu">
+          <summary>Review</summary>
+          <div class="puzzle-review"></div>
+        </details>
       </aside>
-      <dialog class="promotion-dialog">
-        <form method="dialog"><h2>Promote pawn</h2><div class="action-row">
+      <dialog class="promotion-dialog" aria-labelledby="puzzle-promotion-title">
+        <form method="dialog"><h2 id="puzzle-promotion-title">Promote pawn</h2><div class="action-row">
           <button value="Q">Queen</button><button value="R">Rook</button>
           <button value="B">Bishop</button><button value="N">Knight</button>
           <button value="">Cancel</button>
@@ -66,7 +64,9 @@ export default function puzzles(content) {
   const solution = content.querySelector("[data-solution]");
   const instructions = content.querySelector(".puzzle-solution");
   const next = content.querySelector("[data-next]");
-  const replay = content.querySelector("[data-replay]");
+  let entries = [];
+  let archived = [];
+  let libraryFailed = false;
   const controller = new AbortController();
   const listeners = { signal: controller.signal };
   let selected;
@@ -74,9 +74,7 @@ export default function puzzles(content) {
   let generation = 0;
   let disposed = false;
   let generating = false;
-  let tools;
-  let reserveJob;
-  let reserveTimer;
+
   let showSolution = false;
   let transition;
   let wrong;
@@ -84,7 +82,7 @@ export default function puzzles(content) {
   let animationPosition;
   let finished;
   let retry;
-  let lastCompleted;
+
   const playable = () => retry ?? practice.active;
   let message = "";
   let outcome;
@@ -100,7 +98,7 @@ export default function puzzles(content) {
   }
 
   function canMove() {
-    return playable() && !transition && !promotion;
+    return playable() && !generating && !transition && !promotion;
   }
 
   function render() {
@@ -131,29 +129,24 @@ export default function puzzles(content) {
     }
     if (focused) slot.querySelector(`[data-square="${focused}"]`)?.focus({ preventScroll: true });
 
-    for (const button of content.querySelectorAll("[data-category]")) {
-      button.setAttribute("aria-pressed", String(button.dataset.category === practice.category));
-    }
     content.querySelector("[data-rating]").textContent = practice.rating;
-    content.querySelector("[data-difficulty]").textContent = puzzle?.targetRating ?? puzzle?.difficulty ?? "—";
-    content.querySelector("[data-estimate]").textContent = puzzle?.difficulty ?? "—";
+    content.querySelector("[data-difficulty]").textContent = practice.rating;
+    content.querySelector(".puzzle-difficulty").textContent = puzzle ? `Difficulty ${puzzle.difficulty}` : "Rated and practice puzzles";
     const heartLabel = content.querySelector(".puzzle-hearts");
-    heartLabel.hidden = !puzzle || Boolean(retry);
+    heartLabel.style.visibility = puzzle && !retry ? "visible" : "hidden";
     heartLabel.setAttribute("aria-label", `${hearts} of 3 hearts remaining`);
     heartLabel.innerHTML = `<span aria-hidden="true">${"♥".repeat(hearts)}${"♡".repeat(3 - hearts)}</span>`;
     content.querySelector(".puzzle-objective").textContent = transition
       ? `${colors[position.turn]} replies · ${categories[puzzle.category]}`
-      : active ? `${colors[puzzle.side]} to move · ${retry ? "Replay · Rating already recorded" : categories[puzzle.category]}`
-      : puzzle ? categories[puzzle.category] : "";
+      : active ? `${colors[puzzle.side]} to move · ${retry ? `Practice · ${categories[puzzle.category]}` : categories[puzzle.category]}`
+      : puzzle ? categories[puzzle.category] : "Choose Play Rated or browse a level.";
     status.textContent = message;
     status.dataset.outcome = outcome ?? "";
     status.classList.toggle("is-loading", generating);
     slot.setAttribute("aria-busy", String(generating));
-    hint.hidden = !active;
     hint.disabled = !canMove() || active?.hint === 2;
     hint.textContent = active?.hint === 1 ? "Show destination" : "Hint";
-    solution.hidden = !puzzle;
-    solution.disabled = Boolean(transition);
+    solution.disabled = !puzzle || Boolean(transition || generating);
     solution.setAttribute("aria-expanded", String(showSolution));
     instructions.hidden = !showSolution;
     instructions.replaceChildren();
@@ -170,20 +163,18 @@ export default function puzzles(content) {
         instructions.append(item);
       }
     }
-    replay.hidden = !lastCompleted || generating || (!retry && !practice.active);
-    replay.disabled = Boolean(transition || promotion);
-    replay.textContent = retry ? (practice.active ? "Return to rated puzzle" : "End practice") : "Replay last puzzle";
-    skip.hidden = !practice.active || Boolean(retry);
-    skip.disabled = Boolean(transition);
-    next.hidden = Boolean(practice.active || generating);
-    next.disabled = Boolean(transition);
-    next.textContent = finished ? "Next puzzle" : "Try again";
+    skip.disabled = !practice.active || Boolean(retry || transition || generating);
+    next.setAttribute("aria-busy", String(generating));
+    next.disabled = generating || Boolean(transition || promotion) || Boolean(practice.active && !retry);
+    next.textContent = generating ? "Loading…" : retry && practice.active ? "Resume rated puzzle"
+      : practice.active ? "Rated puzzle in progress" : finished ? "Next Puzzle" : "Play Rated";
+
   }
 
   let attemptStarted;
 
   function startAttemptClock() {
-    if (practice.active && !retry && !document.hidden && attemptStarted == null) {
+    if (practice.active && !retry && !generating && !document.hidden && attemptStarted == null) {
       practice.active.elapsedMs ??= 0;
       attemptStarted = performance.now();
     }
@@ -197,11 +188,7 @@ export default function puzzles(content) {
   }
 
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden) {
-      pauseAttemptClock();
-      reserveJob?.close();
-      reserveJob = undefined;
-    }
+    if (document.hidden) pauseAttemptClock();
     else startAttemptClock();
   }, listeners);
   window.addEventListener("pagehide", pauseAttemptClock, listeners);
@@ -219,80 +206,125 @@ export default function puzzles(content) {
     drag.cancel();
   }
 
-  function takeSeed() {
-    const seed = nextSeed(practice);
-    savePractice(practice);
-    return seed;
+  function reviewEntries() {
+    return [...new Map([...archived, ...entries].map(entry => [entry.id, entry])).values()];
   }
 
-  function scheduleReserve(request) {
-    clearTimeout(reserveTimer);
-    reserveTimer = setTimeout(() => replenish(request), 450);
-  }
-
-  async function replenish(request) {
-    if (disposed || generation !== request || document.hidden || reserveJob) return;
-    const supply = await warmPuzzlePool(practice);
-    if (supply > 2 || disposed || generation !== request || document.hidden || reserveJob) return;
-    const worker = createPositionTools({ puzzleOnly: true });
-    reserveJob = worker;
-    try {
-      const candidate = await findRatedPuzzle(worker, practice, takeSeed,
-        () => !disposed && generation === request, 1);
-      if (candidate) saveVerifiedPuzzle(candidate);
-    } catch (error) {
-      if (!disposed && generation === request && reserveJob === worker) console.warn("Puzzle reserve search failed.", error);
-    } finally {
-      worker.close();
-      if (reserveJob === worker) reserveJob = undefined;
+  async function loadLibrary() {
+    entries = await libraryEntries();
+    if (disposed) return;
+    libraryFailed = entries.length === 0;
+    renderLibrary();
+    if (Object.values(libraryProgress(practice)).includes("failed") && !archived.length) {
+      archived = await libraryEntries("archive");
+      if (!disposed) renderLibrary();
     }
   }
 
-  async function generate(prefix = "") {
+  function renderLibrary() {
+    const progress = libraryProgress(practice);
+    const levelList = content.querySelector(".puzzle-levels");
+    const reviewList = content.querySelector(".puzzle-review");
+    levelList.replaceChildren();
+    reviewList.replaceChildren();
+    if (libraryFailed || !entries.length) {
+      const note = libraryFailed ? "Library unavailable. Use Play Rated to retry." : "Loading levels…";
+      levelList.textContent = note;
+      reviewList.textContent = note;
+      return;
+    }
+
+    for (const [index, level] of levels.entries()) {
+      const available = entries.filter(entry => levelOf(entry.difficulty) === index);
+      const solved = available.filter(entry => progress[entry.id] === "solved").length;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.level = index;
+      button.disabled = !available.length;
+      button.textContent = `${levelLabel(level)} · ${solved} of ${available.length} solved`;
+      levelList.append(button);
+    }
+
+    const missed = reviewEntries().filter(entry => progress[entry.id] === "failed");
+    if (!missed.length) reviewList.textContent = "Missed library puzzles appear here.";
+    for (const entry of missed) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.review = entry.id;
+      button.textContent = `${entry.category === "material" ? "Material" : "Checkmate"} · ${entry.difficulty}`;
+      reviewList.append(button);
+    }
+  }
+
+  async function startPuzzle(mode = "rated", key) {
+    if (generating || transition || promotion) return;
+    if (mode === "rated" && practice.active) {
+      if (!retry) return;
+      stopAnimation();
+      retry = null;
+      showSolution = false;
+      message = "Rated puzzle resumed.";
+      startAttemptClock();
+      render();
+      return;
+    }
+
     const request = ++generation;
-    clearTimeout(reserveTimer);
-    tools?.close();
-    reserveJob?.close();
-    reserveJob = undefined;
-    showSolution = false;
-    stopAnimation();
-    if (!prefix) finished = null;
-    retry = null;
-    outcome = null;
     generating = true;
-    const target = practice.rating;
-    message = `${prefix ? prefix + " " : ""} Searching for a verified puzzle near ${target}…`;
+    pauseAttemptClock();
+    stopAnimation();
+    showSolution = false;
+    outcome = null;
+    message = "Loading a verified puzzle…";
+    let opened = false;
     render();
     try {
-      const selection = await selectVerifiedPuzzle(practice);
+      if (!entries.length) await loadLibrary();
       if (disposed || request !== generation) return;
-      let candidate = selection.puzzle;
-      if (!candidate) {
-        tools = createPositionTools({ puzzleOnly: true });
-        candidate = await findRatedPuzzle(tools, practice, takeSeed, () => !disposed && request === generation, 3);
+      const progress = libraryProgress(practice);
+      const candidates = mode === "rated" ? ratedEntries(entries, practice)
+        : mode === "review" ? reviewEntries().filter(entry => entry.id === key && progress[entry.id] === "failed")
+        : entries.filter(entry => levelOf(entry.difficulty) === Number(key) && entry.id !== practice.active?.puzzle.id)
+          .sort((a, b) => Number(a.id === finished?.puzzle.id) - Number(b.id === finished?.puzzle.id) ||
+            Number(progress[a.id] === "solved") - Number(progress[b.id] === "solved"));
+      let puzzle;
+      for (const entry of candidates) {
+        puzzle = await openLibraryPuzzle(entry, practice.rating);
+        if (disposed || request !== generation) return;
+        if (puzzle) break;
       }
-      if (disposed || request !== generation) return;
-      if (!candidate) {
-        message = `No fresh verified puzzle within 200 points of ${target} was found. You can search again.`;
+      if (!puzzle) {
+        message = candidates.length || libraryFailed ? "Couldn’t load the puzzle. Try again."
+          : "No nearby unseen rated puzzles remain. Browse a level or review your misses.";
         return;
       }
       finished = null;
-      practice.active = { puzzle: candidate, step: 0, hearts: 3 };
-      rememberPuzzle(practice, candidate);
-      startAttemptClock();
-      savePractice(practice);
-      message = prefix;
-      scheduleReserve(request);
+      opened = true;
+      if (mode === "rated") {
+        retry = null;
+        practice.category = puzzle.category;
+        practice.active = { puzzle, step: 0, hearts: 3 };
+        rememberPuzzle(practice, puzzle);
+        startAttemptClock();
+        savePractice(practice);
+        message = "";
+      } else {
+        retry = { puzzle, step: 0 };
+        rememberPuzzle(practice, puzzle);
+        savePractice(practice);
+        message = mode === "review" ? "Review attempt. Your Elo stays the same." : "Level practice. Your Elo stays the same.";
+      }
     } catch (error) {
-      if (!disposed && request === generation) {
-        console.error("Puzzle generation failed.", error);
-        message = "The puzzle generator could not run. Try again to restart it.";
+      if (!disposed) {
+        console.error("Puzzle library unavailable.", error);
+        message = "Couldn’t load the puzzle library. Try again.";
       }
     } finally {
       if (!disposed && request === generation) {
-        tools?.close();
         generating = false;
+        startAttemptClock();
         render();
+        if (opened) slot.querySelector("button.square")?.focus();
       }
     }
   }
@@ -300,15 +332,14 @@ export default function puzzles(content) {
   function resolve(result) {
     pauseAttemptClock();
     const active = practice.active;
-    if (result !== "skipped") lastCompleted = active.puzzle;
     const delta = resolvePuzzle(practice, result);
     outcome = result;
     finished = { puzzle: active.puzzle, hearts: active.hearts, position: result === "solved"
       ? active.puzzle.steps[active.step - 1].afterMove ?? currentPosition(active)
       : currentPosition(active) };
-    if (result === "failed") retry = { ...active, hint: 0 };
+    renderLibrary();
     message = `${result === "solved" ? "Solved" : result === "skipped" ? "Skipped" : "Out of hearts"}. Rating ${delta > 0 ? "+" + delta : delta < 0 ? "−" + Math.abs(delta) : "unchanged"}.`;
-    if (retry) message += " You can replay this puzzle or move on.";
+    if (result === "failed") message += " You can retry it in Review.";
   }
 
   function attempt(move) {
@@ -330,6 +361,7 @@ export default function puzzles(content) {
       }
       wrongTimer = setTimeout(() => { wrong = null; render(); }, 350);
       render();
+      if (outcome === "failed") next.focus({ preventScroll: true });
       return;
     }
     clearTimeout(wrongTimer);
@@ -338,7 +370,10 @@ export default function puzzles(content) {
     active.hint = 0;
     const solved = active.step === active.puzzle.steps.length;
     if (solved && retry) {
-      if (!practice.active) finished.position = step.afterMove ?? step.position;
+      markLibraryResult(practice, active.puzzle.id, "solved");
+      savePractice(practice);
+      renderLibrary();
+      finished = { puzzle: active.puzzle, hearts: 0, position: step.afterMove ?? step.position };
       retry = null;
       outcome = "solved";
       message = "Practice complete. Rating unchanged.";
@@ -347,7 +382,8 @@ export default function puzzles(content) {
     } else if (solved) {
       resolve("solved");
       playSound("solved");
-      generate(message);
+      render();
+      next.focus({ preventScroll: true });
       return;
     } else {
       playSound("move");
@@ -427,54 +463,40 @@ export default function puzzles(content) {
     }
     render();
   }, listeners);
-  replay.addEventListener("click", () => {
-    pauseAttemptClock();
-    stopAnimation();
-    retry = retry ? null : { puzzle: lastCompleted, step: 0 };
-    showSolution = false;
-    outcome = null;
-    message = retry ? "Replaying a completed attempt. Your current puzzle is paused." : "";
-    startAttemptClock();
-    render();
-  }, listeners);
   skip.addEventListener("click", () => {
-    if (!practice.active || retry || transition) return;
+    if (!practice.active || retry || transition || generating) return;
     resolve("skipped");
-    generate(message);
+    render();
+    next.focus({ preventScroll: true });
   }, listeners);
-  next.addEventListener("click", () => generate(outcome === "solved" ? message : ""), listeners);
-  for (const button of content.querySelectorAll("[data-category]")) {
-    button.addEventListener("click", () => {
-      if (button.dataset.category === practice.category) return;
-      if (practice.active && !confirm("Skip this puzzle and switch categories?")) return;
-      if (practice.active) resolve("skipped");
-      practice.category = button.dataset.category;
-      savePractice(practice);
-      generate();
-    }, listeners);
-  }
+  next.addEventListener("click", () => startPuzzle(), listeners);
+  content.querySelector(".puzzle-levels").addEventListener("click", event => {
+    const button = event.target.closest("[data-level]");
+    if (button) startPuzzle("level", button.dataset.level);
+  }, listeners);
+  content.querySelector(".puzzle-review").addEventListener("click", event => {
+    const button = event.target.closest("[data-review]");
+    if (button) startPuzzle("review", button.dataset.review);
+  }, listeners);
   const unsubscribe = subscribe(kind => {
     if (kind === "profile" || kind === "catalog") render();
   });
-  if (practice.active) {
-    startAttemptClock();
-    render();
-    rememberPuzzle(practice, practice.active.puzzle);
-    savePractice(practice);
-    const request = generation;
-    scheduleReserve(request);
-  }
-  else generate();
+  startAttemptClock();
+  render();
+  renderLibrary();
+  loadLibrary().catch(error => {
+    if (disposed) return;
+    console.error("Puzzle library unavailable.", error);
+    libraryFailed = true;
+    renderLibrary();
+  });
   return () => {
     pauseAttemptClock();
     disposed = true;
     generation++;
-    clearTimeout(reserveTimer);
     controller.abort();
     stopAnimation();
     drag.destroy();
-    tools?.close();
-    reserveJob?.close();
     unsubscribe();
   };
 }

@@ -95,3 +95,12 @@
   .history-entry .action-row button { flex: 1; text-align: center; }
   .shop-sections > button { flex: 1 1 auto; }
 }
+
+
+button.theme-card { transition: background-color 140ms ease, border-color 140ms ease; }
+@media (hover: hover) {
+  button.theme-card:hover:not([aria-pressed="true"]) {
+    background: var(--button-hover);
+    border-color: var(--hover-border);
+  }
+}

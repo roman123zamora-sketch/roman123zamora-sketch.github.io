@@ -656,6 +656,7 @@ export function renderMatch(content, { title, fourPlayer }) {
         controls.querySelector('[data-action="setup"]')?.focus();
         break;
       case "start":
+        if (starting || active()) break;
         if (session.queue) action("cancelQueue");
         unlockSound();
         starting = true;

@@ -43,8 +43,8 @@ game/
   local-worker.js              Browser worker for local matches and replays
   position-worker.js           Browser worker for evaluation, lessons, and puzzles
   puzzle-progress.js           Browser-local puzzle progress and rating
-  puzzle-prefetch.js           Bounded exact-target worker searches
-  puzzle-pool.js               Verified pool lookup, freshness, and local reserves
+  puzzle-library.js            Difficulty bands and rated selection
+  puzzle-pool.js               Published index, payloads, and freshness
   board-drag.js                Pointer-based piece dragging
   luau-runtime.js              Loads Luau modules and exchanges data with JavaScript
   web-adapter.luau             Browser and server bridge to the original game modules
@@ -165,27 +165,20 @@ node tests/learn-course-test.mjs
 
 ## Puzzles
 
-Puzzle selection reads the player's exact committed Elo and takes the closest
-unseen verified Checkmate or Material puzzle within 200 points. The published
-pool is shared by every visitor. It contains positions from recorded games
-and original legal simulations, with the full history of each position.
-A pool hit serves a playable board without running the chess engine.
+The Puzzles tab serves the offline-verified library. Play Rated reads your
+current Elo and selects the closest unseen puzzle in your difficulty band
+or an adjacent band, up to 200 points away. Browse Levels shows solved
+counts and opens practice positions. Review reopens missed published
+positions for practice. Rated credit is recorded on the first completed
+rated attempt. A completed practice attempt uses no Elo.
 
-Checkmate verification searches all legal defenses. Material verification
-checks the settled exchange, including recaptures and forcing counterplay.
-The generator estimates difficulty after verification using calculation
-length, plausible alternatives, quiet moves, and defensive branching.
-These estimates have yet to be calibrated against a sufficiently large
-sample of player attempts.
+Published positions come from complete legal game histories. The browser
+loads an index and one playable puzzle, including its estimated difficulty,
+FEN, objective, and verified continuation. It resumes an unfinished rated
+attempt after reload. Shared library additions are verified offline.
 
-An empty pool starts a bounded worker search at the same exact target. The
-browser can save a small verified reserve and starts at most one background
-search when nearby supply falls below three unseen positions. It persists
-presented puzzle identities and resumes the exact board of an unfinished
-attempt. The shared GitHub Pages pool is updated offline.
-
-See [the pool documentation](assets/puzzles/README.md) for publishing and
-supply details.
+See [the library documentation](assets/puzzles/README.md) for publishing
+and coverage details.
 
 ```sh
 node tests/puzzles-test.mjs

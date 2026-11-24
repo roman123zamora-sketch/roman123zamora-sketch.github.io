@@ -1,8 +1,4 @@
-import { readSetting, writeSetting } from "./session.js";
-
 export const puzzleTolerance = 200;
-const reserveKey = "exalted-chess-puzzle-reserve-v1";
-const reserveLimit = 8;
 const assetRoot = new URL("../assets/puzzles/", import.meta.url);
 
 export function puzzleIdea(puzzle) {
@@ -45,34 +41,24 @@ export function rememberPuzzle(practice, puzzle) {
   practice.seenIdeas = [...new Set([...(practice.seenIdeas ?? []), idea])];
 }
 
-function readReserve() {
-  try { return JSON.parse(readSetting(reserveKey)) ?? {}; }
-  catch { return {}; }
-}
+const indexes = new Map();
 
-export function saveVerifiedPuzzle(puzzle) {
-  const reserve = readReserve();
-  const entries = reserve[puzzle.category] ?? [];
-  reserve[puzzle.category] = [
-    { ...puzzle, idea: puzzle.idea ?? puzzleIdea(puzzle) },
-    ...entries.filter(entry => entry.id !== puzzle.id)
-  ].slice(0, reserveLimit);
-  writeSetting(reserveKey, JSON.stringify(reserve));
-}
-
-let indexRequest;
-function readIndex() {
-  return indexRequest ??= fetch(new URL("index.json", assetRoot))
-    .then(response => {
-      if (!response.ok) throw new Error("Puzzle pool unavailable");
-      return response.json();
-    })
-    .catch(() => { indexRequest = undefined; return {}; });
+export function readPublishedIndex(name = "index") {
+  if (!indexes.has(name)) {
+    const request = fetch(new URL(name + ".json", assetRoot))
+      .then(response => {
+        if (!response.ok) throw new Error("Puzzle library unavailable");
+        return response.json();
+      })
+      .catch(() => { indexes.delete(name); return {}; });
+    indexes.set(name, request);
+  }
+  return indexes.get(name);
 }
 
 const payloads = new Map();
 
-function readPayload(category, entry) {
+export function loadPublishedPuzzle(category, entry) {
   if (entry.origin) return Promise.resolve(entry);
   const key = category + "/" + entry.id;
   if (!payloads.has(key)) {
@@ -87,30 +73,4 @@ function readPayload(category, entry) {
     if (payloads.size > 12) payloads.delete(payloads.keys().next().value);
   }
   return payloads.get(key);
-}
-
-async function available(practice) {
-  const { category } = practice;
-  const reserve = readReserve()[category] ?? [];
-  const published = (await readIndex())[category] ?? [];
-  return eligiblePuzzles([...published, ...reserve], practice);
-}
-
-export async function warmPuzzlePool(practice) {
-  const { category } = practice;
-  const candidates = await available({ ...practice });
-  for (const candidate of candidates.slice(0, 2)) readPayload(category, candidate);
-  return candidates.length;
-}
-
-export async function selectVerifiedPuzzle(practice) {
-  const { category, rating } = practice;
-  const candidates = await available({ ...practice });
-  for (const candidate of candidates) {
-    const puzzle = await readPayload(category, candidate);
-    if (puzzle?.id === candidate.id && puzzle.category === category && matchesPuzzleTarget(puzzle, rating)) {
-      return { puzzle: { ...puzzle, targetRating: rating }, supply: candidates.length };
-    }
-  }
-  return { supply: 0 };
 }
