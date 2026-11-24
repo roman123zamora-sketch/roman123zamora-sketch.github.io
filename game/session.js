@@ -120,7 +120,9 @@ function receive({ kind, data, requestId }, fromWorker = false) {
       const piece = prior.state.board[move.from]?.[1];
       const alreadyPlayed = soundedMove?.matchId === data.matchId && soundedMove.revision === prior.revision &&
         soundedMove.from === move.from && soundedMove.to === move.to && soundedMove.promotion === move.promotion;
-      const landing = alreadyPlayed ? 0 : playMoveSound(move, piece);
+      const landing = alreadyPlayed
+        ? Math.max(0, (soundedMove.endsAt - performance.now()) / 1000)
+        : playMoveSound(move, piece);
       soundedMove = undefined;
       const fourMate = Object.entries(data.state.eliminationReason ?? {}).some(([side, reason]) =>
         reason === "Checkmate" && prior.state.eliminationReason?.[side] !== reason);
@@ -215,7 +217,7 @@ async function poll() {
   let delay = 500;
   try {
     const start = Date.now();
-    const data = await request("/events?wait=1&after=" + eventCursor,{ signal: AbortSignal.timeout?.(22000) });
+    const data = await request("/events?wait=1&after=" + eventCursor, { signal: AbortSignal.timeout?.(22000) });
     const elapsed = Date.now() - start;
     if (typeof data.serverTime === "number") clockOffset = data.serverTime - (Date.now() - Math.min(elapsed / 2, 100)) / 1000;
     delay = data.waiting && (elapsed > 300 || data.events.length) ? 0 : 350;
@@ -337,8 +339,8 @@ export function action(first, second) {
       const target = Object.values(choices).find(move => move.to === second.to && move.promotion === second.promotion);
       if (target) {
         session.submittedMove = { ...second, ...target };
-        soundedMove = { ...second, matchId: match.matchId, revision: match.revision };
-        playMoveSound({ ...target, captured: target.capture }, match.state.board[second.from]?.[1]);
+        const landing = playMoveSound({ ...target, captured: target.capture }, match.state.board[second.from]?.[1]);
+        soundedMove = { ...second, matchId: match.matchId, revision: match.revision, endsAt: performance.now() + landing * 1000 };
       }
     }
   }
