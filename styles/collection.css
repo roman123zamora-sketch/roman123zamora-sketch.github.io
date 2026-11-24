@@ -104,3 +104,13 @@ button.theme-card { transition: background-color 140ms ease, border-color 140ms 
     border-color: var(--hover-border);
   }
 }
+
+.collection-notice:empty { display: none; }
+.shop-sections + .balance { margin-block-end: .8rem; }
+.shop-sections ~ section > .empty-state { margin-block-start: 1.2rem; }
+.history-summary { min-inline-size: 0; flex: 1 1 16rem; }
+.history-summary strong { color: var(--text); }
+.history-summary p { margin-block-start: .2rem; font-size: .85rem; }
+.game-history > .history-entry { padding: .85rem 1rem; }
+.profile-stats dd { font-size: clamp(1.3rem, 1rem + .5vw, 1.65rem); }
+.theme-card[aria-disabled="true"] { cursor: progress; }

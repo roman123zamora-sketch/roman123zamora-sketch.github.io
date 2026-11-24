@@ -14,22 +14,21 @@ for (const path of inputs) {
   for (const row of text.trim().split("\n").filter(Boolean)) {
     let lead;
     try { lead = JSON.parse(row); } catch { continue; } // A miner may still be writing the file.
-    const category = lead.theme ? "positional" : "material";
+    if (!lead.line || !lead.verification?.replies) continue;
     const replayed = await runtime("puzzleFromGame", 0, 0, {
-      category, moves: lead.history, first: lead.first, options: lead.options,
-      reviewed: category === "material", line: lead.line, gain: lead.gain
+      category: "material", moves: lead.history, reviewed: true, line: lead.line, gain: lead.gain
     });
     const puzzle = replayed?.[0];
     if (!puzzle) {
       console.error(`Rejected a reviewed position during legal replay: ${lead.fen}`);
       continue;
     }
-    const { objective, explanation, theme, alternative, complexity, verification, source, fen } = lead;
+    const { complexity, verification, source, fen } = lead;
     const idea = puzzleIdea(puzzle);
     if (seen.has(idea) || seen.has(puzzle.id)) continue;
     seen.add(idea);
     seen.add(puzzle.id);
-    records.push({ ...puzzle, objective, explanation, theme, alternative, complexity, verification, source, fen, idea });
+    records.push({ ...puzzle, complexity, verification, source, fen, idea });
   }
 }
 await writeFile(output, JSON.stringify(records));

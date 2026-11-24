@@ -11,8 +11,18 @@ from runpy import run_path
 import chess
 import chess.engine
 
-helpers = run_path(str(Path(__file__).with_name("mine-positional-puzzles.py")))
-balance, move_data, score = (helpers[name] for name in ("balance", "move_data", "score"))
+balance = run_path(str(Path(__file__).with_name("mine-puzzle-games.py")))["balance"]
+
+
+def move_data(move):
+    result = {"from": chess.square_name(move.from_square), "to": chess.square_name(move.to_square)}
+    if move.promotion:
+        result["promotion"] = chess.piece_symbol(move.promotion).upper()
+    return result
+
+
+def score(entry, side):
+    return entry["score"].pov(side).score(mate_score=100000)
 
 
 def settled(board, root, continuation, owner, initial, minimum):

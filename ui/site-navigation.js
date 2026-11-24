@@ -1,5 +1,5 @@
 import { applyEquippedTheme } from "./board-themes.js";
-import { connect, soundEnabled, toggleSound, unlockSound, playSound, subscribe } from "../game/session.js";
+import { connect, soundEnabled, toggleSound, unlockSound, playSound, session, subscribe } from "../game/session.js";
 import chess from "../tabs/chess.js";
 import fourPlayerChess from "../tabs/four-player-chess.js";
 import shop from "../tabs/shop.js";
@@ -21,6 +21,19 @@ const content = document.querySelector("#content");
 const links = document.querySelectorAll("nav a");
 
 let cleanup;
+let focusPage = false;
+document.querySelector(".skip-link").addEventListener("click", event => {
+  event.preventDefault();
+  content.focus();
+});
+for (const link of links) {
+  link.addEventListener("click", event => {
+    if (event.detail === 0) {
+      if (link.hash === location.hash) content.focus();
+      else focusPage = true;
+    }
+  });
+}
 
 function navigate() {
   const previousBoard = content.querySelector(".aligned-board-area .board-and-eval")?.getBoundingClientRect();
@@ -48,6 +61,10 @@ function navigate() {
       content.style.minBlockSize = `${Math.ceil(innerHeight + target - (content.getBoundingClientRect().top + scrollY))}px`;
     }
     if (Math.abs(scrollY - target) >= 1) window.scrollTo({ top: target, behavior: "instant" });
+  }
+  if (focusPage) {
+    focusPage = false;
+    content.focus({ preventScroll: true });
   }
 }
 
@@ -87,7 +104,7 @@ subscribe((kind, match) => {
   if (kind === "profile" || kind === "catalog") applyEquippedTheme();
   if (kind !== "state" || match.matchId === previousMatch) return;
   previousMatch = match.matchId;
-  if (location.hash === "#puzzles") return;
+  if (location.hash === "#puzzles" || (!session.network && !["", "#chess", "#4-player-chess"].includes(location.hash))) return;
   const page = match.variant === "four" ? "#4-player-chess" : "#chess";
   if ((location.hash || "#chess") !== page) location.hash = page;
 });

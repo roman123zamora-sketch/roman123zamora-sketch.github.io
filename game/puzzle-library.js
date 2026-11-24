@@ -1,7 +1,7 @@
 import { loadPublishedPuzzle, readPublishedIndex } from "./puzzle-pool.js";
 
-export const puzzleCategories = ["checkmate", "material", "positional"];
-export const puzzlesPerCategory = 10;
+export const puzzleCategories = ["checkmate", "material"];
+export const puzzlesPerCategory = 15;
 export const puzzlesPerLevel = puzzleCategories.length * puzzlesPerCategory;
 export const levels = [
   [200, 399], [400, 599], [600, 799], [800, 999],
@@ -17,26 +17,32 @@ export function levelOf(rating) {
 
 export async function libraryEntries() {
   const index = await readPublishedIndex();
-  return Object.entries(index).flatMap(([category, entries]) => entries.map(entry => ({ ...entry, category })));
+  return puzzleCategories.flatMap(category => (index[category] ?? []).map(entry => ({ ...entry, category })));
 }
 
-export function levelEntries(entries, level) {
+export function levelEntries(entries, level, category) {
   const [low, high] = levels[level];
-  return entries.filter(entry => entry.difficulty >= low && entry.difficulty <= high);
+  return entries.filter(entry => entry.difficulty >= low && entry.difficulty <= high && (!category || entry.category === category));
 }
 
-export function levelProgress(entries, solved, level) {
-  const puzzles = levelEntries(entries, level);
+export function levelProgress(entries, solved, level, category) {
+  const puzzles = levelEntries(entries, level, category);
   const count = puzzles.filter(entry => solved[entry.id] === "solved").length;
-  return { count, available: puzzles.length, complete: count === puzzlesPerLevel && puzzleCategories.every(category =>
-    puzzles.filter(puzzle => puzzle.category === category).length === puzzlesPerCategory) };
+  const complete = category ? count === puzzlesPerCategory : count === puzzlesPerLevel &&
+    puzzleCategories.every(type => puzzles.filter(puzzle => puzzle.category === type).length === puzzlesPerCategory);
+  return { count, available: puzzles.length, complete };
 }
 
 export function levelLock(entries, practice, level) {
   for (let prior = 0; level > (practice.earnedLevel ?? 0) && prior < level; prior++) {
     const { count, complete } = levelProgress(entries, practice.libraryProgress, prior);
     if (!complete) {
-      return `Solve all ${puzzlesPerLevel} in ${levelLabel(levels[prior])} (${count} solved).`;
+      const missing = puzzleCategories.map(category => {
+        const { count } = levelProgress(entries, practice.libraryProgress, prior, category);
+        const remaining = puzzlesPerCategory - count;
+        return remaining ? `${remaining} ${category}` : "";
+      }).filter(Boolean).join(" and ");
+      return `Solve ${missing} in ${levelLabel(levels[prior])} (${count} of ${puzzlesPerLevel} solved).`;
     }
   }
   const [minimum] = levels[level];
@@ -50,11 +56,11 @@ export function isRatedPuzzle(practice, puzzle) {
     !practice.rated.includes(puzzle.id) && !practice.libraryProgress[puzzle.id];
 }
 
-export function nextPuzzleLevel(entries, practice, current) {
+export function nextPuzzleLevel(entries, practice, current, category) {
   const available = levels.map((_, index) => index).filter(index =>
-    !levelLock(entries, practice, index) && levelEntries(entries, index).length);
+    !levelLock(entries, practice, index) && levelEntries(entries, index, category).length);
   if (current !== undefined) {
-    if (available.includes(current) && !levelProgress(entries, practice.libraryProgress, current).complete) {
+    if (available.includes(current) && !levelProgress(entries, practice.libraryProgress, current, category).complete) {
       return current;
     }
     if (available.includes(current + 1)) return current + 1;
@@ -63,7 +69,7 @@ export function nextPuzzleLevel(entries, practice, current) {
     }
     return;
   }
-  return available.find(index => !levelProgress(entries, practice.libraryProgress, index).complete) ?? available.at(-1);
+  return available.find(index => !levelProgress(entries, practice.libraryProgress, index, category).complete) ?? available.at(-1);
 }
 
 export async function openLibraryPuzzle(entry) {
@@ -71,18 +77,7 @@ export async function openLibraryPuzzle(entry) {
   if (puzzle?.id === entry.id && puzzle.category === entry.category && puzzle.difficulty === entry.difficulty) return puzzle;
 }
 
-export function sequencePuzzles(candidates, level, practice) {
-  const solvedByCategory = new Map(puzzleCategories.map(category => [
-    category, level.filter(entry => entry.category === category && practice.libraryProgress[entry.id] === "solved").length
-  ]));
-  return [...candidates].sort((a, b) =>
-    (solvedByCategory.get(a.category) ?? 0) - (solvedByCategory.get(b.category) ?? 0) ||
-    Math.abs(a.difficulty - practice.rating) - Math.abs(b.difficulty - practice.rating) ||
-    puzzleCategories.indexOf(a.category) - puzzleCategories.indexOf(b.category));
-}
-
 export function puzzleChoice(step, move) {
-  const variants = step.choices ?? [step];
-  return Object.values(variants).find(variant => variant.move.from === move.from &&
-    variant.move.to === move.to && variant.move.promotion === move.promotion);
+  const answer = step.move;
+  return answer.from === move.from && answer.to === move.to && answer.promotion === move.promotion ? step : undefined;
 }

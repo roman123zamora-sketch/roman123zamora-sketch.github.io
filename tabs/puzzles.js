@@ -1,12 +1,12 @@
 import { isRatedPuzzle, levelEntries, levelLabel, levelLock, levelOf, levelProgress, levels,
-  libraryEntries, nextPuzzleLevel, openLibraryPuzzle, puzzleChoice, puzzlesPerLevel, sequencePuzzles } from "../game/puzzle-library.js";
+  libraryEntries, nextPuzzleLevel, openLibraryPuzzle, puzzleCategories, puzzleChoice, puzzlesPerCategory } from "../game/puzzle-library.js";
 import { loadPractice, resolvePuzzle, savePractice } from "../game/puzzle-progress.js";
 import { playSound, subscribe } from "../game/session.js";
 import { bindBoardDrag } from "../game/board-drag.js";
 import { getTheme } from "../ui/board-themes.js";
 import { board } from "../ui/chessboard.js";
 
-const categories = { checkmate: "Force checkmate.", material: "Win material through the best trade.", positional: "Positional puzzle." };
+const categories = { checkmate: "Checkmate", material: "Material" };
 const colors = { w: "White", b: "Black" };
 
 export default function puzzles(content) {
@@ -14,7 +14,9 @@ export default function puzzles(content) {
     <div class="puzzle-library-layout">
       <section class="board-area puzzle-play" aria-label="Puzzle board">
         <div class="puzzle-heading">
-          <p class="puzzle-objective"></p><p class="help puzzle-difficulty"></p>
+          <p class="puzzle-turn" role="status"></p>
+          <h1 class="puzzle-objective" tabindex="-1"></h1>
+          <p class="help puzzle-difficulty"></p>
         </div>
         <div class="board-and-eval">
           <div class="board-slot puzzle-board-slot"></div>
@@ -33,19 +35,20 @@ export default function puzzles(content) {
       </section>
       <aside class="panel puzzle-library-panel">
         <h1>Puzzles</h1>
+        <p class="help puzzle-intro">Choose a puzzle type, then pick an Elo band.</p>
         <dl class="puzzle-stats">
           <div><dt>Your Puzzle Elo</dt><dd data-rating></dd></div>
           <div><dt>Your Elo band</dt><dd data-difficulty></dd></div>
         </dl>
-        <button type="button" class="primary puzzle-primary" data-next>Play</button>
-        <details class="puzzle-menu">
-          <summary>Levels</summary>
-          <div class="puzzle-levels"></div>
-        </details>
-        <details class="previous-puzzle-solution" hidden>
-          <summary>Previous positional solution</summary>
-          <p class="help"></p>
-        </details>
+        <div class="puzzle-picker" aria-label="Puzzle types">
+          ${puzzleCategories.map(category => `
+            <details class="puzzle-menu" name="puzzle-types" data-category="${category}">
+              <summary>${categories[category]}</summary>
+              <div class="puzzle-levels"></div>
+            </details>`).join("")}
+          <button type="button" data-retry hidden>Retry loading levels</button>
+          <p class="help picker-notice" role="status"></p>
+        </div>
       </aside>
       <dialog class="promotion-dialog" aria-labelledby="puzzle-promotion-title">
         <form method="dialog"><h2 id="puzzle-promotion-title">Promote pawn</h2><div class="action-row">
@@ -64,7 +67,18 @@ export default function puzzles(content) {
   const hint = content.querySelector("[data-hint]");
   const solution = content.querySelector("[data-solution]");
   const instructions = content.querySelector(".puzzle-solution");
-  const next = content.querySelector("[data-next]");
+  const layout = content.querySelector(".puzzle-library-layout");
+  const picker = content.querySelector(".puzzle-picker");
+  const pickerNotice = picker.querySelector(".picker-notice");
+  const retry = picker.querySelector("[data-retry]");
+  const menus = Array.from(picker.querySelectorAll(".puzzle-menu"));
+  const turn = content.querySelector(".puzzle-turn");
+  const title = content.querySelector(".puzzle-objective");
+  const lastCategory = practice.active?.puzzle.category ?? practice.lastCategory;
+  if (lastCategory) {
+    const current = menus.find(menu => menu.dataset.category === lastCategory);
+    if (current) current.open = true;
+  }
   let entries = [];
   let libraryFailed = false;
   const controller = new AbortController();
@@ -81,8 +95,6 @@ export default function puzzles(content) {
   let wrongTimer;
   let animationPosition;
   let finished;
-  let positionalTakeaway;
-  const takeawayPanel = content.querySelector(".previous-puzzle-solution");
   let advanceTimer;
   let heartTimer;
   const heartBreak = content.querySelector(".puzzle-heart-break");
@@ -107,6 +119,7 @@ export default function puzzles(content) {
   function render() {
     const active = playable();
     const puzzle = active?.puzzle ?? finished?.puzzle;
+    layout.dataset.idle = String(!puzzle);
     const hearts = active?.hearts ?? finished?.hearts ?? 0;
     const position = animationPosition ?? (active ? currentPosition(active) : finished?.position);
     const hintMove = active?.hint && active.puzzle.steps[active.step].move;
@@ -141,16 +154,14 @@ export default function puzzles(content) {
     heartLabel.style.visibility = puzzle ? "visible" : "hidden";
     heartLabel.setAttribute("aria-label", `${hearts} of 3 hearts remaining`);
     heartLabel.innerHTML = `<span aria-hidden="true">${"♥".repeat(hearts)}${"♡".repeat(3 - hearts)}</span>`;
-    const objective = puzzle?.objective ?? (puzzle?.category === "checkmate"
-      ? `Mate in ${Math.ceil(puzzle.line.length / 2)}.` : categories[puzzle?.category]);
-    const detail = puzzle?.category === "positional" ? "Positional · " + objective : objective;
-    content.querySelector(".puzzle-objective").textContent = transition
-      ? `${colors[position.turn]} replies · ${detail}`
-      : active ? `${colors[puzzle.side]} to move · ${detail}`
-      : puzzle ? detail : "Choose Play or open Levels.";
+    const side = transition ? position.turn : active?.puzzle.side;
+    const turnText = side ? `${colors[side]} ${transition ? "replies" : "to move"}` : "";
+    if (turn.textContent !== turnText) turn.textContent = turnText;
+    turn.dataset.side = side ?? "";
+    title.textContent = puzzle
+      ? puzzle.category === "checkmate" ? `Mate in ${Math.ceil(puzzle.line.length / 2)}` : "Win material"
+      : "Choose a puzzle type";
     status.textContent = message;
-    takeawayPanel.hidden = !positionalTakeaway;
-    takeawayPanel.querySelector("p").textContent = positionalTakeaway ?? "";
     status.dataset.outcome = outcome ?? "";
     status.classList.toggle("is-loading", generating);
     slot.setAttribute("aria-busy", String(generating));
@@ -170,34 +181,10 @@ export default function puzzles(content) {
         if (step.response && (index < puzzle.steps.length - 1 || puzzle.category === "material")) {
           item.textContent += ` Reply: ${step.response.from}–${step.response.to}.`;
         }
-        if (step.choices && Object.values(step.choices).length > 1) {
-          const otherMoves = Object.values(step.choices).filter(choice => choice.move.from !== from || choice.move.to !== to);
-          item.textContent += " Also accepted: " + otherMoves.map(({ move }) => `${move.from}–${move.to}`).join(", ") + ".";
-        }
-        instructions.append(item);
-        if (puzzle.category === "positional") {
-          const proof = Object.values(step.choices ?? []).find(choice => choice.move.from === from && choice.move.to === to);
-          const replies = Object.values(proof?.replies ?? {});
-          if (replies.length) {
-            const evidence = document.createElement("li");
-            evidence.textContent = "Verified replies include " + replies.map(({ reply }) => `${reply.from}–${reply.to}`).join(", ") + ".";
-            instructions.append(evidence);
-          }
-        }
-      }
-      for (const explanation of [puzzle.explanation, puzzle.alternative?.explanation]) {
-        if (!explanation) continue;
-        const item = document.createElement("li");
-        item.textContent = explanation;
         instructions.append(item);
       }
     }
     skip.disabled = !active || Boolean(transition || generating);
-    next.setAttribute("aria-busy", String(generating));
-    next.disabled = generating || Boolean(transition || promotion || active || advanceTimer);
-    next.textContent = generating ? "Loading…" : active ? "Puzzle in progress"
-      : advanceTimer ? "Next puzzle loading…" : finished ? "Open Levels" : "Play";
-
   }
 
   let attemptStarted;
@@ -247,41 +234,62 @@ export default function puzzles(content) {
   }
 
   function renderLibrary() {
-    const list = content.querySelector(".puzzle-levels");
-    const focusedLevel = list.contains(document.activeElement) ? document.activeElement.dataset.level : null;
-    list.replaceChildren();
-    if (libraryFailed || !entries.length) {
-      list.textContent = libraryFailed ? "Library unavailable. Use Play to retry." : "Loading levels…";
-      return;
-    }
-    const current = practice.active ? levelOf(practice.active.puzzle.difficulty) : practice.lastLevel;
+    const focused = document.activeElement;
+    const focusMenu = focused.closest(".puzzle-menu");
+    const focusLevel = focused.dataset.level;
+    const current = practice.active ?? finished;
+    const currentLevel = current ? levelOf(current.puzzle.difficulty) : practice.lastLevel;
+    const currentCategory = current?.puzzle.category ?? practice.lastCategory;
     const elo = levelOf(practice.rating);
-    for (const [index, level] of levels.entries()) {
-      const { count, available } = levelProgress(entries, practice.libraryProgress, index);
-      const lock = levelLock(entries, practice, index);
-      const button = document.createElement("button");
-      button.type = "button";
-      button.dataset.level = index;
-      button.disabled = Boolean(lock) || !available;
-      if (current === index) button.setAttribute("aria-current", "true");
-      const title = document.createElement("span");
-      title.textContent = `${levelLabel(level)} · ${count} of ${puzzlesPerLevel} solved`;
-      const detail = document.createElement("small");
-      detail.textContent = [
-        elo === index ? "Your Elo band" : "",
-        current === index ? "Current level" : "",
-        lock || (!available ? "No verified puzzles published yet." :
-          available < puzzlesPerLevel ? `${available} verified puzzles published.` : "")
-      ].filter(Boolean).join(" · ");
-      button.append(title, detail);
-      list.append(button);
-      if (focusedLevel === String(index) && !button.disabled) button.focus({ preventScroll: true });
+    retry.hidden = !libraryFailed;
+    retry.disabled = generating;
+    picker.setAttribute("aria-busy", String(generating));
+    for (const menu of menus) {
+      const category = menu.dataset.category;
+      const list = menu.querySelector(".puzzle-levels");
+      list.replaceChildren();
+      if (libraryFailed || !entries.length) {
+        list.textContent = libraryFailed ? "Levels couldn’t load." : "Loading levels…";
+        continue;
+      }
+      const lockDescriptions = new Map();
+      for (const [index, level] of levels.entries()) {
+        const { count, available } = levelProgress(entries, practice.libraryProgress, index, category);
+        const lock = levelLock(entries, practice, index);
+        const button = document.createElement("button");
+        button.type = "button";
+        button.dataset.level = index;
+        button.disabled = generating || Boolean(lock) || !available;
+        const isCurrent = currentLevel === index && currentCategory === category;
+        if (isCurrent) button.setAttribute("aria-current", "true");
+        const heading = document.createElement("strong");
+        heading.textContent = levelLabel(level);
+        const tally = document.createElement("span");
+        tally.className = "level-tally";
+        tally.textContent = `${count} / ${available || puzzlesPerCategory} solved`;
+        const detail = document.createElement("small");
+        const existingDescription = lockDescriptions.get(lock);
+        if (lock) {
+          if (existingDescription) button.setAttribute("aria-describedby", existingDescription);
+          else {
+            detail.id = `lock-${category}-${index}`;
+            lockDescriptions.set(lock, detail.id);
+          }
+        }
+        detail.textContent = [
+          isCurrent ? "Current level" : elo === index ? "Your Elo band" : "",
+          (existingDescription ? "Locked" : lock) || (count === puzzlesPerCategory ? "Complete · Replay" : !available ? "No puzzles available" : "")
+        ].filter(Boolean).join(" · ");
+        button.append(heading, tally, detail);
+        list.append(button);
+        if (focusMenu === menu && focusLevel === String(index) && !button.disabled) button.focus({ preventScroll: true });
+      }
     }
   }
 
-  async function startPuzzle(requested, automatic = false, allowReplay = false) {
+  async function startPuzzle(category, requested, automatic = false, allowReplay = false) {
     if (generating || transition || promotion) return;
-    if (practice.active && requested === levelOf(practice.active.puzzle.difficulty)) {
+    if (practice.active?.puzzle.category === category && requested === levelOf(practice.active.puzzle.difficulty)) {
       slot.querySelector("button.square")?.focus({ preventScroll: true });
       return;
     }
@@ -293,25 +301,25 @@ export default function puzzles(content) {
     outcome = null;
     message = "Loading a verified puzzle…";
     let opened = false;
+    const restoreSelector = picker.contains(document.activeElement) &&
+      document.activeElement.matches("[data-level]");
+    pickerNotice.textContent = automatic ? "" : "Loading puzzle…";
+    renderLibrary();
     render();
     try {
       if (!entries.length) await loadLibrary();
       if (disposed || request !== generation) return;
-      const level = requested ?? nextPuzzleLevel(entries, practice, practice.lastLevel);
+      const level = requested ?? nextPuzzleLevel(entries, practice, practice.lastLevel, category);
       if (level === undefined || levelLock(entries, practice, level)) {
-        message = libraryFailed ? "Couldn’t load the puzzle library. Try again." : "Choose an unlocked level in Levels.";
+        message = libraryFailed ? "Couldn’t load the puzzle library. Try again." : "Choose an unlocked level.";
         return;
       }
-      const candidates = levelEntries(entries, level).filter(entry => entry.id !== practice.active?.puzzle.id);
+      const candidates = levelEntries(entries, level, category).filter(entry => entry.id !== practice.active?.puzzle.id);
       const unsolved = candidates.filter(entry => practice.libraryProgress[entry.id] !== "solved");
-      const playableEntries = sequencePuzzles(
-        unsolved.length || (automatic && !allowReplay) ? unsolved : candidates,
-        levelEntries(entries, level), practice);
-      // Stable sorting keeps the interleaved order within each group.
-
-      playableEntries.sort((a, b) =>
+      const playableEntries = (unsolved.length || (automatic && !allowReplay) ? unsolved : candidates).sort((a, b) =>
         Number(a.id === finished?.puzzle.id) - Number(b.id === finished?.puzzle.id) ||
-        Number(a.id === practice.lastSkipped) - Number(b.id === practice.lastSkipped));
+        Number(a.id === practice.lastSkipped) - Number(b.id === practice.lastSkipped) ||
+        Math.abs(a.difficulty - practice.rating) - Math.abs(b.difficulty - practice.rating));
       for (const entry of playableEntries) {
         const puzzle = await openLibraryPuzzle(entry);
         if (disposed || request !== generation) return;
@@ -319,6 +327,7 @@ export default function puzzles(content) {
         practice.active = { id: crypto.randomUUID(), puzzle, step: 0, hearts: 3,
           startElo: practice.rating, rated: isRatedPuzzle(practice, puzzle) };
         practice.lastLevel = level;
+        practice.lastCategory = category;
         savePractice(practice);
         finished = null;
         opened = true;
@@ -338,7 +347,18 @@ export default function puzzles(content) {
         startAttemptClock();
         renderLibrary();
         render();
-        if (opened) slot.querySelector("button.square")?.focus({ preventScroll: true });
+        pickerNotice.textContent = opened || automatic ? "" : message;
+        if (opened) {
+          if (!automatic && (title.getBoundingClientRect().top < 0 ||
+              title.getBoundingClientRect().bottom > innerHeight)) {
+            title.scrollIntoView({ block: "center" });
+          }
+          (automatic ? slot.querySelector("button.square") : title)?.focus({ preventScroll: true });
+        } else if (restoreSelector) {
+          const menu = menus.find(item => item.dataset.category === category);
+          const levelButton = menu?.querySelector(`[data-level="${requested}"]:not(:disabled)`);
+          (levelButton ?? menu?.querySelector("summary"))?.focus({ preventScroll: true });
+        }
       }
     }
   }
@@ -353,47 +373,37 @@ export default function puzzles(content) {
   }
 
   function finishPuzzle(active, step) {
-    const level = levelOf(active.puzzle.difficulty);
-    const alreadyComplete = levelProgress(entries, practice.libraryProgress, level).complete;
+    const { category, difficulty } = active.puzzle;
+    const level = levelOf(difficulty);
+    const prior = levelProgress(entries, practice.libraryProgress, level, category);
     pauseAttemptClock(false);
     const delta = resolvePuzzle(practice, active, "solved");
     finished = { puzzle: active.puzzle, hearts: active.hearts, position: step.afterMove ?? step.position };
     outcome = "solved";
     message = `Solved. Rating ${delta > 0 ? "+" + delta : delta < 0 ? "−" + Math.abs(delta) : "unchanged"}.`;
-    if (step.explanation) {
-      positionalTakeaway = [step.explanation, active.puzzle.alternative?.explanation].filter(Boolean).join(" ");
-      message += " " + step.explanation;
-    }
-    const { count, available, complete } = levelProgress(entries, practice.libraryProgress, level);
-    const nextLevel = nextPuzzleLevel(entries, practice, level);
-    if (complete && !alreadyComplete) {
-      message += " Level complete.";
-      if (level === levels.length - 1) message += " Library complete. Open Levels to replay.";
-      else {
+    const { complete } = levelProgress(entries, practice.libraryProgress, level, category);
+    const nextLevel = nextPuzzleLevel(entries, practice, level, category);
+    if (complete && !prior.complete) {
+      message += ` ${categories[category]} level complete.`;
+      if (level < levels.length - 1 && nextLevel === undefined) {
         const lock = levelLock(entries, practice, level + 1);
         if (lock) message += ` ${lock}`;
-        else if (nextLevel === undefined) message += " The next level has no published puzzles yet.";
       }
-    } else if (!complete && count === available) {
-      message += ` ${count} of ${puzzlesPerLevel} solved. More verified puzzles are needed to complete this level.`;
     }
     if (nextLevel !== undefined && nextLevel < level) {
       message += ` ${levelLock(entries, practice, level)} Next up: ${levelLabel(levels[nextLevel])}.`;
     }
-    const canAdvance = nextLevel !== undefined && (
-      nextLevel !== level ? !alreadyComplete :
-        levelEntries(entries, level).some(entry => practice.libraryProgress[entry.id] !== "solved")
-    );
-    if (canAdvance) {
+    if (nextLevel !== undefined && !prior.complete) {
       advanceTimer = setTimeout(() => {
         advanceTimer = undefined;
-        startPuzzle(nextLevel, true, nextLevel < level);
-      }, step.explanation ? 3000 : complete ? 1450 : 850);
+        startPuzzle(category, nextLevel, true, nextLevel < level);
+      }, complete ? 1450 : 850);
+    } else {
+      message += " Choose a level to continue or replay.";
     }
     playSound("solved");
     renderLibrary();
     render();
-    if (!canAdvance) next.focus({ preventScroll: true });
   }
 
   function attempt(move) {
@@ -512,20 +522,30 @@ export default function puzzles(content) {
     const active = playable();
     if (!active || transition || generating) return;
     pauseAttemptClock(false);
+    finished = { puzzle: active.puzzle, hearts: active.hearts, position: currentPosition(active) };
     practice.lastSkipped = active.puzzle.id;
     resolvePuzzle(practice, active, "skipped");
-    startPuzzle(nextPuzzleLevel(entries, practice, levelOf(active.puzzle.difficulty)));
+    const { category, difficulty } = active.puzzle;
+    const level = levelOf(difficulty);
+    const unlocked = nextPuzzleLevel(entries, practice, level, category);
+    if (!levelLock(entries, practice, level)) startPuzzle(category, level);
+    else if (unlocked !== undefined) startPuzzle(category, unlocked);
+    else {
+      message = "Puzzle skipped. Choose an unlocked level.";
+      renderLibrary();
+      render();
+    }
   }, listeners);
-  next.addEventListener("click", () => {
-    if (finished) {
-      const menu = content.querySelector(".puzzle-menu");
-      menu.open = true;
-      menu.querySelector("summary").focus();
-    } else startPuzzle();
+  retry.addEventListener("click", () => {
+    libraryFailed = false;
+    renderLibrary();
+    loadLibrary().then(() => {
+      if (!disposed && !libraryFailed) menus[0].querySelector("summary").focus();
+    });
   }, listeners);
-  content.querySelector(".puzzle-levels").addEventListener("click", event => {
+  picker.addEventListener("click", event => {
     const button = event.target.closest("[data-level]");
-    if (button && !button.disabled) startPuzzle(Number(button.dataset.level));
+    if (button && !button.disabled) startPuzzle(button.closest("[data-category]").dataset.category, Number(button.dataset.level));
   }, listeners);
   const unsubscribe = subscribe(kind => {
     if (kind === "profile" || kind === "catalog") render();

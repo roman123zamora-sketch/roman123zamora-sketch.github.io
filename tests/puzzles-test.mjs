@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { levelEntries, levelLock, levelOf, levelProgress, levels, nextPuzzleLevel,
-  puzzleCategories, puzzleChoice, puzzlesPerCategory, puzzlesPerLevel, sequencePuzzles } from "../game/puzzle-library.js";
-import { previousLevels } from "../game/puzzle-legacy-levels.js";
+  puzzleCategories, puzzleChoice, puzzlesPerCategory, puzzlesPerLevel } from "../game/puzzle-library.js";
+import { previousLevels, previousMixedLevels } from "../game/puzzle-legacy-levels.js";
 import { LuauState } from "../game/vendor/luau-web.js";
 
 const read = path => readFile(new URL("../game/" + path, import.meta.url), "utf8");
@@ -29,11 +29,10 @@ for (const level of levels.keys()) {
     assert.equal(deck.filter(puzzle => puzzle.category === category).length, puzzlesPerCategory);
   }
 }
-const positional = puzzles.filter(puzzle => puzzle.category === "positional");
-const branching = positional.find(puzzle => puzzle.steps[0].choices.length > 1 && puzzle.alternative);
-assert(branching);
-for (const choice of branching.steps[0].choices) assert.equal(puzzleChoice(branching.steps[0], choice.move), choice);
-assert.equal(puzzleChoice(branching.steps[0], branching.alternative.move), undefined);
+assert.deepEqual(Object.keys(index).sort(), ["checkmate", "material"]);
+const step = puzzles[0].steps[0];
+assert.equal(puzzleChoice(step, step.move), step);
+assert.equal(puzzleChoice(step, { from: step.move.to, to: step.move.from }), undefined);
 const [mate, different] = puzzles.filter(puzzle => puzzle.category === "checkmate" && puzzle.line.length === 1);
 assert.notEqual(mate.id, different.id);
 for (const puzzle of puzzles) {
@@ -212,30 +211,7 @@ for _,puzzle in ipairs(puzzles) do
  end
  if puzzle.category=="checkmate" then
   assert(Chess.status(final)=="checkmate")
- elseif puzzle.category=="positional" then
-  assert(puzzle.objective and puzzle.explanation and puzzle.verification.depth>=12)
-  assert(#puzzle.steps==1 and #puzzle.steps[1].choices>0)
-  for _,choice in ipairs(puzzle.steps[1].choices) do
-   assert(choice.explanation)
-   local display=apply(state,choice.move)
-   for square,piece in pairs(display.board) do assert(choice.position.board[square]==piece) end
-   for square,piece in pairs(choice.position.board) do assert(display.board[square]==piece) end
-   assert(#choice.replies>0)
-   for _,reply in ipairs(choice.replies) do
-    assert(reply.line[1].from==reply.reply.from and reply.line[1].to==reply.reply.to)
-    local branch=display
-    for _,move in ipairs(reply.line) do branch=apply(branch,move) end
-    assert(math.abs(balance(branch,puzzle.side)-balance(state,puzzle.side))<175)
-    assert(Chess.status(branch)~="checkmate")
-   end
-  end
-  if puzzle.alternative then
-   local branch=state
-   for _,move in ipairs(puzzle.alternative.line) do branch=apply(branch,move) end
-   for _,choice in ipairs(puzzle.steps[1].choices) do
-    assert(choice.move.from~=puzzle.alternative.move.from or choice.move.to~=puzzle.alternative.move.to)
-   end
-  end
+
  else
   assert(balance(final,puzzle.side)>=100)
   local target=balance(state,puzzle.side)+puzzle.gain
@@ -269,7 +245,7 @@ const { loadPractice, puzzleProgressKey, puzzleRating, resolvePuzzle, savePracti
   await import("../game/puzzle-progress.js");
 const { isRatedPuzzle } = await import("../game/puzzle-library.js");
 
-const fresh = (rating = startingPuzzleRating) => ({ rating, rated: [], libraryProgress: {}, active: null, earnedLevel: 0 });
+const fresh = (rating = startingPuzzleRating) => ({ rating, rated: [], libraryProgress: {}, active: null, earnedLevel: 0, tacticalLibraryMigrated: true });
 const deck = levels.flatMap(([minimum], level) => Array.from({ length: puzzlesPerLevel }, (_, index) => ({
   id: `${level}-${index}`, difficulty: minimum + index, category: puzzleCategories[index % puzzleCategories.length]
 })));
@@ -330,7 +306,7 @@ assert.equal(nextPuzzleLevel(deck, seventh, 1), 1);
 
 const thirty = fresh(585);
 markThrough(thirty, 1, 29);
-assert.match(levelLock(deck, thirty, 2), /Solve all 30.*29 solved/);
+assert.match(levelLock(deck, thirty, 2), /29 of 30 solved/);
 const last = start(thirty, deck[59]);
 assert.equal(resolvePuzzle(thirty, last, "solved"), 15);
 assert.equal(thirty.rating, 600);
@@ -359,15 +335,27 @@ const newAttempt = start(returning, firstLevel.find(item => !returning.libraryPr
 resolvePuzzle(returning, newAttempt, "solved");
 assert.equal(levelProgress(puzzles, returning.libraryProgress, 0).count, 14);
 
-const mixed = fresh(230);
-const ordering = [];
-for (let n = 0; n < 3; n++) {
-  const remaining = firstLevel.filter(item => !mixed.libraryProgress[item.id]);
-  const [item] = sequencePuzzles(remaining, firstLevel, mixed);
-  ordering.push(item.category);
-  mixed.libraryProgress[item.id] = "solved";
+const oneCategory = fresh(650);
+for (const entry of levelEntries(puzzles, 0, "checkmate")) oneCategory.libraryProgress[entry.id] = "solved";
+assert.equal(levelProgress(puzzles, oneCategory.libraryProgress, 0, "checkmate").complete, true);
+assert.equal(levelProgress(puzzles, oneCategory.libraryProgress, 0, "material").count, 0);
+assert.match(levelLock(puzzles, oneCategory, 1), /15 material/);
+assert.equal(nextPuzzleLevel(puzzles, oneCategory, 0, "checkmate"), undefined);
+assert.equal(nextPuzzleLevel(puzzles, oneCategory, 0, "material"), 0);
+
+const preExpansion = fresh(850);
+delete preExpansion.tacticalLibraryMigrated;
+preExpansion.active = { id: "old", hearts: 3, step: 0, puzzle: { category: "positional", steps: [{ legal: [] }] } };
+for (const level of previousMixedLevels.slice(0, 3)) {
+  for (const id of level) preExpansion.libraryProgress[id] = "solved";
 }
-assert.equal(new Set(ordering).size, 3);
+savePractice(preExpansion);
+const migrated = loadPractice();
+assert.equal(migrated.earnedLevel, 3);
+assert.equal(migrated.rating, 850);
+assert.equal(migrated.active, null);
+assert.equal(levelLock(puzzles, migrated, 3), "");
+assert.deepEqual(migrated.libraryProgress, preExpansion.libraryProgress);
 
 const old = fresh(600);
 delete old.earnedLevel;
@@ -379,7 +367,7 @@ const upgraded = loadPractice();
 assert.equal(upgraded.rating, 600);
 assert.equal(upgraded.earnedLevel, 2);
 assert.equal(levelLock(puzzles, upgraded, 2), "");
-assert.match(levelLock(puzzles, upgraded, 3), /Solve all 30/);
+assert.match(levelLock(puzzles, upgraded, 3), /of 30 solved/);
 upgraded.rating = 599;
 savePractice(upgraded);
 assert.match(levelLock(puzzles, loadPractice(), 2), /Reach 600/);

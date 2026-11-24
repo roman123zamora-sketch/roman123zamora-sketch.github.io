@@ -14,7 +14,7 @@ export default function profile(content) {
   panel.className = "panel page";
   content.append(panel);
 
-  function history() {
+  function history(returnId) {
     closeReplay?.();
     closeReplay = undefined;
     opening = false;
@@ -31,7 +31,7 @@ export default function profile(content) {
         <div><dt>All-time pieces captured</dt><dd>${Number(data.allTimeCaptures ?? 0).toLocaleString()}</dd></div>
       </dl>
       <div class="replay-heading">
-        <h2>Game history</h2>
+        <h2 tabindex="-1">Game history</h2>
         ${hasBotHistory ? '<button type="button" data-clear-bot-history>Delete bot match history</button>' : ""}
       </div>
       <p class="help history-notice" role="status"></p>
@@ -43,12 +43,17 @@ export default function profile(content) {
       clear.disabled = true;
       action("clearBotHistory");
     });
-    if (!records.length) list.innerHTML = '<p class="inset">No games recorded.</p>';
+    if (!records.length) list.innerHTML = '<p class="empty-state">No games recorded. Finished matches will appear here.</p>';
     for (const record of records) {
       const row = document.createElement("article");
       row.className = "inset history-entry";
-      const summary = document.createElement("p");
-      summary.textContent = `${record.v === "four" ? "4-Player Chess" : "Chess"} · ${record.opp} · ${record.place ? "Placed " + record.place : record.result} · ${record.reason}`;
+      const summary = document.createElement("div");
+      summary.className = "history-summary";
+      const title = document.createElement("strong");
+      title.textContent = record.place ? `Placed ${record.place}` : record.result;
+      const detail = document.createElement("p");
+      detail.textContent = [record.v === "four" ? "4-Player Chess" : "Chess", record.opp, record.reason].filter(Boolean).join(" · ");
+      summary.append(title, detail);
       const controls = document.createElement("div");
       controls.className = "action-row";
       const remove = document.createElement("button");
@@ -90,6 +95,7 @@ export default function profile(content) {
               if (replayTools === worker) replayTools = undefined;
             }
           }
+          if (!positions.length || positions.some(position => !position?.board)) throw new Error("Replay is incomplete.");
           if (!disposed) showReplay(record, positions);
         } catch {
           opening = false;
@@ -104,7 +110,9 @@ export default function profile(content) {
       controls.append(item, remove);
       row.append(summary, controls);
       list.append(row);
+      if (returnId && returnId === record.id) item.focus({ preventScroll: true });
     }
+    if (returnId && !list.contains(document.activeElement)) panel.querySelector("h2").focus();
   }
 
   function showReplay(record, positions) {
@@ -128,7 +136,7 @@ export default function profile(content) {
         <button type="button" data-best-move>Show best move</button>
       </div>
       <p class="help best-move-status replay-best-move" role="status"></p>`;
-    panel.querySelector(".return-history").addEventListener("click", history);
+    panel.querySelector(".return-history").addEventListener("click", () => history(record.id));
     const evaluation = createEvaluationBar(panel.querySelector(".bot-eval"));
     const bestMove = createBestMoveControl(panel.querySelector("[data-best-move]"),
       panel.querySelector(".best-move-status"), draw);

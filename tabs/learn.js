@@ -100,6 +100,7 @@ export default function learn(content) {
           <div class="action-row learn-answers"></div>
           <p class="help" data-material hidden></p>
           <p class="learn-feedback" role="status">Loading the board…</p>
+          <button type="button" data-retry-lesson hidden>Retry loading board</button>
           <div class="action-row learn-next">
             <button type="button" data-previous>Previous</button>
             <button type="button" class="primary" data-next>Next lesson</button>
@@ -369,6 +370,7 @@ export default function learn(content) {
       tools.close();
       dialog.close();
     };
+    $("[data-retry-lesson]").onclick = () => openLesson(moduleIndex, lessonIndex);
     $("h1").focus();
     tools.run("courseLesson", { ...lesson.setup, attackFrom: undefined })
       .then(result => {
@@ -383,7 +385,8 @@ export default function learn(content) {
       .catch(() => {
         if (!controller.signal.aborted) {
           slot.setAttribute("aria-busy", "false");
-          report("The board could not load. Open the lesson again to retry.", "wrong");
+          report("The board couldn’t load.", "wrong");
+          $("[data-retry-lesson]").hidden = false;
         }
       });
     for (const button of answers.querySelectorAll("button")) button.disabled = true;

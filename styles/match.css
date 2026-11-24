@@ -1,6 +1,6 @@
 .match {
   display: grid;
-  grid-template-columns: minmax(15rem, 1fr) minmax(0, 2.7fr) minmax(13rem, .9fr);
+  grid-template-columns: minmax(13.5rem, 1fr) minmax(0, 2.8fr) minmax(12rem, .9fr);
   gap: var(--space);
   align-items: start;
 }
@@ -149,3 +149,9 @@
 
 .promotion-dialog[open] { animation: dialog-appear 140ms ease-out; }
 @keyframes dialog-appear { from { opacity: .65; } to { opacity: 1; } }
+
+.result-dialog h2 { color: var(--text); letter-spacing: -.02em; text-transform: none; }
+.result-dialog .action-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 7rem), 1fr)); }
+.move-list { scrollbar-gutter: stable; font-variant-numeric: tabular-nums; }
+.move-list li + li { border-block-start: 1px solid color-mix(in srgb, var(--stroke) 40%, transparent); }
+.match-notice:not(:empty) { border-inline-start: 3px solid var(--active-border); }

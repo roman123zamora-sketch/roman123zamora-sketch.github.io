@@ -172,8 +172,8 @@ node tests/learn-course-test.mjs
 
 ## Puzzles
 
-Puzzles uses a pre-verified ladder through 2500 Elo. Each level has ten
-checkmate, ten material and ten positional puzzles. Players complete the
+Puzzles uses a pre-verified ladder through 2500 Elo. Each level has fifteen
+checkmate and fifteen material puzzles. Players complete the
 lower levels and meet the next level's Elo requirement to unlock it. The
 level list shows progress and lock reasons. After a solve, the next
 eligible position opens automatically. After a loss, the same position

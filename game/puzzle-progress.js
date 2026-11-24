@@ -1,4 +1,4 @@
-import { previousLevels } from "./puzzle-legacy-levels.js";
+import { previousLevels, previousMixedLevels } from "./puzzle-legacy-levels.js";
 import { readSetting, writeSetting } from "./session.js";
 
 // This key is also the reset marker. Never replace an existing season record
@@ -22,12 +22,20 @@ export function loadPractice() {
         saved.earnedLevel = earned;
         savePractice(saved);
       }
+      if (!saved.tacticalLibraryMigrated) {
+        let earned = 0;
+        while (previousMixedLevels[earned]?.every(id => saved.libraryProgress[id] === "solved")) earned++;
+        saved.earnedLevel = Math.max(earned, saved.earnedLevel);
+        if (saved.active?.puzzle.category === "positional") saved.active = null;
+        saved.tacticalLibraryMigrated = true;
+        savePractice(saved);
+      }
       return saved;
     }
   } catch {
     // Begin with a fresh record if the saved record cannot be read.
   }
-  const practice = { rating: startingPuzzleRating, rated: [], libraryProgress: {}, active: null, earnedLevel: 0 };
+  const practice = { rating: startingPuzzleRating, rated: [], libraryProgress: {}, active: null, earnedLevel: 0, tacticalLibraryMigrated: true };
   savePractice(practice);
   return practice;
 }

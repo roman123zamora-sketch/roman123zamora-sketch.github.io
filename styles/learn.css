@@ -87,3 +87,8 @@
 @media (max-width: 22rem) {
   .learn { padding-inline: .8rem; }
 }
+
+.learn-summary { padding: .8rem 1rem; border: 1px solid var(--stroke); border-radius: var(--radius); background: var(--recess); }
+.learn-summary [data-continue] { margin-inline-start: auto; }
+.learn-module-grid .lesson-piece h2 { letter-spacing: -.01em; line-height: 1.3; }
+.learn-feedback[data-outcome="correct"] { color: var(--good-text); box-shadow: inset 3px 0 var(--good-text); }

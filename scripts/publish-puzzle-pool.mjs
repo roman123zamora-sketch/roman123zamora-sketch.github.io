@@ -28,7 +28,7 @@ const selected = levels.flatMap((level, band) => {
   return puzzles;
 });
 if (selected.length !== levels.length * puzzlesPerLevel) {
-  throw new Error("Every band needs ten verified puzzles of each category before publication");
+  throw new Error(`Each category needs ${puzzlesPerCategory} verified puzzles in every band`);
 }
 
 const index = {};
