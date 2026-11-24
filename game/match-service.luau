@@ -18,6 +18,7 @@ local storeOk,store=pcall(function() return DataStoreService:GetDataStore("Exalt
 if storeOk then Profiles=store else warn("[ExaltedChess] DataStore unavailable, profiles will not persist: "..tostring(store)) end
 local matches,playerMatch,lastMatchId={},{},{}
 local queue,queueFour,queueControls={},{},{}
+local inviteRooms, playerRoom = {}, {}
 local challengeOffers={}; local challengeGroups={}; local challengeInvite={}
 local profileCache={}
 local defaultProfile={chessElo=1000,fourElo=1000,leaguePoints=0,allTimeCaptures=0,history={},equippedBoard="classic"}
@@ -110,7 +111,7 @@ local function pair(m,recipient,terminal)
  end
  state.terminal=terminal or state.status=="checkmate" or state.status=="stalemate" or state.status=="draw"
  for _,p in ipairs(recipient and {recipient} or m.players) do
-  if not (m.resultsSent and m.resultsSent[p.UserId]) then send(p,"state",{matchId=m.id,revision=m.revision,mode=m.mode,variant=fourMode(m) and "four" or "chess",level=m.botRating,botRatings=m.botRatings,ratings=ratings,clocks=m.clocks,increment=m.increment,turnStarted=m.turnStarted,serverTime=workspace:GetServerTimeNow(),side=m.sides[p.UserId],players=players,state=state,opponent=m.mode=="bot" and "Exalted Bot" or "Opponent"}) end
+  if not (m.resultsSent and m.resultsSent[p.UserId]) then send(p,"state",{matchId=m.id,revision=m.revision,mode=m.mode,variant=fourMode(m) and "four" or "chess",level=m.botRating,botRatings=m.botRatings,ratings=ratings,clocks=m.clocks,baseSeconds=m.rematchControl and m.rematchControl.baseSeconds,increment=m.increment,turnStarted=m.turnStarted,serverTime=workspace:GetServerTimeNow(),side=m.sides[p.UserId],players=players,state=state,opponent=m.mode=="bot" and "Exalted Bot" or "Opponent"}) end
  end
  return state
 end
@@ -202,11 +203,16 @@ end
 local function clearQueue(p,q)
  for i=#q,1,-1 do if q[i]==p then table.remove(q,i) end end
 end
+local function timeControl(data)
+ local input=type(data)=="table" and data or {}
+ return {baseSeconds=math.clamp(tonumber(input.baseSeconds) or 180,60,900),
+  increment=math.clamp(tonumber(input.increment) or 0,0,10)}
+end
 local function newMatch(players,mode,setting)
  local occupied={}
  for _,p in ipairs(players) do
   local existing=matches[playerMatch[p.UserId]]
-  if occupied[p.UserId] or (existing and not existing.over) then
+  if occupied[p.UserId] or playerRoom[p.UserId] or (existing and not existing.over) then
    for _,member in ipairs(players) do send(member,"reject",{reason="A player is already in a match."}) end
    return
   end
@@ -229,21 +235,55 @@ local function newMatch(players,mode,setting)
   for i=#colors,2,-1 do local j=math.random(i); colors[i],colors[j]=colors[j],colors[i] end
   for i,p in ipairs(players) do sides[p.UserId]=colors[i] end
  end
- local m={id=id,players=players,mode=mode,sides=sides,resultsSent={},state=(mode=="fourBot" or mode=="fourOnline") and Four.initial() or Chess.initial(),snapshots={},humanTurns={},over=false,botGeneration=0,botRating=setting,botRatings={},firstWindow={},abortedSides={}}
- if mode=="online" then
-  local control=type(setting)=="table" and setting or {}; local base=math.clamp(tonumber(control.baseSeconds) or 180,60,900); local increment=math.clamp(tonumber(control.increment) or 0,0,10)
-  m.clocks={w=base,b=base}; m.increment=increment; m.turnStarted=workspace:GetServerTimeNow()+20; m.rematchControl={baseSeconds=base,increment=increment}
- end
- if mode=="fourOnline" then
-  local control=type(setting)=="table" and setting or {}; local base=math.clamp(tonumber(control.baseSeconds) or 180,60,900); local increment=math.clamp(tonumber(control.increment) or 0,0,10)
-  m.clocks={R=base,B=base,Y=base,G=base}; m.increment=increment; m.turnStarted=workspace:GetServerTimeNow()+20; m.rematchControl={baseSeconds=base,increment=increment}
+ local m={id=id,players=players,mode=mode,sides=sides,resultsSent={},state=(mode=="fourBot" or mode=="fourOnline") and Four.initial() or Chess.initial(),snapshots={},humanTurns={},over=false,botGeneration=0,botRating=setting,botRatings={},abortedSides={}}
+ if mode=="online" or mode=="fourOnline" then
+  local control=timeControl(setting)
+  control.private=type(setting)=="table" and setting.private==true
+  local base=control.baseSeconds
+  m.clocks=mode=="fourOnline" and {R=base,B=base,Y=base,G=base} or {w=base,b=base}
+  m.clockSide=m.state.turn
+  m.increment=control.increment
+  m.turnStarted=workspace:GetServerTimeNow()
+  if not control.private then m.firstDeadline=m.turnStarted+20 end
+  m.rematchControl=control
  end
  if mode=="fourBot" then local requested=setting or {}; for _,c in ipairs({"B","Y","G"}) do m.botRatings[c]=Bot.clampRating(requested[c]) end end
  matches[id]=m; for _,p in ipairs(players) do playerMatch[p.UserId]=id end; pair(m); return m
 end
+local function showInvite(room, recipient)
+ for _,member in ipairs(room.players) do
+  if not recipient or member==recipient then
+   send(member,"inviteRoom",{code=room.code,variant=room.mode=="fourOnline" and "four" or "chess",
+    count=#room.players,needed=room.needed,baseSeconds=room.control.baseSeconds,increment=room.control.increment,
+    host=member==room.players[1]})
+  end
+ end
+end
+
+local function closeInvite(room, reason)
+ inviteRooms[room.code]=nil
+ for _,member in ipairs(room.players) do
+  playerRoom[member.UserId]=nil
+  if reason then send(member,"inviteClosed",{reason=reason}) end
+ end
+end
+
+local function leaveInvite(player)
+ local room=playerRoom[player.UserId]
+ if not room then return end
+ if room.players[1]==player then closeInvite(room,"The host closed the challenge."); return end
+ for index,member in ipairs(room.players) do
+  if member==player then table.remove(room.players,index); break end
+ end
+ playerRoom[player.UserId]=nil
+ send(player,"inviteClosed",{})
+ showInvite(room)
+end
+
 local function snapshot(m) table.insert(m.snapshots,fourMode(m) and copy(m.state) or m.state) end
 local function normalizeFour(m)
  local state=m.state
+ local previousTurn=state.turn
  -- A captured king eliminates its side.
  for _,c in ipairs(Four.colors) do
   if not state.eliminated[c] then
@@ -264,6 +304,11 @@ local function normalizeFour(m)
     playFart(m)
    end
   end
+ end
+ if m.clocks and (state.turn~=previousTurn or previousTurn~=m.clockSide) then
+  m.turnStarted=workspace:GetServerTimeNow()
+  m.clockSide=state.turn
+  m.firstDeadline=nil
  end
  local alive={}; for _,c in ipairs(Four.colors) do if not state.eliminated[c] then table.insert(alive,c) end end
  if #alive<=1 then
@@ -293,10 +338,12 @@ end
 local function abortMatch(m,side)
  if m.over then return end
  m.over=true; m.botGeneration+=1
+ local turn=m.state.turn
+ m.clocks[turn]=math.max(0,m.clocks[turn]-math.max(0,workspace:GetServerTimeNow()-m.turnStarted))
  for _,p in ipairs(m.players) do
  if not m.resultsSent[p.UserId] then
  local mine=m.sides[p.UserId]==side
- send(p,"result",{matchId=m.id,result="aborted",reason=mine and "You aborted" or "Opponent aborted",final=true})
+ send(p,"result",{matchId=m.id,result="aborted",reason=mine and "You aborted" or "Opponent aborted",clocks=m.clocks,final=true})
  m.resultsSent[p.UserId]=true; playerMatch[p.UserId]=nil; lastMatchId[p.UserId]=m.id
  end
  end
@@ -305,7 +352,7 @@ end
 local function abortFour(m,side)
  if m.over or m.state.eliminated[side] then return end
  m.state.eliminated[side]=true; m.state.eliminationReason[side]="Aborted"; table.insert(m.state.eliminationOrder,side)
- m.abortedSides[side]=true; m.firstWindow[side]=nil
+ m.abortedSides[side]=true;
  if m.state.turn==side then m.state.turn=Four.nextColor(side) end
  playFart(m)
  for _,p in ipairs(m.players) do
@@ -410,27 +457,28 @@ local function requestMove(p,data)
   local now=workspace:GetServerTimeNow(); local elapsed=math.max(0,now-m.turnStarted); local remaining=m.clocks[side]-elapsed
   if remaining<=0 then
    if m.mode=="fourOnline" then
-    m.state.eliminated[side]=true; m.state.eliminationReason[side]="Timeout"; table.insert(m.state.eliminationOrder,side); m.state.turn=Four.nextColor(side)
+    m.clocks[side]=0; m.state.eliminated[side]=true; m.state.eliminationReason[side]="Timeout"; table.insert(m.state.eliminationOrder,side); m.state.turn=Four.nextColor(side)
     m.resultsSent[p.UserId]=true; playerMatch[p.UserId]=nil; send(p,"result",{matchId=m.id,result="loss",reason="Timeout",review=fourReview(m)})
     normalizeFour(m); pair(m)
    else finish(m,side=="w" and "b" or "w","Timeout") end
    return
   end
-  m.clocks[side]=remaining+m.increment; m.turnStarted=now+(m.mode=="fourOnline" and 3 or 0)
+  m.clocks[side]=remaining+m.increment; m.turnStarted=now; m.firstDeadline=nil
  end
  if m.mode=="bot" or m.mode=="fourBot" then table.insert(m.humanTurns,#m.snapshots+1) end
  local capturedTarget=m.state.board[to]~=nil or chosen.special=="enpassant"
  snapshot(m); m.botGeneration+=1; m.state=engine.apply(m.state,chosen)
+ if m.clocks then m.clockSide=m.state.turn end
  if capturedTarget then
   local profile=getProfile(p)
   profile.allTimeCaptures+=1
   saveProfile(p); send(p,"profile",profileView(p))
  end
  if fourMode(m) and normalizeFour(m) then return end
- m.firstWindow[side]=nil
+
  if not m.over and m.clocks and (m.mode=="online" or m.mode=="fourOnline") then
   local nextSide=m.state.turn
-  if not (m.state.eliminated and m.state.eliminated[nextSide]) and not hasMoved(m,nextSide) then m.firstWindow[nextSide]=true; m.turnStarted=workspace:GetServerTimeNow()+20 end
+  if not (m.state.eliminated and m.state.eliminated[nextSide]) and not hasMoved(m,nextSide) and not m.rematchControl.private then m.firstDeadline=m.turnStarted+20 end
  end
  if fourMode(m) then pair(m) else publish(m) end
  if m.mode=="bot" and not m.over and m.state.turn=="b" then m.botGeneration+=1; task.spawn(runChessBot,m,m.botGeneration)
@@ -453,8 +501,10 @@ local function makeQueueMatch(p,q,mode,count)
   return previous and previous.sides[second.UserId]~=nil
  end
  local group={p}
+ local requested=queueControls[p.UserId]
  for _,other in ipairs(q) do
-  if other~=p then
+  local settings=queueControls[other.UserId]
+  if other~=p and settings.baseSeconds==requested.baseSeconds and settings.increment==requested.increment then
    local compatible=true
    for _,member in ipairs(group) do
     if excludes(member,other) or excludes(other,member) then compatible=false; break end
@@ -479,6 +529,10 @@ local function makeQueueMatch(p,q,mode,count)
  else send(p,"queued",{players=#group,needed=count}) end
 end
 Action.OnServerEvent:Connect(function(p,kind,data)
+ if playerRoom[p.UserId] and (kind=="bot" or kind=="fourBot" or kind=="queue" or kind=="queueFour"
+  or kind=="challenge" or kind=="challengeRespond" or kind=="rematch" or kind=="rematchRespond") then
+  send(p,"reject",{reason="Leave your challenge before starting another match."}); return
+ end
  if kind=="profile" then send(p,"profile",profileView(p))
  elseif kind=="deleteHistoryMatch" then
   local profile=getProfile(p)
@@ -505,6 +559,7 @@ Action.OnServerEvent:Connect(function(p,kind,data)
   send(p,"profile",profileView(p))
   local m=matches[playerMatch[p.UserId]]
   if m and not m.over then pair(m,p) end
+  if playerRoom[p.UserId] then showInvite(playerRoom[p.UserId],p) end
  elseif kind=="equipBoard" then
   local id=type(data)=="table" and data.id or nil
   if type(id)~="string" or (id~="" and not Themes.exists(id)) then return end
@@ -521,27 +576,59 @@ Action.OnServerEvent:Connect(function(p,kind,data)
   newMatch({p},kind,settings)
  elseif kind=="queue" then
   if playerMatch[p.UserId] or isQueued(p,queue) or isQueued(p,queueFour) then return end
-  queueControls[p.UserId]=type(data)=="table" and {baseSeconds=tonumber(data.baseSeconds),increment=tonumber(data.increment),
-   exclude=data.newOpponent==true and matches[lastMatchId[p.UserId]] or nil} or {baseSeconds=180,increment=0}
+  queueControls[p.UserId]=timeControl(data)
+  if type(data)=="table" and data.newOpponent==true then queueControls[p.UserId].exclude=matches[lastMatchId[p.UserId]] end
   makeQueueMatch(p,queue,"online",2)
  elseif kind=="queueFour" then
   if playerMatch[p.UserId] or isQueued(p,queue) or isQueued(p,queueFour) then return end
-  queueControls[p.UserId]=type(data)=="table" and {baseSeconds=tonumber(data.baseSeconds),increment=tonumber(data.increment),
-   exclude=data.newOpponent==true and matches[lastMatchId[p.UserId]] or nil} or {baseSeconds=180,increment=0}
+  queueControls[p.UserId]=timeControl(data)
+  if type(data)=="table" and data.newOpponent==true then queueControls[p.UserId].exclude=matches[lastMatchId[p.UserId]] end
   makeQueueMatch(p,queueFour,"fourOnline",4)
+ elseif kind=="createInvite" or kind=="joinInvite" then
+  if playerMatch[p.UserId] then send(p,"reject",{reason="Leave the current match before joining a challenge."}); return end
+  if type(data)~="table" or type(data.code)~="string" or #data.code~=36 then
+   send(p,"reject",{reason="This challenge link is invalid."}); return
+  end
+  local current=playerRoom[p.UserId]
+  if current then
+   if kind=="createInvite" or current.code==data.code then showInvite(current,p)
+   else send(p,"reject",{reason="Leave your current challenge first."}) end
+   return
+  end
+  local room
+  if kind=="createInvite" then
+   if inviteRooms[data.code] then return end
+   room={code=data.code,mode=data.four and "fourOnline" or "online",needed=data.four and 4 or 2,players={},
+    expires=workspace:GetServerTimeNow()+1800,control=timeControl(data)}
+   room.control.private=true
+   inviteRooms[data.code]=room
+  else
+   room=inviteRooms[data.code]
+   if not room or room.expires<=workspace:GetServerTimeNow() then
+    send(p,"reject",{reason="This challenge is full, closed, or expired."}); return
+   end
+  end
+  clearQueue(p,queue); clearQueue(p,queueFour); queueControls[p.UserId]=nil
+  table.insert(room.players,p); playerRoom[p.UserId]=room
+  if #room.players==room.needed then
+   closeInvite(room)
+   newMatch(room.players,room.mode,room.control)
+  else showInvite(room) end
+ elseif kind=="leaveInvite" then
+  leaveInvite(p)
  elseif kind=="challenge" then
   if playerMatch[p.UserId] or type(data)~="table" then return end
-  local control={baseSeconds=math.clamp(tonumber(data.baseSeconds) or 180,60,900),increment=math.clamp(tonumber(data.increment) or 0,0,10)}
+  local control=timeControl(data)
   if data.userId then
    local target=Players:GetPlayerByUserId(tonumber(data.userId) or 0) or _G.EXMocks and _G.EXMocks[tonumber(data.userId) or 0]
-   if not target or target==p or playerMatch[target.UserId] or challengeOffers[target.UserId] or challengeInvite[target.UserId] then send(p,"challengeDeclined",{}) return end
+   if not target or target==p or playerRoom[target.UserId] or playerMatch[target.UserId] or challengeOffers[target.UserId] or challengeInvite[target.UserId] then send(p,"challengeDeclined",{}) return end
    challengeOffers[target.UserId]={from=p,control=control}
    send(target,"challengeOffer",{name=p.DisplayName or p.Name,mode="online"})
   elseif type(data.userIds)=="table" then
    local targets={}
    for _,id in ipairs(data.userIds) do
     local o=Players:GetPlayerByUserId(tonumber(id) or 0)
-    if o and o~=p and not playerMatch[o.UserId] and not challengeOffers[o.UserId] and not challengeInvite[o.UserId] then table.insert(targets,o) end
+    if o and o~=p and not playerRoom[o.UserId] and not playerMatch[o.UserId] and not challengeOffers[o.UserId] and not challengeInvite[o.UserId] then table.insert(targets,o) end
    end
    if #targets==0 then send(p,"challengeDeclined",{}) return end
    local gid=HttpService:GenerateGUID(false)
@@ -611,7 +698,7 @@ Action.OnServerEvent:Connect(function(p,kind,data)
    elseif m.mode=="fourOnline" then
     if not m.over and not hasMoved(m,side) then abortFour(m,side)
     else
-     m.state.eliminated[side]=true; m.state.eliminationReason[side]="Resignation"; table.insert(m.state.eliminationOrder,side); if m.state.turn==side then m.state.turn=Four.nextColor(side) end; m.firstWindow[side]=nil; playFart(m); m.resultsSent[p.UserId]=true; playerMatch[p.UserId]=nil; send(p,"result",{matchId=m.id,result="loss",reason="Resignation",review=fourReview(m)}); normalizeFour(m); pair(m)
+     m.state.eliminated[side]=true; m.state.eliminationReason[side]="Resignation"; table.insert(m.state.eliminationOrder,side); if m.state.turn==side then m.state.turn=Four.nextColor(side) end; playFart(m); m.resultsSent[p.UserId]=true; playerMatch[p.UserId]=nil; send(p,"result",{matchId=m.id,result="loss",reason="Resignation",review=fourReview(m)}); normalizeFour(m); pair(m)
     end
    elseif m.mode=="online" and not m.over and not hasMoved(m,side) then abortMatch(m,side)
    elseif m.mode=="fourBot" then
@@ -640,7 +727,7 @@ Action.OnServerEvent:Connect(function(p,kind,data)
    finish(m,winner,"Opponent left")
   elseif m.mode=="fourOnline" then
    if m.over or (m.state.eliminated and m.state.eliminated[side]) then m.resultsSent[p.UserId]=true; playerMatch[p.UserId]=nil; return end
-   m.state.eliminated[side]=true; m.state.eliminationReason[side]="Left"; table.insert(m.state.eliminationOrder,side); m.firstWindow[side]=nil
+   m.state.eliminated[side]=true; m.state.eliminationReason[side]="Left"; table.insert(m.state.eliminationOrder,side)
    if m.state.turn==side then m.state.turn=Four.nextColor(side) end
    playFart(m)
    m.resultsSent[p.UserId]=true; playerMatch[p.UserId]=nil
@@ -734,6 +821,7 @@ Action.OnServerEvent:Connect(function(p,kind,data)
 end)
 Players.PlayerAdded:Connect(function(p) task.spawn(function() send(p,"profile",profileView(p)) end) end)
 Players.PlayerRemoving:Connect(function(p)
+ leaveInvite(p)
  clearQueue(p,queue); clearQueue(p,queueFour); queueControls[p.UserId]=nil
  for tid,offer in pairs(challengeOffers) do if offer.from==p then challengeOffers[tid]=nil; local t=Players:GetPlayerByUserId(tid); if t then send(t,"challengeDeclined",{}) end end end
  challengeOffers[p.UserId]=nil
@@ -755,31 +843,30 @@ Players.PlayerRemoving:Connect(function(p)
  if m and not m.over and m.mode=="online" then
   local winner; for _,other in ipairs(m.players) do if other~=p then winner=m.sides[other.UserId] end end; finish(m,winner,"Opponent disconnected")
  elseif m and not m.over and m.mode=="fourOnline" then
-  local side=m.sides[p.UserId]; m.state.eliminated[side]=true; m.state.eliminationReason[side]="Resignation"; table.insert(m.state.eliminationOrder,side); m.firstWindow[side]=nil; if m.state.turn==side then m.state.turn=Four.nextColor(side) end; playFart(m); playerMatch[p.UserId]=nil; m.resultsSent[p.UserId]=true; normalizeFour(m); pair(m)
+  local side=m.sides[p.UserId]; m.state.eliminated[side]=true; m.state.eliminationReason[side]="Resignation"; table.insert(m.state.eliminationOrder,side); if m.state.turn==side then m.state.turn=Four.nextColor(side) end; playFart(m); playerMatch[p.UserId]=nil; m.resultsSent[p.UserId]=true; normalizeFour(m); pair(m)
  end
  saveProfile(p); profileCache[tostring(p.UserId)]=nil
 end)
--- Clock heartbeat: enforces timeouts for timed matches. Four-player turns get a 3-second grace period
--- before their clock starts (turnStarted is set 3 seconds in the future, so elapsed stays 0 during grace).
+-- Enforce timeouts and expire abandoned challenge links.
 task.spawn(function()
  while true do
   task.wait(1)
   local now=workspace:GetServerTimeNow()
+  for _,room in pairs(inviteRooms) do
+   if now>=room.expires then closeInvite(room,"This challenge link expired.") end
+  end
   for _,m in pairs(matches) do
    if not m.over and m.clocks and m.turnStarted then
     local side=m.state.turn
-    if (m.mode=="online" or m.mode=="fourOnline") and not hasMoved(m,side) then
-     if not m.firstWindow[side] then m.firstWindow[side]=true; if m.turnStarted<=now then m.turnStarted=now+20 end end
-     if now>=m.turnStarted then
-      if m.mode=="online" then abortMatch(m,side) else abortFour(m,side) end
-      continue
-     end
+    if m.firstDeadline and now>=m.firstDeadline then
+     if m.mode=="online" then abortMatch(m,side) else abortFour(m,side) end
+     continue
     end
     if m.clocks[side] and math.max(0,now-m.turnStarted)>=m.clocks[side] then
      if m.mode=="online" then
       finish(m,side=="w" and "b" or "w","Timeout")
      elseif m.mode=="fourOnline" then
-      m.state.eliminated[side]=true; m.state.eliminationReason[side]="Timeout"; table.insert(m.state.eliminationOrder,side); m.state.turn=Four.nextColor(side)
+      m.clocks[side]=0; m.state.eliminated[side]=true; m.state.eliminationReason[side]="Timeout"; table.insert(m.state.eliminationOrder,side); m.state.turn=Four.nextColor(side)
       for _,p in ipairs(m.players) do
        if m.sides[p.UserId]==side and not m.resultsSent[p.UserId] then m.resultsSent[p.UserId]=true; playerMatch[p.UserId]=nil; send(p,"result",{matchId=m.id,result="loss",reason="Timeout",review=fourReview(m)}) end
       end

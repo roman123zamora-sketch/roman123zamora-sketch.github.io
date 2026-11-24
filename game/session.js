@@ -36,6 +36,7 @@ export const session = {
   movePending: false,
   notice: "",
   queue: null,
+  invite: null,
   offer: null,
   players: [],
   network: false
@@ -90,6 +91,7 @@ function receive({ kind, data, requestId }) {
       playSound(data.state.status === "check" ? "check" : moves.at(-1)?.captured ? "capture" : "move");
     }
     session.match = data;
+    session.invite = null;
     session.notice = "";
     session.queue = null;
     session.offer = null;
@@ -98,6 +100,17 @@ function receive({ kind, data, requestId }) {
     session.movePending = false;
     session.result = data;
     playSound(data.result === "win" ? "win" : "end");
+  }
+  if (kind === "inviteRoom") {
+    if (session.result) clearMatch();
+    session.invite = data;
+    session.queue = null;
+    session.offer = null;
+    session.notice = "";
+  }
+  if (kind === "inviteClosed") {
+    session.invite = null;
+    session.notice = data.reason ?? "";
   }
   if (kind === "queued" || kind === "challengeWait") session.queue = data;
   if (kind === "queueCancelled" || kind === "challengeDeclined") session.queue = null;
@@ -175,6 +188,7 @@ async function poll() {
         reconnecting = false;
         session.queue = null;
         session.offer = null;
+        session.invite = null;
         session.notice = session.match ? "The previous match ended while you were disconnected." : "";
         clearMatch();
       } catch {

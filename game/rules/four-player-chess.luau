@@ -23,6 +23,11 @@ local function sq(file,rank)
  local column=squares[file]
  return column and column[rank]
 end
+-- Each pair follows the back rank from its low coordinate to its high coordinate.
+local castleHomes={
+ R={king="h1",rooks={"d1","k1"}}, B={king="a8",rooks={"a4","a11"}},
+ Y={king="g14",rooks={"d14","k14"}}, G={king="n7",rooks={"n4","n11"}},
+}
 local function nextColor(color)
  for i,c in ipairs(E.colors) do if c==color then return E.colors[i%4+1] end end
  return "R"
@@ -39,7 +44,7 @@ function E.initial()
   local y=i+3; b[sq(1,y)]="B"..standard[i]; b[sq(2,y)]="BP"
   b[sq(14,y)]="G"..mirrored[i]; b[sq(13,y)]="GP"
  end
- return {board=b,turn="R",eliminated={},eliminationReason={},eliminationOrder={},history={},lastMove=nil,fullmove=1,scores={R=0,B=0,Y=0,G=0}}
+ return {board=b,castling={d1=true,k1=true,a4=true,a11=true,d14=true,k14=true,n4=true,n11=true},turn="R",eliminated={},eliminationReason={},eliminationOrder={},history={},lastMove=nil,fullmove=1,scores={R=0,B=0,Y=0,G=0}}
 end
 local function isAttacked(board,target,by)
  local tx,ty=xy(target); if not tx then return false end
@@ -75,6 +80,35 @@ function E.inCheck(state,color)
  for _,other in ipairs(E.colors) do if other~=color and not state.eliminated[other] and isAttacked(state.board,king,other) then return true end end
  return false
 end
+local function addCastles(state, from, color, moves)
+ local home=castleHomes[color]
+ if from~=home.king or not state.castling then return end
+ if not state.castling[home.rooks[1]] and not state.castling[home.rooks[2]] then return end
+ if E.inCheck(state,color) then return end
+ local x,y=xy(from)
+ for _,rookFrom in ipairs(home.rooks) do
+  if not state.castling[rookFrom] or state.board[rookFrom]~=color.."R" then continue end
+  local rx,ry=xy(rookFrom)
+  local dx=math.sign(rx-x)
+  local dy=math.sign(ry-y)
+  local clear=true
+  local cx,cy=x+dx,y+dy
+  while cx~=rx or cy~=ry do
+   if state.board[sq(cx,cy)] then clear=false; break end
+   cx+=dx; cy+=dy
+  end
+  if not clear then continue end
+  local transit=sq(x+dx,y+dy)
+  local probe=table.clone(state)
+  probe.board=table.clone(state.board)
+  probe.board[from]=nil
+  probe.board[transit]=color.."K"
+  if not E.inCheck(probe,color) then
+   table.insert(moves,{from=from,to=sq(x+2*dx,y+2*dy),special="castle",rookFrom=rookFrom,rookTo=transit})
+  end
+ end
+end
+
 local function pseudo(state,from)
  local p=state.board[from]; if not p then return {} end
  local color,typ=string.sub(p,1,1),string.sub(p,2,2); local x,y=xy(from); local out={}
@@ -107,6 +141,7 @@ local function pseudo(state,from)
    end
   end
  end
+ if typ=="K" then addCastles(state,from,color,out) end
  return out
 end
 -- Search and king-safety probes need no history, score, or result allocations.
@@ -118,6 +153,23 @@ function E.searchApply(state,move)
  local color=string.sub(piece,1,1)
  child.board[move.from]=nil
  child.board[move.to]=color..(move.promotion or string.sub(piece,2,2))
+ if move.special=="castle" then
+  child.board[move.rookFrom]=nil
+  child.board[move.rookTo]=color.."R"
+ end
+ local rights=state.castling
+ if rights then
+  local home=castleHomes[color]
+  local kingMoved=move.from==home.king and piece==color.."K"
+  if rights[move.from] or rights[move.to] or (kingMoved and (rights[home.rooks[1]] or rights[home.rooks[2]])) then
+   child.castling=table.clone(rights)
+   child.castling[move.from]=nil
+   child.castling[move.to]=nil
+   if kingMoved then
+    for _,rookHome in ipairs(home.rooks) do child.castling[rookHome]=nil end
+   end
+  end
+ end
  child.turn=nextColor(color)
  return child
 end
@@ -128,7 +180,7 @@ function E.apply(state,move)
  local color=string.sub(state.board[move.from],1,1)
  local captured=state.board[move.to]
  local grey=captured and state.eliminated[string.sub(captured,1,1)]
- local entry={from=move.from,to=move.to,color=color,captured=captured,promotion=move.promotion}
+ local entry={from=move.from,to=move.to,color=color,captured=captured,promotion=move.promotion,special=move.special}
  if grey then entry.grey=true end
  nextState.history=table.clone(state.history)
  table.insert(nextState.history,entry)
@@ -140,7 +192,7 @@ function E.apply(state,move)
  nextState.eliminated=table.clone(state.eliminated)
  nextState.eliminationReason=table.clone(state.eliminationReason or {})
  nextState.eliminationOrder=table.clone(state.eliminationOrder or {})
- nextState.lastMove={from=move.from,to=move.to,color=color}
+ nextState.lastMove={from=move.from,to=move.to,color=color,special=move.special}
  if color=="G" then nextState.fullmove+=1 end
  return nextState
 end
@@ -161,6 +213,6 @@ function E.allLegal(state,color)
  return out
 end
 function E.public(state)
- return {board=state.board,turn=state.turn,eliminated=state.eliminated,eliminationReason=state.eliminationReason,eliminationOrder=state.eliminationOrder,history=state.history,lastMove=state.lastMove,fullmove=state.fullmove,scores=state.scores}
+ return {board=state.board,castling=state.castling,turn=state.turn,eliminated=state.eliminated,eliminationReason=state.eliminationReason,eliminationOrder=state.eliminationOrder,history=state.history,lastMove=state.lastMove,fullmove=state.fullmove,scores=state.scores}
 end
 return E

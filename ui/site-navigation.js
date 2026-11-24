@@ -1,5 +1,5 @@
 import { applyEquippedTheme } from "./board-themes.js";
-import { connect, soundEnabled, toggleSound, unlockSound, playSound, session, subscribe } from "../game/session.js";
+import { action, connect, soundEnabled, toggleSound, unlockSound, playSound, session, subscribe } from "../game/session.js";
 import chess from "../tabs/chess.js";
 import fourPlayerChess from "../tabs/four-player-chess.js";
 import inventory from "../tabs/inventory.js";
@@ -100,10 +100,29 @@ document.addEventListener("click", event => {
 let previousMatch;
 subscribe((kind, match) => {
   if (kind === "profile" || kind === "catalog") applyEquippedTheme();
+  if (kind === "inviteRoom") {
+    const page = match.variant === "four" ? "#4-player-chess" : "#chess";
+    if ((location.hash || "#chess") !== page) location.hash = page;
+  }
   if (kind !== "state" || match.matchId === previousMatch) return;
   previousMatch = match.matchId;
   if (location.hash === "#puzzles" || (!session.network && !["", "#chess", "#4-player-chess"].includes(location.hash))) return;
   const page = match.variant === "four" ? "#4-player-chess" : "#chess";
   if ((location.hash || "#chess") !== page) location.hash = page;
 });
-connect();
+const inviteUrl = new URL(location.href);
+const inviteCode = inviteUrl.searchParams.get("invite");
+await connect();
+if (inviteCode !== null && session.network) {
+  action("joinInvite", { code: inviteCode });
+  const stopWatching = subscribe(kind => {
+    if (!["inviteRoom", "state", "reject"].includes(kind)) return;
+    stopWatching();
+    const current = new URL(location.href);
+    current.searchParams.delete("invite");
+    history.replaceState(history.state, "", current);
+  });
+} else if (inviteCode !== null) {
+  const notice = content.querySelector(".match-notice");
+  if (notice) notice.textContent = "The match server is unavailable. Refresh to try this challenge link again.";
+}

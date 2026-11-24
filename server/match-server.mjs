@@ -12,7 +12,7 @@ const publicOrigin = process.env.EXALTED_SITE_ORIGIN;
 const files = /^(?:index\.html|assets\/[a-z0-9-]+\.svg|styles\/[a-z0-9-]+\.css|(?:ui|tabs)\/[a-z0-9-]+\.js|game\/(?:[a-z0-9-]+\.(?:js|luau)|(?:rules|engine)\/[a-z0-9-]+\.luau|vendor\/(?:luau-web\.js|lib\/[a-z0-9-]+\.js)))$/;
 const actions = new Set([
   "profile", "clearBotHistory", "deleteHistoryMatch", "equipBoard", "bot", "fourBot", "queue", "queueFour", "challenge",
-  "challengeRespond", "move", "claimDraw", "reset", "legal", "undo", "resign", "abort", "leave", "cancelQueue",
+  "challengeRespond", "createInvite", "joinInvite", "leaveInvite", "move", "claimDraw", "reset", "legal", "undo", "resign", "abort", "leave", "cancelQueue",
   "rematch", "rematchRespond", "rematchCancel"
 ]);
 const types = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml" };
@@ -83,7 +83,11 @@ function respond(response, code, body) {
 function selectData(kind, data) {
   const input = data && typeof data === "object" ? data : {};
   const address = value => typeof value === "string" && /^[a-n](?:[1-9]|1[0-4])$/.test(value) ? value : undefined;
-  const rating = value => Number.isFinite(value) ? Math.max(400, Math.min(3000, value)) : 1000;
+  const rating = value => {
+    if (value === "Max") return value;
+    const parsed = typeof value === "string" && /^\d{3,4}$/.test(value) ? Number(value) : value;
+    return Number.isFinite(parsed) ? Math.max(200, Math.min(3000, parsed)) : 1000;
+  };
   const number = value => Number.isSafeInteger(value) ? value : undefined;
   const context = {
     matchId: typeof input.matchId === "string" ? input.matchId.slice(0, 64) : undefined,
@@ -100,6 +104,10 @@ function selectData(kind, data) {
     case "fourBot": return { ratings: { B: rating(input.ratings?.B), Y: rating(input.ratings?.Y), G: rating(input.ratings?.G) } };
     case "deleteHistoryMatch": case "equipBoard": return { id: typeof input.id === "string" ? input.id.slice(0, 48) : undefined };
     case "queue": case "queueFour": return { ...timer, newOpponent: input.newOpponent === true };
+    case "createInvite": return { ...timer, four: input.four === true, code: randomUUID() };
+    case "joinInvite": return {
+      code: typeof input.code === "string" && /^[a-f0-9-]{36}$/.test(input.code) ? input.code : ""
+    };
     case "challenge": return { ...timer, userId: number(input.userId), userIds: Array.isArray(input.userIds) ? [...new Set(input.userIds.slice(0, 3).map(number).filter(Boolean))] : undefined };
     case "challengeRespond": case "rematchRespond": return { accept: input.accept === true };
     default: return undefined;

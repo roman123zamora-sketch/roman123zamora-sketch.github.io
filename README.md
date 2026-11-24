@@ -119,6 +119,12 @@ session. After 30 seconds of inactivity the server treats the player as having
 disconnected. Live matches are held in memory and end if the service restarts.
 The persistent file stores player profiles and results.
 
+**Challenge** creates a private link using the host’s selected time control.
+Open the link in a separate browser session to join. Standard chess needs two
+players and four-player chess needs four. The clocks stay paused in the waiting
+room and start when the last player joins. An unused link expires after 30
+minutes. Public matchmaking pairs players who chose the same time control.
+
 ## Engine limits and comparison
 
 The bot selector offers 200 through 3000 in 200-point steps, plus Max.

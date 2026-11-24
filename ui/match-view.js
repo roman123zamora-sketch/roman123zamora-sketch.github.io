@@ -28,7 +28,8 @@ export function renderMatch(content, { title, fourPlayer }) {
   let premoveNotice = "";
   let promotion;
   let setup = false;
-  let challenge = false;
+  let creatingInvite = false;
+  let leavingInvite = false;
   let onlineInfo = false;
   let lastMatch = session.match?.matchId;
   let lastRevision = session.match?.revision;
@@ -68,6 +69,7 @@ export function renderMatch(content, { title, fourPlayer }) {
           </div>
           <div class="board-slot"></div>
         </div>
+        <ul class="board-clocks" aria-label="Match clocks" hidden></ul>
         <p class="board-status" aria-live="polite"></p>
       </section>
       <aside class="panel match-info">
@@ -126,6 +128,7 @@ export function renderMatch(content, { title, fourPlayer }) {
     content.querySelector(".match-hint-status"), drawBoard);
   const reviewAnalysis = content.querySelector(".review-analysis");
   const match = () => session.match?.variant === variant ? session.match : null;
+  const lobby = () => session.invite?.variant === variant ? session.invite : null;
   const result = () => match()?.matchId === session.result?.matchId ? session.result : null;
   const currentTargets = () => {
     if (!targetsReady()) return [];
@@ -432,6 +435,8 @@ export function renderMatch(content, { title, fourPlayer }) {
         session.movePending ? "Sending move…" :
         claiming ? "Choose a move to support your draw claim." :
         `${sides[data.state.turn]} to move${data.state.status === "check" ? " · Check" : ""}${/bot/i.test(data.mode) && data.state.turn !== data.side ? " · Bot thinking" : ""}`;
+    } else if (lobby()) {
+      status.textContent = `Waiting for players · ${lobby().count} of ${lobby().needed} joined`;
     } else status.textContent = "";
     if (active() && premoves.length) {
       status.textContent += ` · Premove queued: ${premoves.map(move => `${move.from}–${move.to}`).join(", ")}`;
@@ -443,6 +448,9 @@ export function renderMatch(content, { title, fourPlayer }) {
   function drawPlayers() {
     const data = match();
     const list = content.querySelector(".players");
+    const clocks = content.querySelector(".board-clocks");
+    clocks.hidden = !data?.clocks && !lobby();
+    clocks.replaceChildren();
     list.replaceChildren();
     for (const side of colors) {
       const name = sides[side];
@@ -456,7 +464,15 @@ export function renderMatch(content, { title, fourPlayer }) {
       clock.dataset.side = side;
       item.classList.toggle("turn", data?.state.turn === side && !result());
       item.classList.toggle("eliminated", !!data?.state.eliminated?.[side]);
-      item.append(label, clock);
+      item.append(label);
+      if (!clocks.hidden) {
+        const chip = document.createElement("li");
+        chip.textContent = name;
+        chip.classList.toggle("turn", data?.state.turn === side && !result());
+        chip.classList.toggle("eliminated", !!data?.state.eliminated?.[side]);
+        chip.append(clock);
+        clocks.append(chip);
+      } else item.append(clock);
       const captured = Object.values(data?.state.history ?? {}).filter(move => move.color === side && move.captured);
       if (captured.length) {
         const pieces = document.createElement("span");
@@ -482,14 +498,15 @@ export function renderMatch(content, { title, fourPlayer }) {
     const data = match();
     for (const clock of content.querySelectorAll(".clock")) {
       const side = clock.dataset.side;
-      const seconds = (result()?.clocks ?? data?.clocks)?.[side];
+      const seconds = (result()?.clocks ?? data?.clocks)?.[side] ?? lobby()?.baseSeconds;
       if (seconds == null) {
         clock.textContent = data?.ratings?.[side] ?? "";
       } else {
-        const elapsed = side === data.state.turn && !result() && !data.state.eliminated?.[side]
+        const elapsed = side === data?.state.turn && !result() && !data.state.eliminated?.[side]
           ? Math.max(0, serverNow() - data.turnStarted) : 0;
         const remaining = Math.max(0, Math.ceil(seconds - elapsed));
-        clock.textContent = Math.floor(remaining / 60) + ":" + String(remaining % 60).padStart(2, "0");
+        const label = Math.floor(remaining / 60) + ":" + String(remaining % 60).padStart(2, "0");
+        if (clock.textContent !== label) clock.textContent = label;
       }
     }
   }
@@ -500,7 +517,7 @@ export function renderMatch(content, { title, fourPlayer }) {
     list.replaceChildren();
     for (const move of history) {
       const row = document.createElement("li");
-      row.textContent = `${sides[move.color]}  ${move.from}${move.captured ? "×" : "–"}${move.to}${move.promotion ? "=" + move.promotion : ""}`;
+      row.textContent = `${sides[move.color]}  ${move.from}${move.captured ? "×" : "–"}${move.to}${move.promotion ? "=" + move.promotion : ""}${move.special === "castle" ? " · Castling" : ""}`;
       list.append(row);
     }
     if (!history.length) {
@@ -514,8 +531,9 @@ export function renderMatch(content, { title, fourPlayer }) {
 
   function drawControls() {
     const data = match();
-    const otherMatch = session.match && !data && !session.result;
-    quickPlay.hidden = !!(otherMatch || active() || result() || queued || session.queue);
+    const waiting = lobby();
+    const otherMatch = (session.match && !data && !session.result) || (session.invite && !waiting);
+    quickPlay.hidden = !!(otherMatch || active() || result() || session.invite || creatingInvite || queued || session.queue);
     quickPlay.disabled = starting;
     quickPlay.setAttribute("aria-busy", String(starting));
     quickPlay.textContent = starting ? "Starting…" : "Play a bot game";
@@ -528,48 +546,50 @@ export function renderMatch(content, { title, fourPlayer }) {
         </select>
       </label>`).join("");
     const botMode = (setup && !active()) || starting || /bot/i.test(data?.mode ?? "");
-    const timeLocked = !!(otherMatch || active());
+    const timeLocked = !!(otherMatch || active() || creatingInvite || queued || session.queue);
+    const displayedControl = active() && data?.baseSeconds
+      ? `${data.baseSeconds / 60} | ${data.increment}`
+      : preferences.control;
     const timeControls = botMode ? "" : `
       <h2>Time control</h2>
       <div class="time-controls">
         ${timeGroups.map(([name, options]) => `<div class="time-row"><span>${name}</span>
-          ${options.map(time => `<button type="button" aria-pressed="${!timeLocked && time === preferences.control}" data-time="${time}"${timeLocked ? " disabled" : ""}>${time}</button>`).join("")}
+          ${options.map(time => `<button type="button" aria-pressed="${time === displayedControl}" data-time="${time}"${timeLocked ? " disabled" : ""}>${time}</button>`).join("")}
         </div>`).join("")}
       </div>`;
+    if (waiting) {
+      controls.innerHTML = `
+        <h2>Challenge link</h2>
+        <div class="invite-link">
+          <input type="text" aria-label="Challenge link" readonly>
+          <button type="button" data-action="copyInvite">Copy</button>
+        </div>
+        <p class="help invite-feedback" role="status">Share this link to invite ${waiting.needed - 1 === 1 ? "a friend" : "three friends"}.
+          Clocks start when everyone joins.</p>
+        <button type="button" data-action="leaveInvite"${leavingInvite ? " disabled" : ""}>${waiting.host ? "Close challenge" : "Leave challenge"}</button>`;
+      const url = new URL(location.href);
+      url.searchParams.set("invite", waiting.code);
+      url.hash = fourPlayer ? "4-player-chess" : "chess";
+      controls.querySelector(".invite-link input").value = url.href;
+      content.querySelector(".match-actions").replaceChildren();
+      drawRatings();
+      return;
+    }
     controls.innerHTML = timeControls + (otherMatch
-      ? '<p class="help">A match is in progress in the other chess tab.</p>'
+      ? '<p class="help">A match or challenge is open in the other chess tab.</p>'
       : active()
         ? '<div class="action-stack"><button type="button" data-action="leave">Leave match</button></div>'
         : `
           ${botMode ? '<p class="help">Bot games are untimed.</p>' : `
             <div class="online-actions">
               <button type="button" data-action="${session.queue || queued ? "cancelQueue" : "queue"}">${session.queue || queued ? "Cancel search" : "Play online"}</button>
-              <button type="button" data-action="challengeMenu">Challenge</button>
+              <button type="button" data-action="createInvite"${creatingInvite ? ' disabled aria-busy="true"' : ""}>${creatingInvite ? "Creating link…" : "Challenge"}</button>
             </div>
             <p class="online-status help" role="status">${onlineInfo && !session.network ? offlineNotice : ""}</p>`}
           ${setup ? selector : ""}
           <button type="button" class="primary" data-action="${setup ? "start" : "setup"}"${starting ? ' disabled aria-busy="true"' : ""}>${starting ? "Starting…" : setup ? "Start match" : "Play bots"}</button>
           ${setup && !starting ? '<button type="button" class="help" data-action="cancelSetup">Back to time controls</button>' : ""}`);
 
-    if (challenge && !botMode && !active() && session.network) {
-      const form = document.createElement("div");
-      form.className = "action-stack";
-      for (const player of session.players) {
-        const label = document.createElement("label");
-        const pick = document.createElement("input");
-        pick.type = fourPlayer ? "checkbox" : "radio";
-        pick.name = "challenge-player";
-        pick.value = player.id;
-        label.append(pick, document.createTextNode(" " + player.name));
-        form.append(label);
-      }
-      const invite = document.createElement("button");
-      invite.dataset.action = "challenge";
-      invite.textContent = "Send challenge";
-      invite.disabled = !session.players.length;
-      form.append(invite);
-      controls.append(form);
-    }
     if (session.offer) {
       const panel = document.createElement("div");
       const label = document.createElement("p");
@@ -591,6 +611,10 @@ export function renderMatch(content, { title, fourPlayer }) {
         ${data.state.turn === data.side && data.state.claimReason ? '<button data-action="claim">Claim draw</button>' :
           data.state.turn === data.side && data.state.mayClaimWithMove ? `<button data-action="claimMove" aria-pressed="${claiming}">${claiming ? "Cancel draw claim" : "Claim with move"}</button>` : ""}
         <button data-action="${abort ? "abort" : "resign"}">${abort ? "Abort" : "Resign"}</button>` : "";
+    drawRatings();
+  }
+
+  function drawRatings() {
     const profile = session.profile;
     content.querySelector(".ratings").innerHTML = `
       <div><dt>Chess Elo</dt><dd>${profile.chessElo}</dd></div>
@@ -600,7 +624,7 @@ export function renderMatch(content, { title, fourPlayer }) {
     content.querySelector(".match-notice").textContent = session.notice || queueStatus;
   }
 
-  function click(event) {
+  async function click(event) {
     const button = event.target.closest("button");
     if (!button || dialog.contains(button)) return;
     if (button.dataset.time) {
@@ -609,7 +633,7 @@ export function renderMatch(content, { title, fourPlayer }) {
         option.setAttribute("aria-pressed", String(option === button));
       }
     }
-    if (!session.network && ["queue", "challengeMenu"].includes(button.dataset.action)) {
+    if (!session.network && ["queue", "createInvite"].includes(button.dataset.action)) {
       onlineInfo = true;
       controls.querySelector(".online-status").textContent = offlineNotice;
       return;
@@ -636,7 +660,7 @@ export function renderMatch(content, { title, fourPlayer }) {
         content.querySelector('.match-actions [data-action="review"]')?.focus();
         break;
       case "newOpponent":
-        if (!session.network || !result() || queued || session.queue) break;
+        if (!session.network || !result() || session.invite || creatingInvite || queued || session.queue) break;
         resultDialog.close();
         queued = true;
         action(fourPlayer ? "queueFour" : "queue", { ...control(), newOpponent: true });
@@ -662,7 +686,7 @@ export function renderMatch(content, { title, fourPlayer }) {
         controls.querySelector('[data-action="setup"]')?.focus();
         break;
       case "start":
-        if (starting || active()) break;
+        if (starting || creatingInvite || session.invite || active()) break;
         if (session.queue) action("cancelQueue");
         unlockSound();
         starting = true;
@@ -676,12 +700,31 @@ export function renderMatch(content, { title, fourPlayer }) {
         action(fourPlayer ? "queueFour" : "queue", control());
         drawControls();
         break;
-      case "challengeMenu": challenge = !challenge; drawControls(); break;
-      case "challenge": {
-        const ids = [...controls.querySelectorAll("input:checked")].map(input => Number(input.value));
-        if (ids.length) action("challenge", { ...control(), ...(fourPlayer ? { userIds: ids } : { userId: ids[0] }) });
+      case "createInvite":
+        if (creatingInvite || session.invite || active()) break;
+        creatingInvite = true;
+        action("createInvite", { ...control(), four: fourPlayer });
+        drawControls();
+        break;
+      case "copyInvite": {
+        const field = controls.querySelector(".invite-link input");
+        const feedback = controls.querySelector(".invite-feedback");
+        try {
+          await navigator.clipboard.writeText(field.value);
+          feedback.textContent = "Link copied.";
+        } catch {
+          field.focus();
+          field.select();
+          feedback.textContent = "Link selected. Use your device’s Copy command.";
+        }
         break;
       }
+      case "leaveInvite":
+        if (leavingInvite) break;
+        leavingInvite = true;
+        action("leaveInvite");
+        drawControls();
+        break;
       case "accept": case "decline":
         action(session.offer.kind === "rematchOffer" ? "rematchRespond" : "challengeRespond", { accept: button.dataset.action === "accept" });
         drawControls();
@@ -807,6 +850,14 @@ export function renderMatch(content, { title, fourPlayer }) {
       lastRevision = data?.revision;
       if (data) checkPremove(data);
     }
+    if (["inviteRoom", "inviteClosed", "state", "reject", "error"].includes(kind)) {
+      creatingInvite = false;
+      leavingInvite = false;
+    }
+    if (kind === "inviteRoom") {
+      queued = false;
+      setup = false;
+    }
     if (kind === "queueCancelled" || kind === "challengeDeclined") queued = false;
     if (kind === "leave" || kind === "result") resetting = false;
     if (kind === "leave") {
@@ -829,13 +880,15 @@ export function renderMatch(content, { title, fourPlayer }) {
       if (theme !== lastTheme) drawBoard();
       lastTheme = theme;
     }
-    if (["state", "result", "leave", "reject", "error"].includes(kind)) {
+    if (["state", "result", "leave", "reject", "error", "inviteRoom", "inviteClosed"].includes(kind)) {
       drawBoard(animateMove);
       drawPlayers();
       drawHistory();
       drawStatus();
     }
-    if (kind !== "players" || challenge) drawControls();
+    // Preserve the native rating menu while unrelated profile or presence updates arrive.
+    if (!["players", "legal", "profile", "catalog"].includes(kind)) drawControls();
+    if (kind === "profile") drawRatings();
     if (kind === "result") drawResult();
   });
   const clock = setInterval(updateClocks, 250);
