@@ -203,3 +203,22 @@
 }
 .board-clocks .clock { min-width: 4ch; }
 .board-clocks .eliminated { opacity: .55; }
+
+.board-history-controls:not([hidden]) {
+  justify-content: center;
+  align-items: center;
+  margin-block-start: .5rem;
+}
+.board-history-controls output {
+  min-inline-size: 10rem;
+  text-align: center;
+  font-size: .83rem;
+}
+.board-history-controls button, .replay-actions [data-step] { min-inline-size: 2.75rem; }
+.move-list { position: relative; }
+.move-list [aria-current="step"] {
+  background: var(--turn-surface);
+  box-shadow: inset .16rem 0 var(--turn-border);
+  border-radius: .2rem;
+  padding-inline-start: .4rem;
+}

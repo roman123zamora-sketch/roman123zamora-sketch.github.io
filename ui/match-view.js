@@ -1,3 +1,4 @@
+import { drawMoveList } from "./move-history.js";
 import { createBestMoveControl } from "./review-best-move.js";
 import { createPositionTools } from "../game/position-tools.js";
 import { createEvaluationBar } from "./evaluation-bar.js";
@@ -18,6 +19,10 @@ const timeGroups = [
 const sides = { w: "White", b: "Black", R: "Red", B: "Blue", Y: "Yellow", G: "Green" };
 const botLevels = [...Array.from({ length: 15 }, (_, index) => 200 * (index + 1)), "Max"];
 const preferences = { control: "3 | 0", w: 1000, B: 800, Y: 1000, G: 1200 };
+
+function boardFrame({ board, turn, lastMove, status, checkedColors, eliminated }) {
+  return { board, turn, lastMove, status, checkedColors, eliminated };
+}
 
 export function renderMatch(content, { title, fourPlayer }) {
   const colors = fourPlayer ? ["R", "B", "Y", "G"] : ["w", "b"];
@@ -50,6 +55,12 @@ export function renderMatch(content, { title, fourPlayer }) {
   let shownResult;
   let review;
   let reviewTools;
+  let historyPly = null;
+  let historyTools;
+  let historyFrames = [];
+  if (session.match?.variant === variant) {
+    historyFrames[Object.values(session.match.state.history).length] = boardFrame(session.match.state);
+  }
 
   content.innerHTML = `
     <div class="match${fourPlayer ? "" : " standard-board-layout"}">
@@ -71,6 +82,11 @@ export function renderMatch(content, { title, fourPlayer }) {
           </div>
           <div class="board-slot"></div>
         </div>
+        <div class="action-row board-history-controls" role="group" aria-label="Board move history" hidden>
+          <button type="button" data-action="historyPrevious" aria-label="Previous move">←</button>
+          <output aria-live="polite"></output>
+          <button type="button" data-action="historyNext" aria-label="Next move">→</button>
+        </div>
         <ul class="board-clocks" aria-label="Match clocks" hidden></ul>
         <p class="board-status" aria-live="polite"></p>
         <div class="action-row premove-controls" hidden>
@@ -85,9 +101,6 @@ export function renderMatch(content, { title, fourPlayer }) {
         <ol class="inset move-list"></ol>
         <div class="review-controls" hidden>
           <div class="action-row">
-            <button type="button" data-action="reviewPrevious" aria-label="Previous move">←</button>
-            <output aria-live="polite"></output>
-            <button type="button" data-action="reviewNext" aria-label="Next move">→</button>
             <button type="button" data-best-move>Show best move</button>
             <button type="button" data-action="reviewExit">Exit review</button>
           </div>
@@ -127,6 +140,7 @@ export function renderMatch(content, { title, fourPlayer }) {
   const dialog = content.querySelector("dialog:not(.result-dialog)");
   const resultDialog = content.querySelector(".result-dialog");
   const reviewTurn = content.querySelector(".match-review-turn");
+  const historyControls = content.querySelector(".board-history-controls");
   const reviewControls = content.querySelector(".review-controls");
   const bestMove = createBestMoveControl(reviewControls.querySelector("[data-best-move]"),
     reviewControls.querySelector(".best-move-status"), drawBoard);
@@ -147,9 +161,9 @@ export function renderMatch(content, { title, fourPlayer }) {
     return { baseSeconds: minutes * 60, increment };
   };
 
-  function boardAcceptsInput() {
+  function boardAcceptsInput(forPremove = false) {
     const data = match();
-    return active() && !session.movePending && !resetting && !promotion && !data.state.eliminated?.[data.side];
+    return active() && (forPremove || historyPly === null) && !session.movePending && !resetting && !promotion && !data.state.eliminated?.[data.side];
   }
 
   function targetsReady() {
@@ -172,7 +186,7 @@ export function renderMatch(content, { title, fourPlayer }) {
 
   function submit(move, queuedMove = false, dragged = false) {
     const data = match();
-    if (!boardAcceptsInput() || data.state.turn !== data.side) return;
+    if (!boardAcceptsInput(queuedMove) || data.state.turn !== data.side) return;
     if (!queuedMove) clearPremoves();
     if (claiming) {
       claiming = false;
@@ -314,7 +328,7 @@ export function renderMatch(content, { title, fourPlayer }) {
   function cancelPremovesOnClick(event) {
     const path = event.composedPath();
     if (!path.includes(slot) && !path.includes(dialog) &&
-        !event.target.closest("[data-premove-control]")) cancelPremoves();
+        !event.target.closest("[data-premove-control], .board-history-controls")) cancelPremoves();
   }
 
   function invalidatePremoves() {
@@ -335,7 +349,7 @@ export function renderMatch(content, { title, fourPlayer }) {
       invalidatePremoves();
       return;
     }
-    if (data.state.turn !== data.side || !boardAcceptsInput() || premoveRequest != null) return;
+    if (data.state.turn !== data.side || !boardAcceptsInput(true) || premoveRequest != null) return;
     if (data.legalBySource) { playPremove(data.legalBySource[next.from] ?? {}); return; }
     targetRequest = (targetRequest ?? 0) + 1;
     premoveRequest = targetRequest;
@@ -346,7 +360,7 @@ export function renderMatch(content, { title, fourPlayer }) {
     const data = match();
     const queued = premoves[0];
     premoveRequest = undefined;
-    if (!queued || !boardAcceptsInput() || data.state.turn !== data.side) return;
+    if (!queued || !boardAcceptsInput(true) || data.state.turn !== data.side) return;
     const target = Object.values(moves).find(move => move.to === queued.to &&
       (!queued.promotion || move.promotion === queued.promotion));
     if (target) {
@@ -360,9 +374,11 @@ export function renderMatch(content, { title, fourPlayer }) {
   }
 
   function drawBoard(animateMove = false) {
+    const historical = historyPly === null ? undefined : historyFrames[historyPly];
+    const browsing = review || historyPly !== null;
     const preview = plannedBoard();
     const submitted = session.submittedMove;
-    if (submitted && match() && !review && !premoveInFlight) {
+    if (submitted && match() && !browsing && !premoveInFlight) {
       const actual = match().state.board;
       const move = submitted.special?.startsWith("castle")
         ? premoveIntent(actual, submitted.from, submitted.to, match().side)
@@ -387,10 +403,11 @@ export function renderMatch(content, { title, fourPlayer }) {
     });
     const nextFrame = board(getTheme(), fourPlayer, false, {
       frame: slot.firstElementChild,
-      state: review?.positions[review.ply] ?? data?.state, side: data?.side, selected, targets: selected ? currentTargets() : [],
-      preview: review ? undefined : preview.destinations || submitted ? preview : undefined,
-      bestMove: review ? bestMove.move : hint.move,
-      select: active() ? select : undefined, marks: review ? undefined : marks,
+      state: review?.positions[review.ply] ?? historical ?? data?.state, side: data?.side,
+      selected: browsing ? undefined : selected, targets: !browsing && selected ? currentTargets() : [],
+      preview: browsing ? undefined : preview.destinations || submitted ? preview : undefined,
+      bestMove: review ? bestMove.move : browsing ? undefined : hint.move,
+      select: active() && !browsing ? select : undefined, marks: browsing ? undefined : marks,
       mark: address => { if (marks.has(address)) marks.delete(address); else marks.add(address); }
     });
     if (nextFrame !== slot.firstElementChild) slot.replaceChildren(nextFrame);
@@ -426,13 +443,6 @@ export function renderMatch(content, { title, fourPlayer }) {
     bestMove.update(review?.positions[review.ply], variant);
     if (!review) bestMove.close();
     if (!review) return;
-    const { ply, positions, history } = review;
-    const move = history[ply - 1];
-    reviewControls.querySelector("output").textContent = move
-      ? `${ply}/${positions.length - 1} · ${move.from}–${move.to}${move.promotion ? "=" + move.promotion : ""}`
-      : "Starting position";
-    reviewControls.querySelector('[data-action="reviewPrevious"]').disabled = ply === 0;
-    reviewControls.querySelector('[data-action="reviewNext"]').disabled = ply === positions.length - 1;
     reviewAnalysis.textContent = fourPlayer ? "Move replay" : "Engine estimate from White’s and Black’s perspectives.";
   }
 
@@ -449,11 +459,12 @@ export function renderMatch(content, { title, fourPlayer }) {
         variant, moves: history.map(move => ({ f: move.from, t: move.to, c: move.color, p: move.promotion }))
       }));
       if (reviewTools !== worker || data.matchId !== match()?.matchId) return;
-      review = { positions, history, ply: positions.length - 1 };
+      review = { positions, ply: positions.length - 1 };
       drawReview();
       drawBoard();
       drawControls();
-      reviewControls.querySelector('[data-action="reviewPrevious"]:enabled, [data-action="reviewExit"]').focus();
+      drawHistory();
+      historyControls.querySelector('button:enabled')?.focus();
     } catch {
       if (reviewTools === worker) status.textContent = "Game review could not be loaded. Try again.";
     } finally {
@@ -570,21 +581,66 @@ export function renderMatch(content, { title, fourPlayer }) {
   }
 
   function drawHistory() {
-    const history = Object.values(match()?.state.history ?? {});
-    const list = content.querySelector(".move-list");
-    list.replaceChildren();
-    for (const move of history) {
-      const row = document.createElement("li");
-      row.textContent = `${sides[move.color]}  ${move.from}${move.captured ? "×" : "–"}${move.to}${move.promotion ? "=" + move.promotion : ""}${move.special === "castle" ? " · Castling" : ""}`;
-      list.append(row);
+    const data = match();
+    const history = Object.values(data?.state.history ?? {});
+    const latest = review ? review.positions.length - 1 : history.length;
+    const ply = review?.ply ?? historyPly ?? latest;
+    historyControls.hidden = !data;
+    historyControls.querySelector('[data-action="historyPrevious"]').disabled = ply === 0;
+    historyControls.querySelector('[data-action="historyNext"]').disabled = ply === latest;
+    historyControls.querySelector("output").textContent = review ? `Move ${ply} of ${latest}`
+      : historyPly !== null ? (historyFrames[ply] ? `Viewing history · ${ply}/${latest}` : "Loading history…")
+      : result() ? "Final position" : "Live";
+    drawMoveList(content.querySelector(".move-list"), history, ply);
+  }
+
+  function returnToLive() {
+    historyPly = null;
+    historyTools?.close();
+    historyTools = undefined;
+  }
+
+  async function stepHistory(direction) {
+    if (review) {
+      review.ply = Math.max(0, Math.min(review.positions.length - 1, review.ply + direction));
+      drawReview();
+    } else {
+      const data = match();
+      if (!data) return;
+      const history = Object.values(data.state.history);
+      const latest = history.length;
+      const next = Math.max(0, Math.min(latest, (historyPly ?? latest) + direction));
+      if (next === latest) returnToLive();
+      else {
+        historyPly = next;
+        clearBoardInput(false, Boolean(promotion));
+        claiming = false;
+        if (!historyFrames[next] && !historyTools) {
+          const worker = createPositionTools();
+          historyTools = worker;
+          drawBoard();
+          drawHistory();
+          try {
+            const frames = Object.values(await worker.run("review", {
+              variant,
+              moves: history.map(move => ({ f: move.from, t: move.to, c: move.color, p: move.promotion })),
+              fourStates: data.fourStates && Object.values(data.fourStates)
+            }));
+            if (historyTools !== worker) return;
+            historyFrames = frames.map(boardFrame);
+          } catch {
+            if (historyTools !== worker) return;
+            returnToLive();
+            status.textContent = "Move history could not be loaded. Try again.";
+          } finally {
+            worker.close();
+            if (historyTools === worker) historyTools = undefined;
+          }
+        }
+      }
     }
-    if (!history.length) {
-      const row = document.createElement("li");
-      row.className = "empty-moves";
-      row.textContent = "No moves yet.";
-      list.append(row);
-    }
-    list.scrollTop = list.scrollHeight;
+    drawBoard();
+    drawHistory();
   }
 
   function drawControls() {
@@ -703,13 +759,8 @@ export function renderMatch(content, { title, fourPlayer }) {
         resultDialog.close();
         startReview();
         break;
-      case "reviewPrevious": case "reviewNext":
-        if (review) {
-          review.ply = Math.max(0, Math.min(review.positions.length - 1,
-            review.ply + (button.dataset.action === "reviewNext" ? 1 : -1)));
-          drawReview();
-          drawBoard();
-        }
+      case "historyPrevious": case "historyNext":
+        stepHistory(button.dataset.action === "historyNext" ? 1 : -1);
         break;
       case "reviewExit":
         review = undefined;
@@ -717,6 +768,7 @@ export function renderMatch(content, { title, fourPlayer }) {
         drawBoard();
         drawStatus();
         drawControls();
+        drawHistory();
         content.querySelector('.match-actions [data-action="review"]')?.focus();
         break;
       case "newOpponent":
@@ -886,6 +938,11 @@ export function renderMatch(content, { title, fourPlayer }) {
       const history = Object.values(data?.state.history ?? {});
       const moveCount = history.length;
       const lastMove = history.at(-1);
+      const wasBrowsing = historyPly !== null;
+      if (newMatch || moveCount !== lastMoveCount || data?.state.terminal) returnToLive();
+      if (newMatch) historyFrames = [];
+      else if (moveCount < lastMoveCount) historyFrames.length = moveCount + 1;
+      if (data) historyFrames[moveCount] = boardFrame(data.state);
       const justDragged = dragMove && lastMove?.color === data?.side &&
         lastMove.from === dragMove.from && lastMove.to === dragMove.to;
       const confirmedPremove = !newMatch && premoveInFlight && moveCount > lastMoveCount &&
@@ -895,7 +952,7 @@ export function renderMatch(content, { title, fourPlayer }) {
         premoveInFlight = undefined;
         premoveNotice = "Premove played.";
       }
-      animateMove = !newMatch && moveCount === lastMoveCount + 1 && !justDragged && !confirmedPremove;
+      animateMove = !newMatch && moveCount === lastMoveCount + 1 && !justDragged && !confirmedPremove && !wasBrowsing;
       dragMove = undefined;
       lastMoveCount = moveCount;
       if (newMatch || data?.revision !== lastRevision) {
@@ -934,6 +991,7 @@ export function renderMatch(content, { title, fourPlayer }) {
       setup = false;
     }
     if (kind === "queueCancelled" || kind === "challengeDeclined") queued = false;
+    if (["leave", "result", "undoState"].includes(kind)) returnToLive();
     if (kind === "leave" || kind === "result") resetting = false;
     if (kind === "leave") {
       reviewTools?.close();
@@ -976,6 +1034,7 @@ export function renderMatch(content, { title, fourPlayer }) {
   drawResult();
   return () => {
     resultDialog.close();
+    returnToLive();
     reviewTools?.close();
     reviewTools = undefined;
     subscription();

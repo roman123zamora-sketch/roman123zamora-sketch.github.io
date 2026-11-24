@@ -98,6 +98,13 @@ local function legalTarget(m,move)
  return {to=move.to,promotion=move.promotion,special=move.special,rookFrom=move.rookFrom,rookTo=move.rookTo,
   capture=m.state.board[move.to]~=nil or move.special=="enpassant"}
 end
+local function fourReplayStates(m)
+ if not fourMode(m) then return nil end
+ local states={}
+ for _,state in ipairs(m.snapshots) do table.insert(states,{turn=state.turn,eliminated=state.eliminated}) end
+ table.insert(states,{turn=m.state.turn,eliminated=m.state.eliminated})
+ return states
+end
 local function pair(m,recipient,terminal)
  if not recipient then m.revision=(m.revision or 0)+1 end
  local state=publicState(m); local players,ratings=matchPlayersPayload(m)
@@ -105,6 +112,7 @@ local function pair(m,recipient,terminal)
   state.analysis={castling=m.state.castling,ep=m.state.ep,positions=m.state.positions}
  end
  state.terminal=terminal or state.status=="checkmate" or state.status=="stalemate" or state.status=="draw"
+ local fourStates=fourReplayStates(m)
  local legalBySource={}
  if not state.terminal then
   local e=engineFor(m)
@@ -119,7 +127,7 @@ local function pair(m,recipient,terminal)
   end
  end
  for _,p in ipairs(recipient and {recipient} or m.players) do
-  if not (m.resultsSent and m.resultsSent[p.UserId]) then send(p,"state",{matchId=m.id,revision=m.revision,mode=m.mode,variant=fourMode(m) and "four" or "chess",level=m.botRating,botRatings=m.botRatings,ratings=ratings,clocks=m.clocks,baseSeconds=m.rematchControl and m.rematchControl.baseSeconds,increment=m.increment,turnStarted=m.turnStarted,serverTime=workspace:GetServerTimeNow(),side=m.sides[p.UserId],legalBySource=m.sides[p.UserId]==m.state.turn and legalBySource or nil,players=players,state=state,opponent=m.mode=="bot" and "Exalted Bot" or "Opponent"}) end
+  if not (m.resultsSent and m.resultsSent[p.UserId]) then send(p,"state",{matchId=m.id,revision=m.revision,mode=m.mode,variant=fourMode(m) and "four" or "chess",level=m.botRating,botRatings=m.botRatings,ratings=ratings,clocks=m.clocks,baseSeconds=m.rematchControl and m.rematchControl.baseSeconds,increment=m.increment,turnStarted=m.turnStarted,serverTime=workspace:GetServerTimeNow(),side=m.sides[p.UserId],fourStates=fourStates,legalBySource=m.sides[p.UserId]==m.state.turn and legalBySource or nil,players=players,state=state,opponent=m.mode=="bot" and "Exalted Bot" or "Opponent"}) end
  end
  return state
 end
@@ -157,14 +165,7 @@ local function recordHistory(m,p,side,result,reason,place)
  if m.mode=="bot" then opp={"Exalted Bot"}
  elseif m.mode=="fourBot" then opp={"Bots"}
  else for _,o in ipairs(m.players) do if o~=p then table.insert(opp,o.DisplayName or o.Name) end end end
- local fourStates
- if fourMode(m) then
-  fourStates={}
-  for _,state in ipairs(m.snapshots) do
-   table.insert(fourStates,{turn=state.turn,eliminated=state.eliminated})
-  end
-  table.insert(fourStates,{turn=m.state.turn,eliminated=m.state.eliminated})
- end
+ local fourStates=fourReplayStates(m)
  prof.history=prof.history or {}
  table.insert(prof.history,1,{id=historyId(prof.history),v=fourMode(m) and "four" or "chess",mode=m.mode,result=result,reason=reason,ts=os.time(),side=side,place=place,opp=table.concat(opp,", "),moves=moves,fourStates=fourStates})
  while #prof.history>20 do table.remove(prof.history,#prof.history) end

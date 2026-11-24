@@ -146,3 +146,25 @@ const closed = await action(closeWhite.user, "pageLeave", { matchId: closeWhite.
 assert.equal(closed.find(event => event.user === closeBlack.user && event.kind === "result").data.reason, "Opponent left");
 assert(!closed.some(event => event.user === closeWhite.user && event.kind === "result"));
 console.log("Legal targets arrive with the position, and a page close leaves only the matching game.");
+
+const replayLine = moves => dispatch("review", time, 0, {
+  variant: "chess",
+  moves: moves.map(([f, t, p], index) => ({ f, t, p, c: index % 2 ? "b" : "w" }))
+});
+const castles = await replayLine([
+  ["e2", "e4"], ["e7", "e5"], ["g1", "f3"], ["b8", "c6"],
+  ["f1", "c4"], ["g8", "f6"], ["e1", "g1"]
+]);
+assert.equal(castles[6].board.h1, "wR");
+assert.equal(castles[7].board.f1, "wR");
+assert.equal(castles[7].board.g1, "wK");
+assert.equal(castles[7].lastMove.to, "g1");
+const promotes = await replayLine([
+  ["a2", "a4"], ["h7", "h5"], ["a4", "a5"], ["h5", "h4"], ["a5", "a6"],
+  ["h4", "h3"], ["a6", "b7"], ["h3", "g2"], ["b7", "a8", "N"]
+]);
+assert.equal(promotes[8].board.b7, "wP");
+assert.equal(promotes[8].board.a8, "bR");
+assert.equal(promotes[9].board.a8, "wN");
+assert.equal(promotes[9].lastMove.from, "b7");
+console.log("Replay steps preserve both castling pieces and the exact capture-promotion.");

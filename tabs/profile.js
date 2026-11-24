@@ -1,3 +1,4 @@
+import { drawMoveList } from "../ui/move-history.js";
 import { createPositionTools } from "../game/position-tools.js";
 import { createEvaluationBar } from "../ui/evaluation-bar.js";
 import { createBestMoveControl } from "../ui/review-best-move.js";
@@ -130,12 +131,13 @@ export default function profile(content) {
         <div class="board-slot"></div>
       </div>
       <div class="action-row replay-actions">
-        <button type="button" data-step="-1">Previous</button>
+        <button type="button" data-step="-1" aria-label="Previous move">←</button>
         <output aria-live="polite"></output>
-        <button type="button" data-step="1">Next</button>
+        <button type="button" data-step="1" aria-label="Next move">→</button>
         <button type="button" data-best-move>Show best move</button>
       </div>
-      <p class="help best-move-status replay-best-move" role="status"></p>`;
+      <p class="help best-move-status replay-best-move" role="status"></p>
+      <ol class="inset move-list replay-moves" aria-label="Move history"></ol>`;
     panel.querySelector(".return-history").addEventListener("click", () => history(record.id));
     const evaluation = createEvaluationBar(panel.querySelector(".bot-eval"));
     const bestMove = createBestMoveControl(panel.querySelector("[data-best-move]"),
@@ -146,6 +148,16 @@ export default function profile(content) {
     const match = { variant: record.v, side: record.side };
     const buttons = [...panel.querySelectorAll("[data-step]")];
     const turn = panel.querySelector(".replay-turn");
+    const moves = Object.values(record.moves).map((move, index) => {
+      const before = positions[index].board;
+      const piece = before[move.f]?.[1];
+      const changesFile = move.f[0] !== move.t[0];
+      const castled = piece === "K" && (Math.abs(move.f.charCodeAt(0) - move.t.charCodeAt(0)) === 2 ||
+        Math.abs(Number(move.f.slice(1)) - Number(move.t.slice(1))) === 2);
+      return { ...move, captured: Boolean(before[move.t]) || (piece === "P" && changesFile && record.v !== "four"),
+        special: castled ? "castle" : undefined };
+    });
+    const list = panel.querySelector(".move-list");
     const names = { w: "White", b: "Black", R: "Red", B: "Blue", Y: "Yellow", G: "Green" };
     function draw() {
       const side = positions[ply].turn;
@@ -155,9 +167,10 @@ export default function profile(content) {
       evaluation.update(match, { positions, ply });
       bestMove.update(positions[ply].turn ? positions[ply] : undefined, record.v);
       holder.replaceChildren(board(getTheme(), record.v === "four", false, {
-        state: positions[ply], side: record.side, bestMove: bestMove.move
+        state: { ...positions[ply], lastMove: positions[ply].lastMove ?? (ply ? { from: moves[ply - 1].f, to: moves[ply - 1].t } : undefined) }, side: record.side, bestMove: bestMove.move
       }));
       output.textContent = `Move ${ply} of ${positions.length - 1}`;
+      drawMoveList(list, moves, ply);
       buttons[0].disabled = ply === 0;
       buttons[1].disabled = ply === positions.length - 1;
     }
