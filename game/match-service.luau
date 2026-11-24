@@ -102,7 +102,7 @@ local function matchPlayersPayload(m,p)
  end
  if m.mode=="bot" then names.b="Exalted Bot"; ratings.b=m.botRating end
  if m.mode=="fourBot" then
-  for _,c in ipairs({"B","Y","G"}) do names[c]="Bot · "..m.botRatings[c].." Elo"; ratings[c]=m.botRatings[c] end
+  for _,c in ipairs({"B","Y","G"}) do names[c]="Bot"; ratings[c]=m.botRatings[c] end
  end
  return names,ratings
 end
@@ -244,7 +244,7 @@ local function newMatch(players,mode,setting)
   clearQueue(p,queue); clearQueue(p,queueFour); queueControls[p.UserId]=nil
  end
  local id=HttpService:GenerateGUID(false); local sides={}
- if mode=="bot" then sides[players[1].UserId]="w"; setting=tonumber(setting) or 1000
+ if mode=="bot" then sides[players[1].UserId]="w"; setting=Bot.clampRating(setting)
  elseif mode=="fourBot" then sides[players[1].UserId]="R"
  else
   local colors=(mode=="fourOnline") and table.clone(Four.colors) or {"w","b"}

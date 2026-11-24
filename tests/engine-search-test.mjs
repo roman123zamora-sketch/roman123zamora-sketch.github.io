@@ -42,7 +42,22 @@ assert(legal(Chess,start,beginner) and beginnerInfo.score<bestInfo.score)
 assert(beginner.from~=best.from or beginner.to~=best.to)
 local strongest=Bot.choose(Chess,start,3000,{depth=1,timeMs=350,gameplay=true,random=fixedRandom})
 assert(strongest.from==best.from and strongest.to==best.to)
-assert(Bot.clampRating(4000)==3000 and Bot.ratings[#Bot.ratings]==3000)
+assert(Bot.clampRating(4000)==3000 and Bot.clampRating(100)==200)
+assert(Bot.clampRating("Max")=="Max" and #Bot.ratings==15)
+local forced=fixture({a1="wK",c2="bK",b8="bR"})
+assert(#Chess.allLegal(forced)==1)
+local lastDepth,lastNodes=0,0
+local ladder=table.clone(Bot.ratings)
+table.insert(ladder,"Max")
+for index,rating in ipairs(ladder) do
+ if index<=15 then assert(rating==index*200) end
+ local forcedMove,info=Bot.choose(Chess,forced,rating,{gameplay=true,timeMs=0})
+ assert(legal(Chess,forced,forcedMove))
+ assert(info.maxDepth>=lastDepth and info.maxNodes>lastNodes)
+ lastDepth,lastNodes=info.maxDepth,info.maxNodes
+end
+local exact=Bot.choose(Chess,mate,"Max",{depth=2,timeMs=400,random=function() error("Max should never sample moves") end})
+assert(Chess.status(Chess.apply(mate,exact))=="checkmate")
 
 local four=Four.initial()
 local order={"R","B","Y","G"}

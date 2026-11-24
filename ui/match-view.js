@@ -15,6 +15,7 @@ const timeGroups = [
   ["Rapid", ["10 | 0", "10 | 5", "15 | 10"]]
 ];
 const sides = { w: "White", b: "Black", R: "Red", B: "Blue", Y: "Yellow", G: "Green" };
+const botLevels = [...Array.from({ length: 15 }, (_, index) => 200 * (index + 1)), "Max"];
 const preferences = { control: "3 | 0", w: 1000, B: 800, Y: 1000, G: 1200 };
 
 export function renderMatch(content, { title, fourPlayer }) {
@@ -516,8 +517,8 @@ export function renderMatch(content, { title, fourPlayer }) {
     const selector = ratings.map(side => `
       <label class="rating-choice">${side === "w" ? "Bot rating" : sides[side] + " bot rating"}
         <select data-rating="${side}">
-          ${Array.from({ length: 14 }, (_, i) => 400 + 200 * i).map(rating =>
-            `<option${rating === preferences[side] ? " selected" : ""}>${rating}</option>`).join("")}
+          ${botLevels.map(rating =>
+            `<option value="${rating}"${rating === preferences[side] ? " selected" : ""}>${rating}</option>`).join("")}
         </select>
       </label>`).join("");
     const botMode = (setup && !active()) || starting || /bot/i.test(data?.mode ?? "");
@@ -710,7 +711,7 @@ export function renderMatch(content, { title, fourPlayer }) {
   }
 
   function change(event) {
-    if (event.target.matches("select[data-rating]")) preferences[event.target.dataset.rating] = Number(event.target.value);
+    if (event.target.matches("select[data-rating]")) preferences[event.target.dataset.rating] = event.target.value === "Max" ? "Max" : Number(event.target.value);
   }
 
   content.addEventListener("click", click);

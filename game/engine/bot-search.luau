@@ -2,7 +2,7 @@
 local Bot={}
 local MATE=100000
 local values={P=100,N=310,B=330,R=500,Q=900,K=20000}
-local levels={400,600,800,1000,1200,1400,1600,1800,2000,2200,2400,2600,2800,3000}
+local levels={200,400,600,800,1000,1200,1400,1600,1800,2000,2200,2400,2600,2800,3000}
 Bot.ratings=levels
 Bot.limits={timeMs=220,depth=7,nodes=24000}
 local files="abcdefgh"
@@ -201,7 +201,7 @@ local function standardVisit(engine,state,depth,alpha,beta,search,ply,qPly,key)
    break
   end
  end
- if depth>0 and bestMove and (entry or search.entries<4096) and (not entry or entry.depth<=depth) then
+ if depth>0 and bestMove and (entry or search.entries<search.tableLimit) and (not entry or entry.depth<=depth) then
   if not entry then search.entries+=1 end
   local score
   if state.halfmove==0 and math.abs(best)<MATE-1000 then score=best end
@@ -271,27 +271,80 @@ local function fourVisit(engine,state,depth,alpha,beta,search,ply)
  return best
 end
 
+-- Gameplay budgets grow independently of the fixed analysis and puzzle callers.
+-- The last three columns control immediate perception, choice spread, and the
+-- largest allowed material/positional concession in the completed search.
+local profiles={
+ [200]={depth=1,timeMs=55,nodes=1400,sight=.94,spread=115,loss=1800},
+ [400]={depth=1,timeMs=75,nodes=2300,sight=.72,spread=85,loss=1350},
+ [600]={depth=2,timeMs=105,nodes=3500,sight=.45,spread=65,loss=850},
+ [800]={depth=2,timeMs=135,nodes=5000,sight=.28,spread=50,loss=520},
+ [1000]={depth=3,timeMs=155,nodes=6500,sight=.16,spread=38,loss=360},
+ [1200]={depth=3,timeMs=185,nodes=8500,sight=.09,spread=29,loss=250},
+ [1400]={depth=4,timeMs=215,nodes=11500,sight=.05,spread=22,loss=155},
+ [1600]={depth=4,timeMs=260,nodes=15500,sight=.02,spread=15,loss=90},
+ [1800]={depth=5,timeMs=300,nodes=21000},
+ [2000]={depth=5,timeMs=350,nodes=26000},
+ [2200]={depth=6,timeMs=420,nodes=34000},
+ [2400]={depth=7,timeMs=500,nodes=44000},
+ [2600]={depth=8,timeMs=620,nodes=56000},
+ [2800]={depth=9,timeMs=750,nodes=71000},
+ [3000]={depth=10,timeMs=900,nodes=90000},
+ Max={depth=12,timeMs=1650,nodes=180000,tableLimit=16384}
+}
+
 function Bot.clampRating(rating)
- return math.clamp(tonumber(rating) or 1000,400,levels[#levels])
+ if rating=="Max" then return rating end
+ return math.clamp(tonumber(rating) or 1000,200,3000)
 end
 
-local function pickImperfect(candidates,bestScore,rating,random)
- local weakness=math.clamp((1800-rating)/1400,0,1)
- if #candidates<=1 or random()>=weakness*.92 then return nil end
- local alternatives={}
- local total=0
- local tolerance=60+370*weakness
- for _,candidate in ipairs(candidates) do
-  local loss=math.min(bestScore,950)-candidate.score
-  if loss>0 and loss<=tolerance then
-   local weight=1-loss/(tolerance+1)
-   total+=weight
-   table.insert(alternatives,{candidate=candidate,limit=total})
+local function perceivedMove(engine,state,move,score,standard,sight,givesCheck,threatened)
+ if not standard then
+  return fourEvaluation(advanceFour(engine,state,move),state.turn)
+ end
+ local child=engine.searchApply(state,move)
+ local victim=state.board[move.to]
+ local capture=victim and values[string.sub(victim,2,2)] or (move.special=="enpassant" and 100 or 0)
+ local perception=-evaluate(child)+capture*.22
+ if threatened[move.from] then perception+=24 end
+ if givesCheck(move) then perception+=38 end
+ if string.sub(state.board[move.from],2,2)=="P" then perception+=10 end
+ -- A visible checkmate can stand out without giving a beginner perfect sight.
+ if score>=MATE-1 then perception+=25+650*(1-sight)^2 end
+ return perception
+end
+
+local function chooseGameplayCandidate(engine,state,candidates,bestScore,profile,random,standard)
+ if #candidates<2 then return nil end
+ local givesCheck=standard and engine.checkingMoveTester(state)
+ local threatened={}
+ if standard then
+  for _,reply in ipairs(engine.allLegal(state,state.turn=="w" and "b" or "w")) do
+   if state.board[reply.to] then threatened[reply.to]=true end
   end
  end
+ local strongest=math.clamp(bestScore,-1800,1800)
+ local bestIdea=-math.huge
+ local choices={}
+ for _,candidate in ipairs(candidates) do
+  local score=math.clamp(candidate.score,-1800,1800)
+  local loss=math.abs(bestScore)<MATE-1000 and math.abs(candidate.score)<MATE-1000 and bestScore-candidate.score or strongest-score
+  if loss<=profile.loss and (profile.sight>=.28 or bestScore<MATE-1000 or candidate.score==bestScore) then
+   local visible=perceivedMove(engine,state,candidate.move,candidate.score,standard,profile.sight,givesCheck,threatened)
+   local idea=score*(1-profile.sight)+visible*profile.sight
+   local factor=loss<=35 and 1 or loss<=170 and (.45+profile.sight*.55) or math.max(.05,profile.sight)
+   table.insert(choices,{candidate=candidate,idea=idea,factor=factor})
+   bestIdea=math.max(bestIdea,idea)
+  end
+ end
+ local total=0
+ for _,choice in ipairs(choices) do
+  total+=math.exp((choice.idea-bestIdea)/profile.spread)*choice.factor
+  choice.limit=total
+ end
  local roll=random()*total
- for _,alternative in ipairs(alternatives) do
-  if roll<alternative.limit then return alternative.candidate end
+ for _,choice in ipairs(choices) do
+  if roll<choice.limit then return choice.candidate end
  end
 end
 
@@ -299,16 +352,17 @@ function Bot.choose(engine,state,rating,options)
  options=options or {}
  local clock=options.clock or os.clock
  rating=Bot.clampRating(rating)
- local effort=math.min((rating-400)/2000,1)
- local extra=options.gameplay and math.max(0,(rating-2400)/600) or 0
- local candidates=options.gameplay and rating<1800 and {} or nil
- local baseDepth=2+effort*(Bot.limits.depth-2)+3*extra
- if candidates then baseDepth-=math.max(0,(1000-rating)/600) end
+ local profile
+ if rating=="Max" then profile=profiles.Max
+ elseif options.gameplay then profile=profiles[math.floor((rating+100)/200)*200]
+ end
+ local effort=profile and 0 or math.clamp((rating-400)/2000,0,1)
  local limits=Bot.limits
- local maxDepth=math.floor(math.clamp(options.depth or baseDepth,1,12))
- local search={deadline=clock()+(options.timeMs or (limits.timeMs+480*extra))/1000,clock=clock,
-  checkpoint=options.checkpoint,lastYield=clock(),maxNodes=options.nodes or math.floor(3200+effort*(limits.nodes-3200)+48000*extra),
-  nodes=0,entries=0,table={},history={},killers={},path={},root=state.turn,rootPositions=state.positions or {}}
+ local maxDepth=math.floor(math.clamp(options.depth or (profile and profile.depth or 2+effort*(limits.depth-2)),1,12))
+ local search={deadline=clock()+(options.timeMs or (profile and profile.timeMs or limits.timeMs))/1000,clock=clock,
+  checkpoint=options.checkpoint,lastYield=clock(),maxNodes=options.nodes or (profile and profile.nodes or math.floor(3200+effort*(limits.nodes-3200))),
+  nodes=0,entries=0,tableLimit=profile and profile.tableLimit or 4096,table={},history={},killers={},path={},
+  root=state.turn,rootPositions=state.positions or {}}
  local moves=engine.allLegal(state)
  if #moves==0 then return nil end
  local standard=state.castling~=nil
@@ -323,14 +377,17 @@ function Bot.choose(engine,state,rating,options)
  orderMoves(state,moves,nil,search,0)
  local best=moves[1]
  local completed,completedScore=0,nil
+ local candidates, tiedMoves
+ local varyTies=profile and not profile.sight and rating~="Max"
  for depth=1,maxDepth do
   orderMoves(state,moves,best.searchId,search,0)
-  local iterationBest
+  local iterationBest, iterationTies
   local alpha=-MATE
-  local collect=candidates and depth==1
+  local collect=profile and profile.sight and #moves>1 and {} or nil
   for _,move in ipairs(moves) do
    local score
-   local lower=collect and -MATE or alpha
+   -- Search one point below alpha so an equal score is exact, rather than an upper bound.
+   local lower=collect and -MATE or (varyTies and math.max(-MATE,alpha-1) or alpha)
    if standard then
     local child=engine.searchApply(state,move)
     local key=engine.positionKey(child)
@@ -342,24 +399,33 @@ function Bot.choose(engine,state,rating,options)
     score=fourVisit(engine,advanceFour(engine,state,move),depth-1,lower,MATE,search,1)
    end
    if score==nil then iterationBest=nil; break end
-   if collect then table.insert(candidates,{move=move,score=score}) end
-   if not iterationBest or score>alpha then alpha=score; iterationBest=move end
+   if collect then table.insert(collect,{move=move,score=score}) end
+   if not iterationBest or score>alpha then
+    alpha=score
+    iterationBest=move
+    if varyTies then iterationTies={move} end
+   elseif varyTies and score==alpha then
+    table.insert(iterationTies,move)
+   end
   end
   if not iterationBest then break end
   best=iterationBest
   completed,completedScore=depth,alpha
+  candidates=collect
+  tiedMoves=iterationTies
   if math.abs(alpha)>MATE-1000 then break end
  end
  if search.cancelled then return nil end
- if candidates and #candidates==#moves and completed>0 then
-  local strongest=candidates[1].score
-  for _,candidate in ipairs(candidates) do strongest=math.max(strongest,candidate.score) end
-  local picked=pickImperfect(candidates,strongest,rating,options.random or math.random)
+ if candidates then
+  local picked=chooseGameplayCandidate(engine,state,candidates,completedScore,profile,options.random or math.random,standard)
   if picked then best,completedScore=picked.move,picked.score end
+ elseif tiedMoves and #tiedMoves>1 then
+  local roll=(options.random or math.random)()
+  best=tiedMoves[math.min(#tiedMoves,math.floor(roll*#tiedMoves)+1)]
  end
  -- The order key is private; preserve the move contract for all callers.
  return {from=best.from,to=best.to,promotion=best.promotion,special=best.special},
-  {depth=completed,nodes=search.nodes,score=completedScore}
+  {depth=completed,nodes=search.nodes,score=completedScore,maxDepth=maxDepth,maxNodes=search.maxNodes}
 end
 -- Position analysis is read-only and uses the same scoring as bot play.
 Bot.evaluatePosition=evaluate
