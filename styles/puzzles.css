@@ -43,8 +43,26 @@
 }
 .puzzle-menu summary:hover { background: var(--button-hover); }
 .puzzle-menu summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.puzzle-levels, .puzzle-review { display: grid; gap: .4rem; font-size: .85rem; color: var(--muted); }
-.puzzle-levels button, .puzzle-review button { text-align: start; }
+.puzzle-levels { display: grid; gap: .4rem; font-size: .85rem; color: var(--muted); }
+.puzzle-levels button { display: grid; gap: .2rem; text-align: start; }
+.puzzle-levels small:empty { display: none; }
+.puzzle-levels small { color: var(--muted); font-weight: 500; }
+.puzzle-levels [aria-current] { border-color: var(--focus); }
+.puzzle-heart-break {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  font-size: clamp(2.75rem, 11vw, 5rem);
+  line-height: 1;
+  pointer-events: none;
+  z-index: 3;
+}
+.puzzle-heart-break:not([hidden]) { animation: puzzle-heart-break 440ms ease-out both; }
+@keyframes puzzle-heart-break {
+  0% { opacity: 0; scale: .8; }
+  25%, 55% { opacity: 1; scale: 1; }
+  100% { opacity: 0; scale: 1.08; }
+}
 @media (max-width: 49rem) {
   .puzzle-library-layout { grid-template-columns: minmax(0, 1fr); }
   .puzzle-play .board-and-eval { inline-size: min(100%, 37rem); }

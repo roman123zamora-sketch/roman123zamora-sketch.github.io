@@ -1,4 +1,3 @@
-export const puzzleTolerance = 200;
 const assetRoot = new URL("../assets/puzzles/", import.meta.url);
 
 export function puzzleIdea(puzzle) {
@@ -19,26 +18,6 @@ export function puzzleIdea(puzzle) {
     return [structure, square(first.from), square(first.to), ...line.slice(1, 3).map(move => square(move.to))].join("/");
   }).sort();
   return [category, mover, target, first.promotion ?? "-", signatures[0]].join(":");
-}
-
-export function matchesPuzzleTarget(puzzle, rating) {
-  return Boolean(puzzle && !puzzle.retry && Number.isFinite(puzzle.difficulty) &&
-    Math.abs(puzzle.difficulty - rating) <= puzzleTolerance);
-}
-
-export function eligiblePuzzles(entries, practice) {
-  const excluded = new Set([...practice.recent, ...(practice.rated ?? []), ...(practice.seen ?? [])]);
-  const seenIdeas = new Set(practice.seenIdeas ?? []);
-  const unique = new Map(entries.map(puzzle => [puzzle.id, puzzle]));
-  return [...unique.values()].filter(puzzle => matchesPuzzleTarget(puzzle, practice.rating) &&
-    !excluded.has(puzzle.id) && !seenIdeas.has(puzzle.idea))
-    .sort((left, right) => Math.abs(left.difficulty - practice.rating) - Math.abs(right.difficulty - practice.rating));
-}
-
-export function rememberPuzzle(practice, puzzle) {
-  const idea = puzzle.idea ?? puzzleIdea(puzzle);
-  practice.seen = [...new Set([...(practice.seen ?? []), puzzle.id])];
-  practice.seenIdeas = [...new Set([...(practice.seenIdeas ?? []), idea])];
 }
 
 const indexes = new Map();

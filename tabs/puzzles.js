@@ -1,6 +1,6 @@
-import { levels, levelOf, levelLabel, libraryEntries, openLibraryPuzzle, ratedEntries } from "../game/puzzle-library.js";
-import { rememberPuzzle } from "../game/puzzle-pool.js";
-import { libraryProgress, loadPractice, markLibraryResult, resolvePuzzle, savePractice } from "../game/puzzle-progress.js";
+import { isRatedPuzzle, levelEntries, levelLabel, levelLock, levelOf, levelProgress, levels,
+  libraryEntries, nextPuzzleLevel, openLibraryPuzzle, puzzlesPerLevel } from "../game/puzzle-library.js";
+import { loadPractice, resolvePuzzle, savePractice } from "../game/puzzle-progress.js";
 import { playSound, subscribe } from "../game/session.js";
 import { bindBoardDrag } from "../game/board-drag.js";
 import { getTheme } from "../ui/board-themes.js";
@@ -18,6 +18,7 @@ export default function puzzles(content) {
         </div>
         <div class="board-and-eval">
           <div class="board-slot puzzle-board-slot"></div>
+          <span class="puzzle-heart-break" aria-hidden="true" hidden>💔</span>
         </div>
         <div class="puzzle-game-controls">
           <p class="puzzle-hearts"></p>
@@ -34,16 +35,12 @@ export default function puzzles(content) {
         <h1>Puzzles</h1>
         <dl class="puzzle-stats">
           <div><dt>Your Puzzle Elo</dt><dd data-rating></dd></div>
-          <div><dt>Difficulty target</dt><dd data-difficulty></dd></div>
+          <div><dt>Your Elo band</dt><dd data-difficulty></dd></div>
         </dl>
         <button type="button" class="primary puzzle-primary" data-next>Play Rated</button>
         <details class="puzzle-menu">
-          <summary>Browse Levels</summary>
+          <summary>Levels</summary>
           <div class="puzzle-levels"></div>
-        </details>
-        <details class="puzzle-menu">
-          <summary>Review</summary>
-          <div class="puzzle-review"></div>
         </details>
       </aside>
       <dialog class="promotion-dialog" aria-labelledby="puzzle-promotion-title">
@@ -65,7 +62,6 @@ export default function puzzles(content) {
   const instructions = content.querySelector(".puzzle-solution");
   const next = content.querySelector("[data-next]");
   let entries = [];
-  let archived = [];
   let libraryFailed = false;
   const controller = new AbortController();
   const listeners = { signal: controller.signal };
@@ -81,10 +77,11 @@ export default function puzzles(content) {
   let wrongTimer;
   let animationPosition;
   let finished;
-  let retry;
-
-  const playable = () => retry ?? practice.active;
-  let message = "";
+  let advanceTimer;
+  let heartTimer;
+  const heartBreak = content.querySelector(".puzzle-heart-break");
+  const playable = () => practice.active;
+  let message = practice.active?.finishing ? "Attempt ended. Finish this puzzle in practice." : "";
   let outcome;
 
   function currentPosition(active) {
@@ -130,15 +127,17 @@ export default function puzzles(content) {
     if (focused) slot.querySelector(`[data-square="${focused}"]`)?.focus({ preventScroll: true });
 
     content.querySelector("[data-rating]").textContent = practice.rating;
-    content.querySelector("[data-difficulty]").textContent = practice.rating;
-    content.querySelector(".puzzle-difficulty").textContent = puzzle ? `Difficulty ${puzzle.difficulty}` : "Rated and practice puzzles";
+    content.querySelector("[data-difficulty]").textContent = levelLabel(levels[levelOf(practice.rating)]);
+    const mode = active?.rated ? "Rated" : active?.finishing ? "Practice after loss" : "Practice";
+    content.querySelector(".puzzle-difficulty").textContent = puzzle
+      ? `Difficulty ${puzzle.difficulty}${active ? " · " + mode : ""}` : "Rated and practice puzzles";
     const heartLabel = content.querySelector(".puzzle-hearts");
-    heartLabel.style.visibility = puzzle && !retry ? "visible" : "hidden";
+    heartLabel.style.visibility = puzzle ? "visible" : "hidden";
     heartLabel.setAttribute("aria-label", `${hearts} of 3 hearts remaining`);
     heartLabel.innerHTML = `<span aria-hidden="true">${"♥".repeat(hearts)}${"♡".repeat(3 - hearts)}</span>`;
     content.querySelector(".puzzle-objective").textContent = transition
       ? `${colors[position.turn]} replies · ${categories[puzzle.category]}`
-      : active ? `${colors[puzzle.side]} to move · ${retry ? `Practice · ${categories[puzzle.category]}` : categories[puzzle.category]}`
+      : active ? `${colors[puzzle.side]} to move · ${categories[puzzle.category]}`
       : puzzle ? categories[puzzle.category] : "Choose Play Rated or browse a level.";
     status.textContent = message;
     status.dataset.outcome = outcome ?? "";
@@ -163,28 +162,28 @@ export default function puzzles(content) {
         instructions.append(item);
       }
     }
-    skip.disabled = !practice.active || Boolean(retry || transition || generating);
+    skip.disabled = !active || Boolean(transition || generating);
     next.setAttribute("aria-busy", String(generating));
-    next.disabled = generating || Boolean(transition || promotion) || Boolean(practice.active && !retry);
-    next.textContent = generating ? "Loading…" : retry && practice.active ? "Resume rated puzzle"
-      : practice.active ? "Rated puzzle in progress" : finished ? "Next Puzzle" : "Play Rated";
+    next.disabled = generating || Boolean(transition || promotion || active || advanceTimer);
+    next.textContent = generating ? "Loading…" : active ? "Puzzle in progress"
+      : advanceTimer ? "Next puzzle loading…" : finished ? "Open Levels" : "Play";
 
   }
 
   let attemptStarted;
 
   function startAttemptClock() {
-    if (practice.active && !retry && !generating && !document.hidden && attemptStarted == null) {
+    if (practice.active && !practice.active.finishing && !generating && !document.hidden && attemptStarted == null) {
       practice.active.elapsedMs ??= 0;
       attemptStarted = performance.now();
     }
   }
 
-  function pauseAttemptClock() {
+  function pauseAttemptClock(persist = true) {
     if (attemptStarted == null || !practice.active) return;
     practice.active.elapsedMs += performance.now() - attemptStarted;
     attemptStarted = undefined;
-    savePractice(practice);
+    if (persist) savePractice(practice);
   }
 
   document.addEventListener("visibilitychange", () => {
@@ -197,6 +196,10 @@ export default function puzzles(content) {
   function stopAnimation() {
     clearTimeout(transition);
     clearTimeout(wrongTimer);
+    clearTimeout(advanceTimer);
+    clearTimeout(heartTimer);
+    advanceTimer = undefined;
+    heartBreak.hidden = true;
     transition = undefined;
     wrong = null;
     animationPosition = null;
@@ -206,69 +209,52 @@ export default function puzzles(content) {
     drag.cancel();
   }
 
-  function reviewEntries() {
-    return [...new Map([...archived, ...entries].map(entry => [entry.id, entry])).values()];
-  }
-
   async function loadLibrary() {
     entries = await libraryEntries();
     if (disposed) return;
     libraryFailed = entries.length === 0;
     renderLibrary();
-    if (Object.values(libraryProgress(practice)).includes("failed") && !archived.length) {
-      archived = await libraryEntries("archive");
-      if (!disposed) renderLibrary();
-    }
   }
 
   function renderLibrary() {
-    const progress = libraryProgress(practice);
-    const levelList = content.querySelector(".puzzle-levels");
-    const reviewList = content.querySelector(".puzzle-review");
-    levelList.replaceChildren();
-    reviewList.replaceChildren();
+    const list = content.querySelector(".puzzle-levels");
+    const focusedLevel = list.contains(document.activeElement) ? document.activeElement.dataset.level : null;
+    list.replaceChildren();
     if (libraryFailed || !entries.length) {
-      const note = libraryFailed ? "Library unavailable. Use Play Rated to retry." : "Loading levels…";
-      levelList.textContent = note;
-      reviewList.textContent = note;
+      list.textContent = libraryFailed ? "Library unavailable. Use Play to retry." : "Loading levels…";
       return;
     }
-
+    const current = practice.active ? levelOf(practice.active.puzzle.difficulty) : practice.lastLevel;
+    const elo = levelOf(practice.rating);
     for (const [index, level] of levels.entries()) {
-      const available = entries.filter(entry => levelOf(entry.difficulty) === index);
-      const solved = available.filter(entry => progress[entry.id] === "solved").length;
+      const { count, available } = levelProgress(entries, practice.libraryProgress, index);
+      const lock = levelLock(entries, practice, index);
       const button = document.createElement("button");
       button.type = "button";
       button.dataset.level = index;
-      button.disabled = !available.length;
-      button.textContent = `${levelLabel(level)} · ${solved} of ${available.length} solved`;
-      levelList.append(button);
-    }
-
-    const missed = reviewEntries().filter(entry => progress[entry.id] === "failed");
-    if (!missed.length) reviewList.textContent = "Missed library puzzles appear here.";
-    for (const entry of missed) {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.dataset.review = entry.id;
-      button.textContent = `${entry.category === "material" ? "Material" : "Checkmate"} · ${entry.difficulty}`;
-      reviewList.append(button);
+      button.disabled = Boolean(lock) || !available;
+      if (current === index) button.setAttribute("aria-current", "true");
+      const title = document.createElement("span");
+      title.textContent = `${levelLabel(level)} · ${count} of ${puzzlesPerLevel} solved`;
+      const detail = document.createElement("small");
+      detail.textContent = [
+        elo === index ? "Your Elo band" : "",
+        current === index ? "Current level" : "",
+        lock || (!available ? "No verified puzzles published yet." :
+          available < puzzlesPerLevel ? `${available} verified puzzles published.` : "")
+      ].filter(Boolean).join(" · ");
+      button.append(title, detail);
+      list.append(button);
+      if (focusedLevel === String(index) && !button.disabled) button.focus({ preventScroll: true });
     }
   }
 
-  async function startPuzzle(mode = "rated", key) {
+  async function startPuzzle(requested, automatic = false, allowReplay = false) {
     if (generating || transition || promotion) return;
-    if (mode === "rated" && practice.active) {
-      if (!retry) return;
-      stopAnimation();
-      retry = null;
-      showSolution = false;
-      message = "Rated puzzle resumed.";
-      startAttemptClock();
-      render();
+    if (practice.active && requested === levelOf(practice.active.puzzle.difficulty)) {
+      slot.querySelector("button.square")?.focus({ preventScroll: true });
       return;
     }
-
     const request = ++generation;
     generating = true;
     pauseAttemptClock();
@@ -281,39 +267,33 @@ export default function puzzles(content) {
     try {
       if (!entries.length) await loadLibrary();
       if (disposed || request !== generation) return;
-      const progress = libraryProgress(practice);
-      const candidates = mode === "rated" ? ratedEntries(entries, practice)
-        : mode === "review" ? reviewEntries().filter(entry => entry.id === key && progress[entry.id] === "failed")
-        : entries.filter(entry => levelOf(entry.difficulty) === Number(key) && entry.id !== practice.active?.puzzle.id)
-          .sort((a, b) => Number(a.id === finished?.puzzle.id) - Number(b.id === finished?.puzzle.id) ||
-            Number(progress[a.id] === "solved") - Number(progress[b.id] === "solved"));
-      let puzzle;
-      for (const entry of candidates) {
-        puzzle = await openLibraryPuzzle(entry, practice.rating);
-        if (disposed || request !== generation) return;
-        if (puzzle) break;
-      }
-      if (!puzzle) {
-        message = candidates.length || libraryFailed ? "Couldn’t load the puzzle. Try again."
-          : "No nearby unseen rated puzzles remain. Browse a level or review your misses.";
+      const level = requested ?? nextPuzzleLevel(entries, practice, practice.lastLevel);
+      if (level === undefined || levelLock(entries, practice, level)) {
+        message = libraryFailed ? "Couldn’t load the puzzle library. Try again." : "Choose an unlocked level in Levels.";
         return;
       }
-      finished = null;
-      opened = true;
-      if (mode === "rated") {
-        retry = null;
-        practice.category = puzzle.category;
-        practice.active = { puzzle, step: 0, hearts: 3 };
-        rememberPuzzle(practice, puzzle);
-        startAttemptClock();
+      const candidates = levelEntries(entries, level).filter(entry => entry.id !== practice.active?.puzzle.id);
+      const unsolved = candidates.filter(entry => practice.libraryProgress[entry.id] !== "solved");
+      const playableEntries = unsolved.length || (automatic && !allowReplay) ? unsolved : candidates;
+      playableEntries.sort((a, b) =>
+        Number(a.id === finished?.puzzle.id) - Number(b.id === finished?.puzzle.id) ||
+        Number(a.id === practice.lastSkipped) - Number(b.id === practice.lastSkipped) ||
+        Math.abs(a.difficulty - practice.rating) - Math.abs(b.difficulty - practice.rating));
+      for (const entry of playableEntries) {
+        const puzzle = await openLibraryPuzzle(entry);
+        if (disposed || request !== generation) return;
+        if (!puzzle) continue;
+        practice.active = { id: crypto.randomUUID(), puzzle, step: 0, hearts: 3,
+          startElo: practice.rating, rated: isRatedPuzzle(practice, puzzle) };
+        practice.lastLevel = level;
         savePractice(practice);
-        message = "";
-      } else {
-        retry = { puzzle, step: 0 };
-        rememberPuzzle(practice, puzzle);
-        savePractice(practice);
-        message = mode === "review" ? "Review attempt. Your Elo stays the same." : "Level practice. Your Elo stays the same.";
+        finished = null;
+        opened = true;
+        message = practice.active.rated ? "" : "Practice puzzle. Your Elo stays the same.";
+        break;
       }
+      if (!opened) message = playableEntries.length ? "Couldn’t load the puzzle. Try again."
+        : "All published puzzles in this level are solved. Choose a level to replay.";
     } catch (error) {
       if (!disposed) {
         console.error("Puzzle library unavailable.", error);
@@ -323,23 +303,60 @@ export default function puzzles(content) {
       if (!disposed && request === generation) {
         generating = false;
         startAttemptClock();
+        renderLibrary();
         render();
-        if (opened) slot.querySelector("button.square")?.focus();
+        if (opened) slot.querySelector("button.square")?.focus({ preventScroll: true });
       }
     }
   }
 
-  function resolve(result) {
-    pauseAttemptClock();
-    const active = practice.active;
-    const delta = resolvePuzzle(practice, result);
-    outcome = result;
-    finished = { puzzle: active.puzzle, hearts: active.hearts, position: result === "solved"
-      ? active.puzzle.steps[active.step - 1].afterMove ?? currentPosition(active)
-      : currentPosition(active) };
+  function animateHeartBreak() {
+    clearTimeout(heartTimer);
+    heartBreak.hidden = true;
+    // Restart the short animation even if mistakes are made quickly.
+    void heartBreak.offsetWidth;
+    heartBreak.hidden = false;
+    heartTimer = setTimeout(() => { heartBreak.hidden = true; }, 440);
+  }
+
+  function finishPuzzle(active, step) {
+    const level = levelOf(active.puzzle.difficulty);
+    const alreadyComplete = levelProgress(entries, practice.libraryProgress, level).complete;
+    pauseAttemptClock(false);
+    const delta = resolvePuzzle(practice, active, "solved");
+    finished = { puzzle: active.puzzle, hearts: active.hearts, position: step.afterMove ?? step.position };
+    outcome = "solved";
+    message = `Solved. Rating ${delta > 0 ? "+" + delta : delta < 0 ? "−" + Math.abs(delta) : "unchanged"}.`;
+    const { count, available, complete } = levelProgress(entries, practice.libraryProgress, level);
+    const nextLevel = nextPuzzleLevel(entries, practice, level);
+    if (complete && !alreadyComplete) {
+      message += " Level complete.";
+      if (level === levels.length - 1) message += " Library complete. Open Levels to replay.";
+      else {
+        const lock = levelLock(entries, practice, level + 1);
+        if (lock) message += ` ${lock}`;
+        else if (nextLevel === undefined) message += " The next level has no published puzzles yet.";
+      }
+    } else if (!complete && count === available) {
+      message += ` ${count} of ${puzzlesPerLevel} solved. More verified puzzles are needed to complete this level.`;
+    }
+    if (nextLevel !== undefined && nextLevel < level) {
+      message += ` ${levelLock(entries, practice, level)} Next up: ${levelLabel(levels[nextLevel])}.`;
+    }
+    const canAdvance = nextLevel !== undefined && (
+      nextLevel !== level ? !alreadyComplete :
+        levelEntries(entries, level).some(entry => practice.libraryProgress[entry.id] !== "solved")
+    );
+    if (canAdvance) {
+      advanceTimer = setTimeout(() => {
+        advanceTimer = undefined;
+        startPuzzle(nextLevel, true, nextLevel < level);
+      }, complete ? 1450 : 850);
+    }
+    playSound("solved");
     renderLibrary();
-    message = `${result === "solved" ? "Solved" : result === "skipped" ? "Skipped" : "Out of hearts"}. Rating ${delta > 0 ? "+" + delta : delta < 0 ? "−" + Math.abs(delta) : "unchanged"}.`;
-    if (result === "failed") message += " You can retry it in Review.";
+    render();
+    if (!canAdvance) next.focus({ preventScroll: true });
   }
 
   function attempt(move) {
@@ -348,57 +365,47 @@ export default function puzzles(content) {
     const step = active.puzzle.steps[active.step];
     selected = null;
     if (step.move.from !== move.from || step.move.to !== move.to || step.move.promotion !== move.promotion) {
-      if (!retry) active.hearts--;
       playSound("wrong");
       wrong = move.from;
       clearTimeout(wrongTimer);
-      if (retry) message = "That move misses the tactic. Keep trying.";
-      else if (!active.hearts) resolve("failed");
-      else {
-        outcome = "wrong";
-        message = "That move misses the tactic. Try again.";
-        savePractice(practice);
+      outcome = "wrong";
+      message = active.finishing ? "Incorrect move. Keep trying in practice." : "Incorrect move. Try again.";
+      if (!active.finishing) {
+        active.hearts--;
+        animateHeartBreak();
+        if (!active.hearts) {
+          pauseAttemptClock(false);
+          const rated = active.rated;
+          const delta = resolvePuzzle(practice, active, "failed");
+          outcome = "failed";
+          message = `Incorrect move. ${rated ? "Rated attempt ended. " : ""}${delta ? "Rating −" + Math.abs(delta) + ". " : ""}Finish this puzzle in practice.`;
+          renderLibrary();
+        } else savePractice(practice);
       }
       wrongTimer = setTimeout(() => { wrong = null; render(); }, 350);
       render();
-      if (outcome === "failed") next.focus({ preventScroll: true });
       return;
     }
     clearTimeout(wrongTimer);
     wrong = null;
     active.step++;
     active.hint = 0;
-    const solved = active.step === active.puzzle.steps.length;
-    if (solved && retry) {
-      markLibraryResult(practice, active.puzzle.id, "solved");
-      savePractice(practice);
-      renderLibrary();
-      finished = { puzzle: active.puzzle, hearts: 0, position: step.afterMove ?? step.position };
-      retry = null;
-      outcome = "solved";
-      message = "Practice complete. Rating unchanged.";
-      playSound("solved");
-      startAttemptClock();
-    } else if (solved) {
-      resolve("solved");
-      playSound("solved");
-      render();
-      next.focus({ preventScroll: true });
+    if (active.step === active.puzzle.steps.length) {
+      finishPuzzle(active, step);
       return;
-    } else {
-      playSound("move");
-      outcome = "correct";
-      message = "Correct. Find the next move.";
-      if (!retry) savePractice(practice);
     }
-    if (!solved && step.afterMove && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    playSound("move");
+    outcome = "correct";
+    message = "Correct. Find the next move.";
+    savePractice(practice);
+    if (step.afterMove && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
       animationPosition = step.afterMove;
       transition = setTimeout(() => {
         animationPosition = null;
         transition = undefined;
-        if (!solved) playSound("move");
+        playSound("move");
         render();
-      }, 240);
+      }, 220);
     }
     render();
   }
@@ -451,12 +458,12 @@ export default function puzzles(content) {
     active.hintsUsed = Math.min(2, (active.hintsUsed ?? 0) + 1);
     const { from, to } = active.puzzle.steps[active.step].move;
     message = `${active.hint === 1 ? `Move the piece on ${from}.` : `Move from ${from} to ${to}.`}`;
-    if (!retry) savePractice(practice);
+    savePractice(practice);
     render();
   }, listeners);
   solution.addEventListener("click", () => {
     showSolution = !showSolution;
-    if (showSolution && practice.active && !retry) {
+    if (showSolution && practice.active?.rated) {
       practice.active.hintsUsed = 2;
       message = "Solution shown. Counts as two hints.";
       savePractice(practice);
@@ -464,19 +471,23 @@ export default function puzzles(content) {
     render();
   }, listeners);
   skip.addEventListener("click", () => {
-    if (!practice.active || retry || transition || generating) return;
-    resolve("skipped");
-    render();
-    next.focus({ preventScroll: true });
+    const active = playable();
+    if (!active || transition || generating) return;
+    pauseAttemptClock(false);
+    practice.lastSkipped = active.puzzle.id;
+    resolvePuzzle(practice, active, "skipped");
+    startPuzzle(nextPuzzleLevel(entries, practice, levelOf(active.puzzle.difficulty)));
   }, listeners);
-  next.addEventListener("click", () => startPuzzle(), listeners);
+  next.addEventListener("click", () => {
+    if (finished) {
+      const menu = content.querySelector(".puzzle-menu");
+      menu.open = true;
+      menu.querySelector("summary").focus();
+    } else startPuzzle();
+  }, listeners);
   content.querySelector(".puzzle-levels").addEventListener("click", event => {
     const button = event.target.closest("[data-level]");
-    if (button) startPuzzle("level", button.dataset.level);
-  }, listeners);
-  content.querySelector(".puzzle-review").addEventListener("click", event => {
-    const button = event.target.closest("[data-review]");
-    if (button) startPuzzle("review", button.dataset.review);
+    if (button && !button.disabled) startPuzzle(Number(button.dataset.level));
   }, listeners);
   const unsubscribe = subscribe(kind => {
     if (kind === "profile" || kind === "catalog") render();

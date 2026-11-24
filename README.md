@@ -165,20 +165,20 @@ node tests/learn-course-test.mjs
 
 ## Puzzles
 
-The Puzzles tab serves the offline-verified library. Play Rated reads your
-current Elo and selects the closest unseen puzzle in your difficulty band
-or an adjacent band, up to 200 points away. Browse Levels shows solved
-counts and opens practice positions. Review reopens missed published
-positions for practice. Rated credit is recorded on the first completed
-rated attempt. A completed practice attempt uses no Elo.
+Puzzles uses a pre-verified ladder through 2500 Elo. Players complete the
+lower levels and meet the next level's Elo requirement to unlock it. The
+level list shows progress and lock reasons. After a solve, the next
+eligible position opens automatically. After a loss, the same position
+remains open in practice.
 
-Published positions come from complete legal game histories. The browser
-loads an index and one playable puzzle, including its estimated difficulty,
-FEN, objective, and verified continuation. It resumes an unfinished rated
-attempt after reload. Shared library additions are verified offline.
+The browser commits the outcome, rating, and attempt state together. The
+new progression storage key starts returning players at 400 once and
+leaves their legacy record available in browser storage. Rated credit is
+available on the first completed attempt in the player's Elo band.
+Lower-band attempts and replays leave Elo unchanged.
 
-See [the library documentation](assets/puzzles/README.md) for publishing
-and coverage details.
+See [the library documentation](assets/puzzles/README.md) for publishing,
+current coverage, and gaps.
 
 ```sh
 node tests/puzzles-test.mjs
