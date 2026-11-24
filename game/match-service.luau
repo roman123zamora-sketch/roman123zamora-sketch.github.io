@@ -67,15 +67,6 @@ local function profileView(p)
  local v=getProfile(p); return {chessElo=v.chessElo,fourElo=v.fourElo,leaguePoints=v.leaguePoints,league=league(v.leaguePoints),allTimeCaptures=v.allTimeCaptures,history=v.history or {},equippedBoard=v.equippedBoard}
 end
 local function fourMode(m) return m.mode=="fourBot" or m.mode=="fourOnline" end
--- Four-player only: play the fart sound for everyone still in the match, once per
--- checkmate, resignation, or abort event.
-local function playFart(m)
- if not fourMode(m) then return end
- for _,p in ipairs(m.players) do
-  local side=m.sides[p.UserId]
-  if not m.state.eliminated[side] and not (m.resultsSent and m.resultsSent[p.UserId]) then send(p,"fart",{}) end
- end
-end
 local function engineFor(m) return fourMode(m) and Four or Chess end
 local function sideName(side) return ({w="White",b="Black",R="Red",B="Blue",Y="Yellow",G="Green"})[side] or side end
 local function matchPlayersPayload(m,p)
@@ -291,7 +282,6 @@ local function normalizeFour(m)
    if not hasKing then
     state.eliminated[c]=true; state.eliminationReason[c]="Checkmate"; table.insert(state.eliminationOrder,c)
     if state.turn==c then state.turn=Four.nextColor(c) end
-    playFart(m)
    end
   end
  end
@@ -300,9 +290,6 @@ local function normalizeFour(m)
   elseif #Four.allLegal(state,c)>0 then break
   else
    state.eliminated[c]=true; state.eliminationReason[c]=Four.inCheck(state,c) and "Checkmate" or "Stalemate"; table.insert(state.eliminationOrder,c); state.turn=Four.nextColor(c)
-   if state.eliminationReason[c]=="Checkmate" then
-    playFart(m)
-   end
   end
  end
  if m.clocks and (state.turn~=previousTurn or previousTurn~=m.clockSide) then
@@ -354,7 +341,6 @@ local function abortFour(m,side)
  m.state.eliminated[side]=true; m.state.eliminationReason[side]="Aborted"; table.insert(m.state.eliminationOrder,side)
  m.abortedSides[side]=true;
  if m.state.turn==side then m.state.turn=Four.nextColor(side) end
- playFart(m)
  for _,p in ipairs(m.players) do
  if m.sides[p.UserId]==side and not m.resultsSent[p.UserId] then
  m.resultsSent[p.UserId]=true; playerMatch[p.UserId]=nil
@@ -698,7 +684,7 @@ Action.OnServerEvent:Connect(function(p,kind,data)
    elseif m.mode=="fourOnline" then
     if not m.over and not hasMoved(m,side) then abortFour(m,side)
     else
-     m.state.eliminated[side]=true; m.state.eliminationReason[side]="Resignation"; table.insert(m.state.eliminationOrder,side); if m.state.turn==side then m.state.turn=Four.nextColor(side) end; playFart(m); m.resultsSent[p.UserId]=true; playerMatch[p.UserId]=nil; send(p,"result",{matchId=m.id,result="loss",reason="Resignation",review=fourReview(m)}); normalizeFour(m); pair(m)
+     m.state.eliminated[side]=true; m.state.eliminationReason[side]="Resignation"; table.insert(m.state.eliminationOrder,side); if m.state.turn==side then m.state.turn=Four.nextColor(side) end; m.resultsSent[p.UserId]=true; playerMatch[p.UserId]=nil; send(p,"result",{matchId=m.id,result="loss",reason="Resignation",review=fourReview(m)}); normalizeFour(m); pair(m)
     end
    elseif m.mode=="online" and not m.over and not hasMoved(m,side) then abortMatch(m,side)
    elseif m.mode=="fourBot" then
@@ -729,7 +715,6 @@ Action.OnServerEvent:Connect(function(p,kind,data)
    if m.over or (m.state.eliminated and m.state.eliminated[side]) then m.resultsSent[p.UserId]=true; playerMatch[p.UserId]=nil; return end
    m.state.eliminated[side]=true; m.state.eliminationReason[side]="Left"; table.insert(m.state.eliminationOrder,side)
    if m.state.turn==side then m.state.turn=Four.nextColor(side) end
-   playFart(m)
    m.resultsSent[p.UserId]=true; playerMatch[p.UserId]=nil
    normalizeFour(m); pair(m)
   else
@@ -843,7 +828,7 @@ Players.PlayerRemoving:Connect(function(p)
  if m and not m.over and m.mode=="online" then
   local winner; for _,other in ipairs(m.players) do if other~=p then winner=m.sides[other.UserId] end end; finish(m,winner,"Opponent disconnected")
  elseif m and not m.over and m.mode=="fourOnline" then
-  local side=m.sides[p.UserId]; m.state.eliminated[side]=true; m.state.eliminationReason[side]="Resignation"; table.insert(m.state.eliminationOrder,side); if m.state.turn==side then m.state.turn=Four.nextColor(side) end; playFart(m); playerMatch[p.UserId]=nil; m.resultsSent[p.UserId]=true; normalizeFour(m); pair(m)
+  local side=m.sides[p.UserId]; m.state.eliminated[side]=true; m.state.eliminationReason[side]="Resignation"; table.insert(m.state.eliminationOrder,side); if m.state.turn==side then m.state.turn=Four.nextColor(side) end; playerMatch[p.UserId]=nil; m.resultsSent[p.UserId]=true; normalizeFour(m); pair(m)
  end
  saveProfile(p); profileCache[tostring(p.UserId)]=nil
 end)

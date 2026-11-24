@@ -94,7 +94,7 @@ document.addEventListener("pointerover", event => {
 });
 document.addEventListener("click", event => {
   const control = event.target.closest(soundControl);
-  if (control && control !== audio) unlockSound("button");
+  if (control && control !== audio && !control.hasAttribute("data-premove-control")) unlockSound("button");
   else if (control !== audio) unlockSound();
 }, { capture: true });
 let previousMatch;

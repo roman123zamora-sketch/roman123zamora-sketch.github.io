@@ -87,7 +87,7 @@ export function board(theme, fourPlayer = false, sample = false, options = {}) {
         }
       }
       square.className = corner ? "square cutout" : (row + column) % 2 ? "square dark" : "square";
-      const encoded = sample ? previewPosition[address] : options.state?.board[address];
+      const encoded = sample ? previewPosition[address] : (options.preview?.board ?? options.state?.board)?.[address];
       const piece = sample || options.state ? (encoded && { type: encoded[1], side: colors[encoded[0]] }) : position?.get(`${size - ranks[row]},${"abcdefghijklmn".indexOf(files[column])}`);
       if (!corner && !sample) {
         const description = piece ? `${piece.side} ${pieceName(piece.type)}` : "empty";
@@ -109,7 +109,7 @@ export function board(theme, fourPlayer = false, sample = false, options = {}) {
         }
         image.classList.toggle("eliminated", Boolean(options.state?.eliminated?.[encoded?.[0]]));
       }
-      const checked = piece?.type.toUpperCase() === "K" && (
+      const checked = piece?.type.toUpperCase() === "K" && options.state?.board[address] === encoded && (
         options.state?.checkedColors ? Object.values(options.state.checkedColors).includes(encoded?.[0]) :
           options.state?.status === "check" && encoded?.[0] === options.state.turn
       );
@@ -130,11 +130,9 @@ export function board(theme, fourPlayer = false, sample = false, options = {}) {
       if (!corner && !sample) {
         const last = options.state?.lastMove;
         square.classList.toggle("last-move", [last?.from, last?.to].includes(address));
-        const premoveIndex = options.premoves?.findIndex(move => move.to === address) ?? -1;
-        if (premoveIndex >= 0) {
-          square.classList.add("premove-target");
-          square.append(marker("premove-number", String(premoveIndex + 1)));
-          square.setAttribute("aria-label", square.getAttribute("aria-label") + `, premove ${premoveIndex + 1} destination`);
+        if (options.preview?.destinations.has(address)) {
+          square.classList.add("premove-preview");
+          square.setAttribute("aria-label", square.getAttribute("aria-label") + ", planned position");
         }
         const suggestion = options.bestMove;
         if (suggestion && (address === suggestion.from || address === suggestion.to)) {

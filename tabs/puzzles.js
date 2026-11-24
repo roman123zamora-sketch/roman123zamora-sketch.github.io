@@ -1,7 +1,7 @@
 import { isRatedPuzzle, levelLabel, levelLock, levelOf, levelProgress, levels, solvesToUnlock,
   libraryEntries, openLibraryPuzzle, practiceQueue, puzzleCategories, puzzleChoice, recommendedLevel, updateRecommendation } from "../game/puzzle-library.js";
 import { loadPractice, migrateLibraryProgress, resolvePuzzle, savePractice } from "../game/puzzle-progress.js";
-import { playSound, subscribe } from "../game/session.js";
+import { playPositionMove, playSound, subscribe } from "../game/session.js";
 import { bindBoardDrag } from "../game/board-drag.js";
 import { getTheme } from "../ui/board-themes.js";
 import { board } from "../ui/chessboard.js";
@@ -397,7 +397,7 @@ export default function puzzles(content) {
     heartTimer = setTimeout(() => { heartBreak.hidden = true; }, 440);
   }
 
-  function finishPuzzle(active, step) {
+  function finishPuzzle(active, step, landing) {
     const { category, difficulty } = active.puzzle;
     const level = levelOf(difficulty);
     const prior = levelProgress(entries, practice.libraryProgress, level, category);
@@ -433,7 +433,10 @@ export default function puzzles(content) {
         startPuzzle(category, level, { automatic: true });
       }, 1150);
     }
-    playSound("solved");
+    if (finished.position.status === "checkmate") {
+      playSound("mate", landing + .13);
+      playSound("solved", landing + .43);
+    } else playSound("solved", landing + .09);
     renderLibrary();
     render();
   }
@@ -473,13 +476,14 @@ export default function puzzles(content) {
     }
     clearTimeout(wrongTimer);
     wrong = null;
+    const landing = playPositionMove(move, currentPosition(active));
     active.step++;
     active.hint = 0;
     if (active.step === active.puzzle.steps.length) {
-      finishPuzzle(active, accepted);
+      finishPuzzle(active, accepted, landing);
       return;
     }
-    playSound("move");
+    if (step.afterMove?.status === "check") playSound("check", landing + .036);
     outcome = "correct";
     message = "Correct. Find the next move.";
     savePractice(practice);
@@ -488,9 +492,12 @@ export default function puzzles(content) {
       transition = setTimeout(() => {
         animationPosition = null;
         transition = undefined;
-        playSound("move");
+        const replyLanding = playPositionMove(step.response, step.afterMove);
+        if (step.position?.status === "check") playSound("check", replyLanding + .036);
         render();
       }, 220);
+    } else if (step.response) {
+      playPositionMove(step.response, step.afterMove);
     }
     render();
   }
@@ -499,6 +506,7 @@ export default function puzzles(content) {
     if (!canMove() || from === to) return false;
     const moves = legalFrom(from).filter(move => move.to === to);
     if (!moves.length) {
+      playSound("wrong");
       message = "That move is illegal in this position.";
       render();
       return false;
@@ -516,6 +524,7 @@ export default function puzzles(content) {
     const active = playable();
     const position = currentPosition(active);
     if (position.board[square]?.[0] === active.puzzle.side) {
+      if (selected !== square) playSound("lift");
       selected = selected === square ? null : square;
       render();
     } else if (selected) choose(selected, square);
@@ -529,6 +538,7 @@ export default function puzzles(content) {
   const drag = bindBoardDrag(slot, {
     begin(from) {
       if (!canMove()) return false;
+      playSound("lift");
       selected = from;
       slot.querySelector(`[data-square="${from}"]`)?.classList.add("drag-source");
       return true;

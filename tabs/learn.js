@@ -1,6 +1,6 @@
 import { bindBoardDrag } from "../game/board-drag.js";
 import { createPositionTools } from "../game/position-tools.js";
-import { readSetting, subscribe, writeSetting } from "../game/session.js";
+import { playPositionMove, playSound, readSetting, subscribe, writeSetting } from "../game/session.js";
 import { getTheme } from "../ui/board-themes.js";
 import { board } from "../ui/chessboard.js";
 import { course } from "./learn-lessons.js";
@@ -189,6 +189,9 @@ export default function learn(content) {
     function show(nextFrame) {
       const previous = frame.state.board;
       const move = nextFrame.move;
+      const landing = playPositionMove(move, frame.state);
+      if (nextFrame.state.status === "checkmate") playSound("mate", landing + .13);
+      else if (nextFrame.state.status === "check") playSound("check", landing + .036);
       const motions = [[move.from, move.to]];
       if (move.special === "castleK" || move.special === "castleQ") {
         const kingSide = move.special === "castleK";
@@ -250,6 +253,7 @@ export default function learn(content) {
       selected = from;
       const legal = Object.values(frame.legal ?? {}).filter(move => move.from === from && move.to === to);
       if (!legal.length) {
+        playSound("wrong");
         const friendly = frame.state.board[to]?.[0] === frame.state.turn;
         report(lesson.mistakes?.[to] ?? (friendly ? "Your piece is already there."
           : frame.state.status === "check" ? "Your king would still be in check."
@@ -284,9 +288,11 @@ export default function learn(content) {
       }
       if (lesson.options) return;
       if (frame.state.board[square]?.[0] === frame.state.turn && !selected) {
+        playSound("lift");
         selected = square;
         render();
       } else if (selected && !choose(selected, square) && frame.state.board[square]?.[0] === frame.state.turn) {
+        playSound("lift");
         selected = square;
         render();
       }

@@ -1,3 +1,5 @@
+import { createPlasticSample, plasticSampleUrl } from "./plastic-sounds.js";
+
 const key = "exalted-chess-profile-v1";
 const settings = "exalted-chess-audio";
 const listeners = new Set();
@@ -5,6 +7,8 @@ const replays = new Map();
 let replayId = 0;
 let sound = readSetting(settings) !== "off";
 let audio;
+let audioOutput;
+let terminalCue;
 let worker;
 let ready = false;
 const pending = [];
@@ -81,14 +85,28 @@ function receive({ kind, data, requestId }) {
   }
   if (kind === "state") {
     const prior = session.match;
-    if (prior?.matchId !== data.matchId) session.result = null;
+    if (prior?.matchId !== data.matchId) {
+      session.result = null;
+      terminalCue = undefined;
+    }
     if (prior?.matchId !== data.matchId || prior?.revision !== data.revision || data.revision == null) {
       session.legal = null;
       session.movePending = false;
     }
     const moves = Object.values(data.state.history);
     if (prior?.matchId === data.matchId && moves.length > Object.values(prior.state.history).length) {
-      playSound(data.state.status === "check" ? "check" : moves.at(-1)?.captured ? "capture" : "move");
+      const move = moves.at(-1);
+      const piece = prior.state.board[move.from]?.[1];
+      const landing = playMoveSound(move, piece);
+      const fourMate = Object.entries(data.state.eliminationReason ?? {}).some(([side, reason]) =>
+        reason === "Checkmate" && prior.state.eliminationReason?.[side] !== reason);
+      if (data.state.status === "checkmate" || fourMate) {
+        playSound("mate", landing + .13);
+        terminalCue = { matchId: data.matchId, until: performance.now() + (landing + .43) * 1000 };
+      } else if (data.state.status === "check" || (!data.state.terminal &&
+          Object.values(data.state.checkedColors ?? {}).some(side => side !== move.color))) {
+        playSound("check", landing + .036);
+      }
     }
     session.match = data;
     session.invite = null;
@@ -98,8 +116,12 @@ function receive({ kind, data, requestId }) {
   }
   if (kind === "result") {
     session.movePending = false;
+    const duplicate = session.result?.matchId === data.matchId && session.result.result === data.result;
     session.result = data;
-    playSound(data.result === "win" ? "win" : "end");
+    if (!duplicate && data.matchId === session.match?.matchId) {
+      const delay = terminalCue?.matchId === data.matchId ? Math.max(0, (terminalCue.until - performance.now()) / 1000) : 0;
+      playSound(data.result === "win" ? "win" : data.result === "loss" ? "loss" : "draw", delay);
+    }
   }
   if (kind === "inviteRoom") {
     if (session.result) clearMatch();
@@ -124,7 +146,6 @@ function receive({ kind, data, requestId }) {
     session.notice = typeof data === "string" ? data : "The game service could not complete that action.";
   }
   if (kind === "challengeDeclined" || kind === "rematchDeclined") session.notice = "The invitation is no longer available.";
-  if (kind === "fart") playSound("end");
   notify(kind, data);
 }
 
@@ -286,89 +307,81 @@ export async function replay(game) {
   });
 }
 
-const notes = {
-  move: [290], capture: [220, 150], check: [390, 320], win: [330, 440, 550], end: [280, 170],
-  hover: [560], button: [420], wrong: [240, 185], solved: [440, 550, 660]
-};
-
 const fallbackSounds = new Map();
+const audioBuffers = new WeakMap();
+const pendingSounds = new Set();
 
-function cueSettings(name) {
-  return name === "hover" ? { duration: .09, level: .12 }
-    : name === "button" ? { duration: .13, level: .24 }
-    : { duration: .19, level: .34 };
-}
-
-function playFallback(name) {
-  let player = fallbackSounds.get(name);
+function playFallback(sample) {
+  let player = fallbackSounds.get(sample);
   if (!player) {
-    const { duration, level } = cueSettings(name);
-    const sampleRate = 22050;
-    const samples = Math.ceil((duration + (notes[name].length - 1) * .1) * sampleRate);
-    const bytes = new Uint8Array(44 + samples * 2);
-    const wav = new DataView(bytes.buffer);
-    for (const [offset, label] of [[0, "RIFF"], [8, "WAVE"], [12, "fmt "], [36, "data"]]) {
-      bytes.set([...label].map(character => character.charCodeAt(0)), offset);
-    }
-    for (const [offset, value] of [[4, bytes.length - 8], [16, 16], [24, sampleRate], [28, sampleRate * 2], [40, samples * 2]]) {
-      wav.setUint32(offset, value, true);
-    }
-    for (const [offset, value] of [[20, 1], [22, 1], [32, 2], [34, 16]]) wav.setUint16(offset, value, true);
-    for (let index = 0; index < samples; index++) {
-      const time = index / sampleRate;
-      let sample = 0;
-      for (const [note, frequency] of notes[name].entries()) {
-        const age = time - note * .1;
-        if (age >= 0 && age < duration) {
-          const phase = (age * frequency) % 1;
-          const envelope = Math.min(age / .008, 1) * Math.exp(-5 * age / duration);
-          sample += (1 - 4 * Math.abs(phase - .5)) * level * envelope;
-        }
-      }
-      wav.setInt16(44 + index * 2, Math.round(sample * 32767), true);
-    }
-    player = new Audio("data:audio/wav;base64," + btoa(String.fromCharCode(...bytes)));
-    fallbackSounds.set(name, player);
+    player = new Audio(plasticSampleUrl(sample));
+    fallbackSounds.set(sample, player);
   }
   player.currentTime = 0;
   return player.play();
 }
 
-export function playSound(name) {
-  if (!sound) return;
+export function playSound(name, delay = 0) {
+  const sample = createPlasticSample(name);
+  if (!sound) return sample.duration;
   if (audio?.state !== "running") {
-    playFallback(name).catch(() => {});
-    return;
+    if (!delay) playFallback(sample).catch(() => {});
+    else {
+      const timer = setTimeout(() => {
+        pendingSounds.delete(timer);
+        if (sound) playFallback(sample).catch(() => {});
+      }, delay * 1000);
+      pendingSounds.add(timer);
+    }
+    return sample.duration;
   }
-  const { duration, level } = cueSettings(name);
-  notes[name].forEach((frequency, index) => {
-    const tone = audio.createOscillator();
-    const volume = audio.createGain();
-    const start = audio.currentTime + index * .1;
-    tone.type = "triangle";
-    tone.frequency.value = frequency;
-    volume.gain.setValueAtTime(.001, start);
-    volume.gain.exponentialRampToValueAtTime(level, start + .008);
-    volume.gain.exponentialRampToValueAtTime(.001, start + duration - .01);
-    tone.connect(volume).connect(audio.destination);
-    tone.start(start);
-    tone.stop(start + duration);
-  });
+  let buffer = audioBuffers.get(sample);
+  if (!buffer) {
+    buffer = audio.createBuffer(2, sample.channels[0].length, sample.sampleRate);
+    for (const [index, channel] of sample.channels.entries()) buffer.copyToChannel(channel, index);
+    audioBuffers.set(sample, buffer);
+  }
+  const source = audio.createBufferSource();
+  source.buffer = buffer;
+  source.connect(audioOutput);
+  source.start(audio.currentTime + delay);
+  return sample.duration;
+}
+
+export function playMoveSound(move, piece) {
+  const weight = piece === "P" ? "light" : ["K", "Q"].includes(piece) ? "heavy" : "mid";
+  if (move.special?.startsWith("castle")) return playSound("castle-heavy");
+  if (move.promotion) return playSound(move.captured ? "promote-capture" : "promote-heavy");
+  return playSound((move.captured || move.special === "enpassant" ? "capture-" : "move-") + weight);
+}
+
+export function playPositionMove(move, position) {
+  if (!move || !position?.board) return playSound("move-mid");
+  return playMoveSound({ ...move, captured: position.board[move.to] }, position.board[move.from]?.[1]);
 }
 
 export function soundEnabled() { return sound; }
 export function toggleSound() {
   sound = !sound;
   writeSetting(settings, sound ? "on" : "off");
+  if (audioOutput) audioOutput.gain.value = Number(sound);
   if (sound) unlockSound("button");
-  else for (const player of fallbackSounds.values()) player.pause();
+  else {
+    for (const player of fallbackSounds.values()) player.pause();
+    for (const timer of pendingSounds) clearTimeout(timer);
+    pendingSounds.clear();
+  }
   return sound;
 }
 export function unlockSound(cue) {
   if (!sound) return;
   const AudioContext = globalThis.AudioContext ?? globalThis.webkitAudioContext;
   try {
-    if (AudioContext && (!audio || audio.state === "closed")) audio = new AudioContext();
+    if (AudioContext && (!audio || audio.state === "closed")) {
+      audio = new AudioContext();
+      audioOutput = audio.createGain();
+      audioOutput.connect(audio.destination);
+    }
   } catch {
     // Some browsers expose Web Audio even when they cannot start an audio device.
   }
@@ -378,8 +391,7 @@ export function unlockSound(cue) {
   }
   const resumed = audio?.resume().catch(() => {});
   if (cue) {
-    // Try media playback while the click still counts as a user gesture.
-    playFallback(cue).catch(async () => {
+    playFallback(createPlasticSample(cue)).catch(async () => {
       await resumed;
       if (audio?.state === "running") playSound(cue);
     });

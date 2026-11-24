@@ -5,7 +5,8 @@ import { bindBoardDrag } from "../game/board-drag.js";
 import { board } from "./chessboard.js";
 import { getTheme } from "./board-themes.js";
 import { createChessPiece } from "./chess-pieces.js";
-import { action, serverNow, session, subscribe, unlockSound } from "../game/session.js";
+import { premoveIntent, projectPremoves } from "../game/premove-preview.js";
+import { action, playSound, serverNow, session, subscribe, unlockSound } from "../game/session.js";
 
 const offlineNotice = "Online play requires a connected match server. This site currently supports bot games.";
 
@@ -25,6 +26,7 @@ export function renderMatch(content, { title, fourPlayer }) {
   let marks = new Set();
   const premoves = [];
   let premoveRequest;
+  let premoveInFlight;
   let premoveNotice = "";
   let promotion;
   let setup = false;
@@ -71,6 +73,10 @@ export function renderMatch(content, { title, fourPlayer }) {
         </div>
         <ul class="board-clocks" aria-label="Match clocks" hidden></ul>
         <p class="board-status" aria-live="polite"></p>
+        <div class="action-row premove-controls" hidden>
+          <button type="button" data-premove-control data-action="undoPremove">Undo last premove</button>
+          <button type="button" data-premove-control data-action="clearPremoves">Clear premoves</button>
+        </div>
       </section>
       <aside class="panel match-info">
         <h2>Match</h2>
@@ -184,6 +190,7 @@ export function renderMatch(content, { title, fourPlayer }) {
     const target = currentTargets().find(move => move.to === to);
     dropped = null;
     if (!target) {
+      playSound("wrong");
       clearSelection();
       drawBoard();
       status.textContent = "That move is not legal.";
@@ -209,13 +216,16 @@ export function renderMatch(content, { title, fourPlayer }) {
     const data = match();
     if (!boardAcceptsInput() || !from || from === to || !to) return false;
     if (data.state.turn !== data.side) {
-      if (!dragged) return false;
-      const piece = data.state.board[from];
-      if (piece?.[0] !== data.side) return false;
-      premoves.push({ from, to, piece });
-      premoveNotice = "";
-      drawBoard();
-      drawStatus();
+      const move = premoveIntent(plannedBoard().board, from, to, data.side);
+      if (!move) {
+        playSound("wrong");
+        return false;
+      }
+      if (move.needsPromotion) {
+        promotion = { preview: move, matchId: data.matchId };
+        dialog.returnValue = "";
+        dialog.showModal();
+      } else queuePremove(move);
       return true;
     }
     if (selected !== from) requestTargets(from);
@@ -224,17 +234,37 @@ export function renderMatch(content, { title, fourPlayer }) {
     return true;
   }
 
+  function plannedBoard() {
+    const realBoard = match()?.state.board;
+    return premoves.length ? projectPremoves(realBoard, premoves) : { board: realBoard };
+  }
+
+  function queuePremove(move) {
+    premoves.push(move);
+    clearSelection();
+    premoveNotice = "";
+    playSound("queue");
+    drawBoard();
+    drawStatus();
+  }
+
   function select(address) {
-    cancelPremovesOnClick();
-    if (!boardAcceptsInput() || match().state.turn !== match().side) return;
-    if (selected && currentTargets().some(move => move.to === address)) {
+    if (!boardAcceptsInput() || review) return;
+    const data = match();
+    const planning = data.state.turn !== data.side;
+    if (!planning) cancelPremoves();
+    if (!planning && selected && currentTargets().some(move => move.to === address)) {
       chooseDestination(selected, address);
       return;
     }
-    if (match().state.board[address]?.[0] === match().side) {
+    if (plannedBoard().board[address]?.[0] === data.side) {
       dropped = null;
       if (selected === address) clearSelection();
-      else requestTargets(address);
+      else {
+        playSound("lift");
+        if (planning) selected = address;
+        else requestTargets(address);
+      }
     } else if (selected) {
       chooseDestination(selected, address);
       return;
@@ -246,29 +276,51 @@ export function renderMatch(content, { title, fourPlayer }) {
   dialog.addEventListener("close", () => {
     const choice = promotion;
     promotion = null;
-    if (choice && dialog.returnValue && choice.matchId === match()?.matchId && choice.revision === match()?.revision) {
-      if (choice.queuedMove) premoveNotice = "Premove played.";
-      submit({ ...choice.move, promotion: dialog.returnValue }, choice.queuedMove, choice.dragged);
-    } else if (choice?.queuedMove) {
-      clearPremoves();
-      premoveNotice = "Premove canceled.";
-      drawBoard();
-      drawStatus();
+    if (!choice || choice.matchId !== match()?.matchId) return;
+    if (choice.preview) {
+      if (dialog.returnValue && active()) {
+        queuePremove({ ...choice.preview, promotion: dialog.returnValue });
+      }
+      checkPremove(match());
+      return;
+    }
+    if (dialog.returnValue && choice.revision === match().revision) {
+      submit({ ...choice.move, promotion: dialog.returnValue }, false, choice.dragged);
     }
   });
 
   function clearPremoves() {
-    const hadMoves = premoves.length > 0 || premoveRequest != null;
+    const hadMoves = premoves.length > 0;
     premoves.length = 0;
     premoveRequest = undefined;
+    premoveInFlight = undefined;
     return hadMoves;
   }
 
-  function cancelPremovesOnClick() {
-    if (!clearPremoves()) return;
-    premoveNotice = "Premoves cleared.";
+  function cancelPremoves(lastOnly = false) {
+    const submitted = premoveInFlight ? 1 : 0;
+    if (premoves.length <= submitted) return;
+    if (lastOnly && premoves.length > 1) premoves.pop();
+    else if (submitted) premoves.length = submitted;
+    else clearPremoves();
+    clearSelection();
+    playSound("release");
+    premoveNotice = "Premove canceled.";
     drawBoard();
     drawStatus();
+  }
+
+  function cancelPremovesOnClick(event) {
+    const path = event.composedPath();
+    if (!path.includes(slot) && !path.includes(dialog) &&
+        !event.target.closest("[data-premove-control]")) cancelPremoves();
+  }
+
+  function invalidatePremoves() {
+    clearPremoves();
+    clearSelection();
+    playSound("wrong");
+    premoveNotice = "Premove canceled. The move is no longer legal.";
   }
 
   function checkPremove(data) {
@@ -277,10 +329,9 @@ export function renderMatch(content, { title, fourPlayer }) {
       return;
     }
     const next = premoves[0];
-    if (!next) return;
+    if (!next || premoveInFlight) return;
     if (data.state.board[next.from] !== next.piece) {
-      clearPremoves();
-      premoveNotice = "Premove canceled. The piece is no longer on its starting square.";
+      invalidatePremoves();
       return;
     }
     if (data.state.turn !== data.side || !boardAcceptsInput() || premoveRequest != null) return;
@@ -293,31 +344,21 @@ export function renderMatch(content, { title, fourPlayer }) {
     const data = match();
     const queued = premoves[0];
     premoveRequest = undefined;
-    if (!queued || !boardAcceptsInput() || data.state.turn !== data.side ||
-        data.state.board[queued.from] !== queued.piece) return;
+    if (!queued || !boardAcceptsInput() || data.state.turn !== data.side) return;
     const target = Object.values(session.legal.moves).find(move => move.to === queued.to &&
       (!queued.promotion || move.promotion === queued.promotion));
-    if (!target) {
-      clearPremoves();
-      premoveNotice = "Premove canceled. The move is no longer legal.";
-    } else {
-      premoves.shift();
-      const move = { from: queued.from, to: queued.to, promotion: queued.promotion };
-      if (target.promotion && !move.promotion) {
-        promotion = { move, matchId: data.matchId, revision: data.revision, queuedMove: true };
-        dialog.returnValue = "";
-        dialog.showModal();
-      } else {
-        premoveNotice = "Premove played.";
-        submit(move, true);
-        return;
-      }
+    if (target) {
+      premoveInFlight = queued;
+      submit({ from: queued.from, to: queued.to, promotion: queued.promotion }, true);
+      return;
     }
+    invalidatePremoves();
     drawBoard();
     drawStatus();
   }
 
   function drawBoard(animateMove = false) {
+    const preview = plannedBoard();
     const move = animateMove ? match()?.state.lastMove : null;
     const origin = move && slot.querySelector(`[data-square="${move.from}"]`)?.getBoundingClientRect();
     const focused = document.activeElement?.dataset.square;
@@ -333,7 +374,7 @@ export function renderMatch(content, { title, fourPlayer }) {
     const nextFrame = board(getTheme(), fourPlayer, false, {
       frame: slot.firstElementChild,
       state: review?.positions[review.ply] ?? data?.state, side: data?.side, selected, targets: selected ? currentTargets() : [],
-      premoves,
+      preview: review ? undefined : preview.destinations ? preview : undefined,
       bestMove: review ? bestMove.move : hint.move,
       select: active() ? select : undefined, marks: review ? undefined : marks,
       mark: address => { if (marks.has(address)) marks.delete(address); else marks.add(address); }
@@ -341,7 +382,7 @@ export function renderMatch(content, { title, fourPlayer }) {
     if (nextFrame !== slot.firstElementChild) slot.replaceChildren(nextFrame);
     for (const square of slot.querySelectorAll("[data-square]")) {
       square.classList.toggle("drag-source", square.dataset.square === dragSource);
-      if (boardAcceptsInput() && data?.state.board[square.dataset.square]?.[0] === data?.side) {
+      if (!review && boardAcceptsInput() && preview.board?.[square.dataset.square]?.[0] === data?.side) {
         const piece = square.querySelector(".chess-piece");
         if (piece) {
           square.classList.add("drag-enabled");
@@ -351,7 +392,7 @@ export function renderMatch(content, { title, fourPlayer }) {
     if (origin) {
       const destination = slot.querySelector(`[data-square="${move.to}"]`);
       const piece = destination?.querySelector(".chess-piece");
-      if (piece && !reduceMotion.matches) {
+      if (piece && !preview.destinations?.has(move.to) && !reduceMotion.matches) {
         const bounds = destination.getBoundingClientRect();
         piece.animate([
           { translate: `${origin.left - bounds.left}px ${origin.top - bounds.top}px` },
@@ -423,6 +464,9 @@ export function renderMatch(content, { title, fourPlayer }) {
   function drawStatus() {
     const data = match();
     const outcome = result();
+    const controls = content.querySelector(".premove-controls");
+    controls.hidden = !active() || !premoves.length;
+    for (const button of controls.querySelectorAll("button")) button.disabled = Boolean(premoveInFlight) && premoves.length === 1;
     if (outcome) {
       const labels = { win: "Victory", loss: "Defeat", draw: "Draw", aborted: "Match aborted" };
       const place = outcome.placements?.[data.side];
@@ -639,6 +683,8 @@ export function renderMatch(content, { title, fourPlayer }) {
       return;
     }
     switch (button.dataset.action) {
+      case "undoPremove": cancelPremoves(true); break;
+      case "clearPremoves": cancelPremoves(); break;
       case "review":
         resultDialog.close();
         startReview();
@@ -768,6 +814,7 @@ export function renderMatch(content, { title, fourPlayer }) {
     begin(from) {
       if (!boardAcceptsInput()) return false;
       dragSource = from;
+      playSound("lift");
       dropped = null;
       if (match().state.turn === match().side) {
         clearPremoves();
@@ -783,12 +830,18 @@ export function renderMatch(content, { title, fourPlayer }) {
     },
     drop: (from, to) => chooseDestination(from, to, true)
   });
+  function handlePremoveEscape(event) {
+    if (event.key === "Escape" && !dialog.open) cancelPremoves();
+  }
+  document.addEventListener("keydown", handlePremoveEscape);
   document.addEventListener("click", cancelPremovesOnClick);
-  function clearBoardInput(keepDrag = false) {
+  function clearBoardInput(keepDrag = false, keepPromotion = false) {
     clearSelection();
     if (!keepDrag) dragSource = null;
-    promotion = null;
-    if (dialog.open) dialog.close();
+    if (!keepPromotion) {
+      promotion = null;
+      if (dialog.open) dialog.close();
+    }
     if (!keepDrag) drag.cancel();
   }
 
@@ -820,13 +873,20 @@ export function renderMatch(content, { title, fourPlayer }) {
       const lastMove = history.at(-1);
       const justDragged = dragMove && lastMove?.color === data?.side &&
         lastMove.from === dragMove.from && lastMove.to === dragMove.to;
-      animateMove = !newMatch && moveCount === lastMoveCount + 1 && !justDragged;
+      const confirmedPremove = !newMatch && premoveInFlight && moveCount > lastMoveCount &&
+        lastMove?.color === data?.side && lastMove.from === premoveInFlight.from && lastMove.to === premoveInFlight.to;
+      if (confirmedPremove) {
+        premoves.shift();
+        premoveInFlight = undefined;
+        premoveNotice = "Premove played.";
+      }
+      animateMove = !newMatch && moveCount === lastMoveCount + 1 && !justDragged && !confirmedPremove;
       dragMove = undefined;
       lastMoveCount = moveCount;
       if (newMatch || data?.revision !== lastRevision) {
         const keepDrag = !newMatch && dragSource && active() &&
-          data.state.turn !== data.side && data.state.board[dragSource]?.[0] === data.side;
-        clearBoardInput(keepDrag);
+          data.state.turn !== data.side && plannedBoard().board?.[dragSource]?.[0] === data.side;
+        clearBoardInput(keepDrag, !newMatch && active() && Boolean(promotion?.preview));
         premoveRequest = undefined;
         claiming = false;
       }
@@ -871,6 +931,7 @@ export function renderMatch(content, { title, fourPlayer }) {
     }
     if (["undoState", "leave", "result", "reject", "error"].includes(kind)) {
       clearBoardInput();
+      if (kind === "reject" && (session.notice === "Illegal move" || premoves.length)) playSound("wrong");
       clearPremoves();
       premoveNotice = "";
       claiming = false;
@@ -907,6 +968,7 @@ export function renderMatch(content, { title, fourPlayer }) {
     bestMove.close();
     hint.close();
     document.removeEventListener("click", cancelPremovesOnClick);
+    document.removeEventListener("keydown", handlePremoveEscape);
     clearBoardInput();
     drag.destroy();
     cancelAnimationFrame(scrollFrame);
