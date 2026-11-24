@@ -30,6 +30,10 @@ const tokens = new Map();
 let transactions = Promise.resolve();
 let writes = Promise.resolve();
 
+function wakePolls(user) {
+  for (const wake of user.polls) wake();
+}
+
 function transact(callback) {
   const result = transactions.then(callback);
   transactions = result.catch(() => {});
@@ -58,6 +62,7 @@ async function dispatch(op, id, first, second) {
     } else {
       user.events.push({ id: ++user.cursor, kind: event.kind, data: event.data });
       if (user.events.length > 500) user.events.shift();
+      wakePolls(user);
     }
   }
   if (changed) await persist();
@@ -123,6 +128,7 @@ async function serve(request, response) {
     response.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   }
   if (url.pathname.startsWith("/api/") && request.method === "OPTIONS") {
+    response.setHeader("Access-Control-Max-Age", "600");
     response.writeHead(204).end();
     return;
   }
@@ -133,7 +139,7 @@ async function serve(request, response) {
       const token = previous ?? randomUUID();
       const entry = saved[token] ??= { id: ++nextId };
       if (!tokens.has(token)) {
-        const user = { id: entry.id, token, seen: Date.now(), cursor: 0, events: [], name: `Player ${entry.id}` };
+        const user = { id: entry.id, token, seen: Date.now(), cursor: 0, events: [], polls: new Set(), name: `Player ${entry.id}` };
         live.set(user.id, user);
         tokens.set(token, user);
         await dispatch("join", user.id, user.name, entry.profile);
@@ -147,6 +153,15 @@ async function serve(request, response) {
     });
     return respond(response, 200, result);
   }
+  if (url.pathname === "/api/page-leave" && request.method === "POST") {
+    const input = await jsonBody(request);
+    const user = typeof input?.token === "string" && tokens.get(input.token);
+    if (!user || typeof input.matchId !== "string" || input.matchId.length > 64) return respond(response, 400, {});
+    await transact(() => {
+      if (tokens.get(user.token) === user) return dispatch("action", user.id, "pageLeave", { matchId: input.matchId });
+    });
+    return respond(response, 200, {});
+  }
   if (url.pathname.startsWith("/api/")) {
     const bearer = /^Bearer (\S+)$/i.exec(request.headers.authorization ?? "")?.[1];
     const user = tokens.get(bearer);
@@ -154,7 +169,22 @@ async function serve(request, response) {
     user.seen = Date.now();
     if (url.pathname === "/api/events" && request.method === "GET") {
       const after = Number(url.searchParams.get("after")) || 0;
+      if (url.searchParams.has("wait") && user.cursor <= after) {
+        await new Promise(resolve => {
+          const finish = () => {
+            clearTimeout(timeout);
+            user.polls.delete(finish);
+            response.off("close", finish);
+            resolve();
+          };
+          const timeout = setTimeout(finish, 12000);
+          user.polls.add(finish);
+          response.once("close", finish);
+        });
+      }
+      if (response.destroyed) return;
       return respond(response, 200, {
+        waiting: url.searchParams.has("wait"),
         serverTime: Date.now() / 1000,
         events: user.events.filter(event => event.id > after),
         players: [...live.values()].filter(player => player !== user).map(({ id, name }) => ({ id, name }))
@@ -169,6 +199,7 @@ async function serve(request, response) {
         if (kind === "leave") {
           user.events.push({ id: ++user.cursor, kind: "left" });
           if (user.events.length > 500) user.events.shift();
+      wakePolls(user);
         }
         return true;
       });
@@ -217,6 +248,7 @@ setInterval(async () => {
       for (const user of live.values()) {
         if (Date.now() - user.seen < 30_000) continue;
         await dispatch("leave", user.id);
+        wakePolls(user);
         live.delete(user.id);
         tokens.delete(user.token);
       }

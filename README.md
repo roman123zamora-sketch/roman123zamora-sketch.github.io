@@ -115,10 +115,11 @@ To keep using GitHub Pages with a separately hosted service, set the
 `/api`. Set `EXALTED_SITE_ORIGIN` on the service to the Pages origin without a
 trailing slash.
 
-The browser uses authenticated HTTP polling at `/api/events`. A refresh or
-short network interruption can resume the current match with the same browser
-session. After 30 seconds of inactivity the server treats the player as having
-disconnected. Live matches are held in memory and end if the service restarts.
+The browser uses authenticated HTTP long polling at `/api/events`. Online
+matches leave when the page unloads or reloads. If the browser cannot notify
+the server, inactivity ends the connection after 30 seconds. Live matches
+are held in memory and end if the service restarts. Bot games run in a browser
+worker, so their turns keep working through a connection interruption.
 The persistent file stores player profiles and results.
 
 **Challenge** creates a private link using the host’s selected time control.

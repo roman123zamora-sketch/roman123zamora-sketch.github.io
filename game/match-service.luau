@@ -94,6 +94,10 @@ local function publicState(m)
  end
  return s
 end
+local function legalTarget(m,move)
+ return {to=move.to,promotion=move.promotion,special=move.special,rookFrom=move.rookFrom,rookTo=move.rookTo,
+  capture=m.state.board[move.to]~=nil or move.special=="enpassant"}
+end
 local function pair(m,recipient,terminal)
  if not recipient then m.revision=(m.revision or 0)+1 end
  local state=publicState(m); local players,ratings=matchPlayersPayload(m)
@@ -101,8 +105,21 @@ local function pair(m,recipient,terminal)
   state.analysis={castling=m.state.castling,ep=m.state.ep,positions=m.state.positions}
  end
  state.terminal=terminal or state.status=="checkmate" or state.status=="stalemate" or state.status=="draw"
+ local legalBySource={}
+ if not state.terminal then
+  local e=engineFor(m)
+  local humanTurn=false
+  for _,p in ipairs(m.players) do if m.sides[p.UserId]==m.state.turn then humanTurn=true; break end end
+  if humanTurn then
+   for _,move in ipairs(e.allLegal(m.state)) do
+    local targets=legalBySource[move.from] or {}
+    table.insert(targets,legalTarget(m,move))
+    legalBySource[move.from]=targets
+   end
+  end
+ end
  for _,p in ipairs(recipient and {recipient} or m.players) do
-  if not (m.resultsSent and m.resultsSent[p.UserId]) then send(p,"state",{matchId=m.id,revision=m.revision,mode=m.mode,variant=fourMode(m) and "four" or "chess",level=m.botRating,botRatings=m.botRatings,ratings=ratings,clocks=m.clocks,baseSeconds=m.rematchControl and m.rematchControl.baseSeconds,increment=m.increment,turnStarted=m.turnStarted,serverTime=workspace:GetServerTimeNow(),side=m.sides[p.UserId],players=players,state=state,opponent=m.mode=="bot" and "Exalted Bot" or "Opponent"}) end
+  if not (m.resultsSent and m.resultsSent[p.UserId]) then send(p,"state",{matchId=m.id,revision=m.revision,mode=m.mode,variant=fourMode(m) and "four" or "chess",level=m.botRating,botRatings=m.botRatings,ratings=ratings,clocks=m.clocks,baseSeconds=m.rematchControl and m.rematchControl.baseSeconds,increment=m.increment,turnStarted=m.turnStarted,serverTime=workspace:GetServerTimeNow(),side=m.sides[p.UserId],legalBySource=m.sides[p.UserId]==m.state.turn and legalBySource or nil,players=players,state=state,opponent=m.mode=="bot" and "Exalted Bot" or "Opponent"}) end
  end
  return state
 end
@@ -669,7 +686,8 @@ Action.OnServerEvent:Connect(function(p,kind,data)
     local targets={}
     for _,move in ipairs(e.legalMoves(m.state,data.from,side)) do
      local claimable=e==Chess and side==m.state.turn and Chess.claimReason(m.state,move)~=nil
-     table.insert(targets,{to=move.to,promotion=move.promotion,claimable=claimable})
+     local target=legalTarget(m,move); target.claimable=claimable
+     table.insert(targets,target)
     end
     send(p,"legal",{from=data.from,moves=targets,matchId=m.id,revision=m.revision,requestId=data.requestId})
    end
@@ -702,9 +720,9 @@ Action.OnServerEvent:Connect(function(p,kind,data)
   end
  -- Leaving a match (via the Leave button) is not a resignation: the leaver gets no
  -- result popup, they simply return to the menu. Opponents still see the outcome.
- elseif kind=="leave" then
+ elseif kind=="leave" or kind=="pageLeave" then
   local id=playerMatch[p.UserId]; local m=id and matches[id]
-  if not m then return end
+  if not m or (kind=="pageLeave" and (not data or data.matchId~=m.id)) then return end
   local side=m.sides[p.UserId]
   m.noResult=m.noResult or {}; m.noResult[p.UserId]=true
   if m.mode=="online" then
@@ -830,6 +848,8 @@ Players.PlayerRemoving:Connect(function(p)
   local winner; for _,other in ipairs(m.players) do if other~=p then winner=m.sides[other.UserId] end end; finish(m,winner,"Opponent disconnected")
  elseif m and not m.over and m.mode=="fourOnline" then
   local side=m.sides[p.UserId]; m.state.eliminated[side]=true; m.state.eliminationReason[side]="Resignation"; table.insert(m.state.eliminationOrder,side); if m.state.turn==side then m.state.turn=Four.nextColor(side) end; playerMatch[p.UserId]=nil; m.resultsSent[p.UserId]=true; normalizeFour(m); pair(m)
+ elseif m and (m.mode=="bot" or m.mode=="fourBot") then
+  m.over=true; m.botGeneration+=1; playerMatch[p.UserId]=nil; matches[id]=nil
  end
  saveProfile(p); profileCache[tostring(p.UserId)]=nil
 end)

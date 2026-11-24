@@ -120,17 +120,17 @@ export function board(theme, fourPlayer = false, sample = false, options = {}) {
       }
       if (!corner && !sample) {
         square.classList.toggle("selected", options.selected === address);
-        const legalTarget = options.targets?.some(target => target.to === address) ?? false;
+        const legalTarget = options.targets?.find(target => target.to === address);
         if (legalTarget) {
           square.setAttribute("aria-label", square.getAttribute("aria-label") + ", legal destination");
-          square.append(marker("move-marker"));
+          square.append(marker(legalTarget.capture || piece ? "move-marker capture-marker" : "move-marker"));
         }
-        square.classList.toggle("target", legalTarget);
+        square.classList.toggle("target", Boolean(legalTarget));
       }
       if (!corner && !sample) {
         const last = options.state?.lastMove;
         square.classList.toggle("last-move", [last?.from, last?.to].includes(address));
-        if (options.preview?.destinations.has(address)) {
+        if (options.preview?.destinations?.has(address)) {
           square.classList.add("premove-preview");
           square.setAttribute("aria-label", square.getAttribute("aria-label") + ", planned position");
         }

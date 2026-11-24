@@ -132,3 +132,17 @@ await send("join", 6, "Returning", savedCapture);
 const returning = (await action(6, "profile")).find(event => event.kind === "profile").data;
 assert.equal(returning.allTimeCaptures, 1);
 console.log("History, one-time capture reset, free themes and equip/unequip passed.");
+
+await send("join", 7, "Leaving player");
+await send("join", 8, "Remaining player");
+await action(7, "queue", { baseSeconds: 600 });
+const closeMatch = (await action(8, "queue", { baseSeconds: 600 })).filter(event => event.kind === "state");
+const closeWhite = closeMatch.find(event => event.data.side === "w");
+const closeBlack = closeMatch.find(event => event.data.side === "b");
+assert.deepEqual(closeWhite.data.legalBySource.e2.map(move => move.to).sort(), ["e3", "e4"]);
+assert.equal(closeBlack.data.legalBySource, undefined);
+assert.deepEqual(await action(closeWhite.user, "pageLeave", { matchId: "stale-match" }), []);
+const closed = await action(closeWhite.user, "pageLeave", { matchId: closeWhite.data.matchId });
+assert.equal(closed.find(event => event.user === closeBlack.user && event.kind === "result").data.reason, "Opponent left");
+assert(!closed.some(event => event.user === closeWhite.user && event.kind === "result"));
+console.log("Legal targets arrive with the position, and a page close leaves only the matching game.");

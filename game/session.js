@@ -18,6 +18,11 @@ let eventCursor = 0;
 let clockOffset = 0;
 let reconnecting = false;
 let commands = Promise.resolve();
+let localGame = false;
+let soundedMove;
+let onlineProfile;
+let localProfile;
+const localHistoryPrefix = "browser:";
 
 export function readSetting(name) {
   try { return localStorage.getItem(name); }
@@ -38,6 +43,7 @@ export const session = {
   result: null,
   legal: null,
   movePending: false,
+  submittedMove: null,
   notice: "",
   queue: null,
   invite: null,
@@ -58,7 +64,7 @@ function notify(kind, data) {
   }
 }
 
-function receive({ kind, data, requestId }) {
+function receive({ kind, data, requestId }, fromWorker = false) {
   if (kind === "replay") {
     replays.get(requestId)?.resolve(Object.values(data));
     replays.delete(requestId);
@@ -78,7 +84,21 @@ function receive({ kind, data, requestId }) {
     return;
   }
   if (kind === "catalog") session.catalog = data;
-  if (kind === "profile") session.profile = data;
+  if (kind === "profile") {
+    if (fromWorker) localProfile = data;
+    else onlineProfile = data;
+    const stored = localProfile ?? savedLocalProfile();
+    if (session.network && onlineProfile) {
+      const remoteHistory = Object.values(onlineProfile.history ?? {});
+      const browserHistory = Object.values(stored?.history ?? {}).map(record => ({ ...record, id: localHistoryPrefix + record.id }));
+      session.profile = {
+        ...onlineProfile,
+        allTimeCaptures: (onlineProfile.allTimeCaptures ?? 0) + (stored?.allTimeCaptures ?? 0),
+        history: [...remoteHistory, ...browserHistory].sort((first, second) => second.ts - first.ts)
+      };
+    } else session.profile = data;
+    data = session.profile;
+  }
   if (kind === "legal") {
     if (data.matchId && (data.matchId !== session.match?.matchId || data.revision !== session.match?.revision)) return;
     session.legal = data;
@@ -92,12 +112,16 @@ function receive({ kind, data, requestId }) {
     if (prior?.matchId !== data.matchId || prior?.revision !== data.revision || data.revision == null) {
       session.legal = null;
       session.movePending = false;
+      session.submittedMove = null;
     }
     const moves = Object.values(data.state.history);
     if (prior?.matchId === data.matchId && moves.length > Object.values(prior.state.history).length) {
       const move = moves.at(-1);
       const piece = prior.state.board[move.from]?.[1];
-      const landing = playMoveSound(move, piece);
+      const alreadyPlayed = soundedMove?.matchId === data.matchId && soundedMove.revision === prior.revision &&
+        soundedMove.from === move.from && soundedMove.to === move.to && soundedMove.promotion === move.promotion;
+      const landing = alreadyPlayed ? 0 : playMoveSound(move, piece);
+      soundedMove = undefined;
       const fourMate = Object.entries(data.state.eliminationReason ?? {}).some(([side, reason]) =>
         reason === "Checkmate" && prior.state.eliminationReason?.[side] !== reason);
       if (data.state.status === "checkmate" || fourMate) {
@@ -116,6 +140,7 @@ function receive({ kind, data, requestId }) {
   }
   if (kind === "result") {
     session.movePending = false;
+    session.submittedMove = null;
     const duplicate = session.result?.matchId === data.matchId && session.result.result === data.result;
     session.result = data;
     if (!duplicate && data.matchId === session.match?.matchId) {
@@ -139,10 +164,14 @@ function receive({ kind, data, requestId }) {
   if (kind === "challengeOffer" || kind === "rematchOffer") session.offer = { ...data, kind };
   if (kind === "reject") {
     session.movePending = false;
+    session.submittedMove = null;
+    soundedMove = undefined;
     session.notice = data.reason;
   }
   if (kind === "error") {
     session.movePending = false;
+    session.submittedMove = null;
+    soundedMove = undefined;
     session.notice = typeof data === "string" ? data : "The game service could not complete that action.";
   }
   if (kind === "challengeDeclined" || kind === "rematchDeclined") session.notice = "The invitation is no longer available.";
@@ -165,6 +194,8 @@ export function serverNow() {
 function clearMatch() {
   session.match = null;
   session.movePending = false;
+  session.submittedMove = null;
+  soundedMove = undefined;
   session.result = null;
   session.legal = null;
   notify("leave");
@@ -181,18 +212,21 @@ async function joinServer() {
 }
 
 async function poll() {
+  let delay = 500;
   try {
     const start = Date.now();
-    const data = await request("/events?after=" + eventCursor);
-    if (typeof data.serverTime === "number") clockOffset = data.serverTime - (start + Date.now()) / 2000;
+    const data = await request("/events?wait=1&after=" + eventCursor,{ signal: AbortSignal.timeout?.(22000) });
+    const elapsed = Date.now() - start;
+    if (typeof data.serverTime === "number") clockOffset = data.serverTime - (Date.now() - Math.min(elapsed / 2, 100)) / 1000;
+    delay = data.waiting && (elapsed > 300 || data.events.length) ? 0 : 350;
     if (reconnecting) {
       reconnecting = false;
-      session.notice = "";
+      if (!localGame) session.notice = "";
       notify("network");
     }
     for (const event of data.events) {
       eventCursor = event.id;
-      receive(event);
+      if (!localGame || !["state","result","legal","left","error","reject","queued","challengeWait"].includes(event.kind)) receive(event);
     }
     if (JSON.stringify(session.players) !== JSON.stringify(data.players)) {
       session.players = data.players;
@@ -200,8 +234,10 @@ async function poll() {
     }
   } catch (error) {
     reconnecting = true;
-    session.notice = "Connection to the match service was interrupted. Reconnecting…";
-    notify("error");
+    if (!localGame) {
+      session.notice = "Connection to the match service was interrupted. Reconnecting…";
+      notify("error");
+    }
     if (error.status === 401) {
       try {
         await joinServer();
@@ -210,14 +246,16 @@ async function poll() {
         session.queue = null;
         session.offer = null;
         session.invite = null;
-        session.notice = session.match ? "The previous match ended while you were disconnected." : "";
-        clearMatch();
+        if (!localGame) {
+          session.notice = session.match ? "The previous match ended while you were disconnected." : "";
+          clearMatch();
+        }
       } catch {
         // Retry via the next poll while the service is unavailable.
       }
     }
   }
-  setTimeout(poll, 550);
+  setTimeout(poll, delay);
 }
 
 export async function connect() {
@@ -236,9 +274,13 @@ export async function connect() {
   startLocalWorker();
 }
 
+function savedLocalProfile() {
+  try { return JSON.parse(readSetting(key)); }
+  catch { return null; }
+}
+
 function startLocalWorker() {
-  let profile;
-  try { profile = JSON.parse(readSetting(key)); } catch { profile = null; }
+  const profile = savedLocalProfile();
   try {
     worker = new Worker(new URL("./local-worker.js", import.meta.url), { type: "module" });
   } catch {
@@ -253,7 +295,7 @@ function startLocalWorker() {
     } else if (data.kind === "workerFailed") {
       console.warn("Chess engine initialization failed.", data.data);
       failLocalWorker();
-    } else receive(data);
+    } else if (localGame || !session.network || ["catalog","save","replay","profile","error","reject"].includes(data.kind) || data.requestId) receive(data, true);
   };
   worker.onerror = failLocalWorker;
   return true;
@@ -267,24 +309,57 @@ function failLocalWorker() {
   const error = new Error("The local chess engine could not load. Try starting a game again.");
   for (const replay of replays.values()) replay.reject(error);
   replays.clear();
-  if (session.match) clearMatch();
+  if (localGame || !session.network) clearMatch();
   receive({ kind: "error", data: error.message });
 }
 
 export function action(first, second) {
-  if (!session.network && !worker && !startLocalWorker()) return;
+  if ((first === "bot" || first === "fourBot") && !session.invite &&
+      (!session.match || session.result)) {
+    if (session.match) clearMatch();
+    localGame = true;
+  }
+  const browserRecord = session.network && first === "deleteHistoryMatch" && second?.id?.startsWith(localHistoryPrefix);
+  if (browserRecord) second = { id: second.id.slice(localHistoryPrefix.length) };
+  const useWorker = browserRecord || !session.network || (localGame &&
+    ["bot","fourBot","reset","undo","legal","move","claimDraw","resign","rematch","leave"].includes(first));
+  if (!useWorker && localGame && ["queue","queueFour","createInvite","joinInvite"].includes(first) && session.result) {
+    localGame = false;
+    clearMatch();
+  }
+  if (useWorker && !worker && !startLocalWorker()) return;
   if (first === "move" || first === "claimDraw") {
     if (!session.match || session.movePending) return;
     session.movePending = true;
+    if (first === "move") {
+      const match = session.match;
+      const choices = match.legalBySource?.[second.from] ?? (session.legal?.from === second.from ? session.legal.moves : {});
+      const target = Object.values(choices).find(move => move.to === second.to && move.promotion === second.promotion);
+      if (target) {
+        session.submittedMove = { ...second, ...target };
+        soundedMove = { ...second, matchId: match.matchId, revision: match.revision };
+        playMoveSound({ ...target, captured: target.capture }, match.state.board[second.from]?.[1]);
+      }
+    }
   }
   if (session.match && (first === "move" || first === "claimDraw" || first === "legal")) {
     second = { ...second, matchId: session.match.matchId, revision: session.match.revision };
   }
   session.notice = "";
   if (first === "legal") session.legal = null;
-  if (first === "leave" && !session.network) clearMatch();
+  if (first === "leave" && useWorker) {
+    localGame = false;
+    clearMatch();
+    if (session.network) action("profile");
+  }
   if (first === "challengeRespond" || first === "rematchRespond") session.offer = null;
-  if (session.network) {
+  if (first === "clearBotHistory" && session.network && (worker || savedLocalProfile()) &&
+      (worker || startLocalWorker())) {
+    const message = { op: "action", first };
+    if (ready) worker.postMessage(message);
+    else pending.push(message);
+  }
+  if (!useWorker) {
     commands = commands.then(() => request("/action", { method: "POST", body: JSON.stringify({ kind: first, data: second }) }))
       .catch(error => receive({ kind: "error", data: error.message }));
   } else {
@@ -295,7 +370,7 @@ export function action(first, second) {
 }
 
 export async function replay(game) {
-  if (session.network) {
+  if (session.network && !localGame) {
     const result = await request("/replay", { method: "POST", body: JSON.stringify({ variant: game.v, moves: Object.values(game.moves) }) });
     return Object.values(result);
   }
@@ -306,6 +381,16 @@ export async function replay(game) {
     worker.postMessage({ op: "replay", first: game.v, second: Object.values(game.moves), requestId });
   });
 }
+
+// A beacon survives document teardown and avoids a cross-origin preflight.
+if (typeof window !== "undefined") window.addEventListener("pagehide", () => {
+  if (!server || !token || localGame || !session.match || session.result) return;
+  const body = JSON.stringify({ token, matchId: session.match.matchId });
+  const endpoint = server + "/page-leave";
+  if (!navigator.sendBeacon?.(endpoint, body)) {
+    fetch(endpoint, { method: "POST", body, keepalive: true }).catch(() => {});
+  }
+});
 
 const fallbackSounds = new Map();
 const audioBuffers = new WeakMap();

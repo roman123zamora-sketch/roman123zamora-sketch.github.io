@@ -138,7 +138,7 @@ export function renderMatch(content, { title, fourPlayer }) {
   const result = () => match()?.matchId === session.result?.matchId ? session.result : null;
   const currentTargets = () => {
     if (!targetsReady()) return [];
-    const moves = Object.values(session.legal.moves);
+    const moves = !claiming && match()?.legalBySource ? Object.values(match().legalBySource[selected] ?? {}) : Object.values(session.legal.moves);
     return claiming ? moves.filter(move => move.claimable) : moves;
   };
   const active = () => match() && !match().state.terminal && !result();
@@ -153,6 +153,7 @@ export function renderMatch(content, { title, fourPlayer }) {
   }
 
   function targetsReady() {
+    if (!claiming && match()?.legalBySource) return Boolean(selected);
     const reply = session.legal;
     return Boolean(reply && reply.from === selected &&
       (reply.requestId == null || reply.requestId === targetRequest));
@@ -161,7 +162,7 @@ export function renderMatch(content, { title, fourPlayer }) {
   function requestTargets(from) {
     selected = from;
     targetRequest = (targetRequest ?? 0) + 1;
-    action("legal", { from, requestId: targetRequest });
+    if (claiming || !match()?.legalBySource) action("legal", { from, requestId: targetRequest });
   }
 
   function clearSelection() {
@@ -173,7 +174,6 @@ export function renderMatch(content, { title, fourPlayer }) {
     const data = match();
     if (!boardAcceptsInput() || data.state.turn !== data.side) return;
     if (!queuedMove) clearPremoves();
-    dragMove = dragged ? move : undefined;
     if (claiming) {
       claiming = false;
       action("claimDraw", move);
@@ -181,6 +181,7 @@ export function renderMatch(content, { title, fourPlayer }) {
     } else {
       action("move", move);
     }
+    dragMove = dragged || session.submittedMove ? move : undefined;
     clearSelection();
     drawBoard();
     drawStatus();
@@ -335,17 +336,18 @@ export function renderMatch(content, { title, fourPlayer }) {
       return;
     }
     if (data.state.turn !== data.side || !boardAcceptsInput() || premoveRequest != null) return;
+    if (data.legalBySource) { playPremove(data.legalBySource[next.from] ?? {}); return; }
     targetRequest = (targetRequest ?? 0) + 1;
     premoveRequest = targetRequest;
     action("legal", { from: next.from, requestId: premoveRequest });
   }
 
-  function playPremove() {
+  function playPremove(moves = session.legal.moves) {
     const data = match();
     const queued = premoves[0];
     premoveRequest = undefined;
     if (!queued || !boardAcceptsInput() || data.state.turn !== data.side) return;
-    const target = Object.values(session.legal.moves).find(move => move.to === queued.to &&
+    const target = Object.values(moves).find(move => move.to === queued.to &&
       (!queued.promotion || move.promotion === queued.promotion));
     if (target) {
       premoveInFlight = queued;
@@ -359,6 +361,18 @@ export function renderMatch(content, { title, fourPlayer }) {
 
   function drawBoard(animateMove = false) {
     const preview = plannedBoard();
+    const submitted = session.submittedMove;
+    if (submitted && match() && !review && !premoveInFlight) {
+      const actual = match().state.board;
+      const move = submitted.special?.startsWith("castle")
+        ? premoveIntent(actual, submitted.from, submitted.to, match().side)
+        : { ...submitted, piece: actual[submitted.from] };
+      if (move?.piece) {
+        const projected = projectPremoves(actual, [{ ...move, promotion: submitted.promotion }]).board;
+        if (submitted.special === "enpassant") delete projected[submitted.to[0] + submitted.from.slice(1)];
+        preview.board = projected;
+      }
+    }
     const move = animateMove ? match()?.state.lastMove : null;
     const origin = move && slot.querySelector(`[data-square="${move.from}"]`)?.getBoundingClientRect();
     const focused = document.activeElement?.dataset.square;
@@ -374,7 +388,7 @@ export function renderMatch(content, { title, fourPlayer }) {
     const nextFrame = board(getTheme(), fourPlayer, false, {
       frame: slot.firstElementChild,
       state: review?.positions[review.ply] ?? data?.state, side: data?.side, selected, targets: selected ? currentTargets() : [],
-      preview: review ? undefined : preview.destinations ? preview : undefined,
+      preview: review ? undefined : preview.destinations || submitted ? preview : undefined,
       bestMove: review ? bestMove.move : hint.move,
       select: active() ? select : undefined, marks: review ? undefined : marks,
       mark: address => { if (marks.has(address)) marks.delete(address); else marks.add(address); }
@@ -796,6 +810,7 @@ export function renderMatch(content, { title, fourPlayer }) {
       case "claim": action("claimDraw"); drawBoard(); drawStatus(); break;
       case "claimMove":
         claiming = !claiming;
+        if (selected) requestTargets(selected);
         drawControls();
         drawBoard();
         drawStatus();
