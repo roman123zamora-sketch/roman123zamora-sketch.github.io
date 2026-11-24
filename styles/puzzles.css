@@ -1,35 +1,14 @@
-/* Keep the board anchored while attempts, menus, and messages change. */
-.puzzle-library-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(15rem, 21rem);
-  gap: clamp(1rem, 3vw, 2rem);
-  align-items: start;
-  max-inline-size: 68rem;
-  margin-inline: auto;
-}
-.puzzle-library-layout[data-idle="true"] { grid-template-columns: minmax(0, 42rem); justify-content: center; }
-.puzzle-library-layout[data-idle="true"] .puzzle-play { display: none; }
 .puzzle-library-layout[data-idle="false"] .puzzle-intro { display: none; }
-.puzzle-library-layout .puzzle-play { grid-area: auto; min-inline-size: 0; }
-.puzzle-play .board-and-eval { max-inline-size: 39rem; }
-.puzzle-heading {
-  display: grid;
-  align-content: center;
-  justify-items: center;
-  inline-size: 100%;
-  min-block-size: 6.75rem;
-  margin-block-end: .55rem;
-  text-align: center;
-}
-.puzzle-heading .help { margin: .12rem 0 0; }
-.puzzle-objective {
-  font-size: clamp(1.5rem, 1.1rem + 1.35vw, 2.05rem);
-  font-weight: 800;
-  margin: .2rem 0;
-  overflow-wrap: anywhere;
+@media (width > 65rem) {
+  .puzzle-library-layout .puzzle-progress-panel { grid-column: 1; grid-row: 1; }
+  .puzzle-library-layout .puzzle-library-panel { grid-column: 3; grid-row: 1; }
 }
 .puzzle-turn {
-  display: inline-flex;
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+  display: flex;
+  justify-content: center;
   align-items: center;
   gap: .45rem;
   min-block-size: 1.55rem;
@@ -46,11 +25,10 @@
   background: #f1f7ff;
 }
 .puzzle-turn[data-side="b"]::before { background: #0a1429; }
-.puzzle-heading .puzzle-difficulty { font-size: .82rem; }
 .puzzle-picker { display: grid; gap: .65rem; min-inline-size: 0; }
 .puzzle-picker > button { justify-self: start; }
 .picker-notice:empty { display: none; }
-.puzzle-objective:focus { outline: none; }
+.puzzle-turn:focus { outline: none; }
 .puzzle-game-controls {
   display: flex;
   flex-wrap: wrap;
@@ -109,6 +87,8 @@
 .puzzle-levels [aria-current] { border-color: var(--active-border); box-shadow: inset 3px 0 var(--focus); }
 .puzzle-heart-break {
   position: absolute;
+  grid-column: 2;
+  grid-row: 1;
   inset: 50% auto auto 50%;
   transform: translate(-50%, -50%);
   font-size: clamp(2.75rem, 11vw, 5rem);
@@ -121,12 +101,6 @@
   0% { opacity: 0; scale: .8; }
   25%, 55% { opacity: 1; scale: 1; }
   100% { opacity: 0; scale: 1.08; }
-}
-@media (max-width: 49rem) {
-  .puzzle-library-layout { grid-template-columns: minmax(0, 1fr); }
-  .puzzle-play .board-and-eval { inline-size: min(100%, 37rem); }
-  .puzzle-library-panel { display: grid; inline-size: min(100%, 37rem); margin-inline: auto; }
-  .puzzle-stats { margin-block: .7rem; }
 }
 .puzzle-message[data-outcome="wrong"], .puzzle-message[data-outcome="failed"] { color: var(--warning-text); }
 .puzzle-message[data-outcome="correct"], .puzzle-message[data-outcome="solved"] { color: var(--good-text); }

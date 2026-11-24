@@ -4,6 +4,14 @@
   gap: var(--space);
   align-items: start;
 }
+/* Use the same board tracks in standard play and puzzles. */
+.standard-board-layout > .aligned-board-area { padding-block-start: 2rem; position: relative; }
+@media (width > 65rem) {
+  .standard-board-layout {
+    grid-template-columns: minmax(13.5rem, 1fr) minmax(0, 2.8fr) minmax(13.5rem, 1fr);
+  }
+  .standard-board-layout > .aligned-board-area { grid-column: 2; grid-row: 1; }
+}
 .setup h1 { margin-block-end: 1.25rem; }
 .setup h2, .match-info h2 { margin-block-end: .65rem; }
 .time-controls { display: grid; gap: .45rem; }

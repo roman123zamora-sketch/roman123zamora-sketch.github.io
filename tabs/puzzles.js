@@ -11,13 +11,9 @@ const colors = { w: "White", b: "Black" };
 
 export default function puzzles(content) {
   content.innerHTML = `
-    <div class="puzzle-library-layout">
-      <section class="board-area puzzle-play" aria-label="Puzzle board">
-        <div class="puzzle-heading">
-          <p class="puzzle-turn" role="status"></p>
-          <h1 class="puzzle-objective" tabindex="-1"></h1>
-          <p class="help puzzle-difficulty"></p>
-        </div>
+    <div class="match standard-board-layout puzzle-library-layout">
+      <section class="board-area aligned-board-area puzzle-play" aria-label="Puzzle board">
+        <p class="puzzle-turn" role="status" tabindex="-1"></p>
         <div class="board-and-eval">
           <div class="board-slot puzzle-board-slot"></div>
           <span class="puzzle-heart-break" aria-hidden="true" hidden>💔</span>
@@ -36,10 +32,6 @@ export default function puzzles(content) {
       <aside class="panel puzzle-library-panel">
         <h1>Puzzles</h1>
         <p class="help puzzle-intro">Choose a puzzle type, then pick an Elo band.</p>
-        <dl class="puzzle-stats">
-          <div><dt>Your Puzzle Elo</dt><dd data-rating></dd></div>
-          <div><dt>Your Elo band</dt><dd data-difficulty></dd></div>
-        </dl>
         <div class="puzzle-picker" aria-label="Puzzle types">
           ${puzzleCategories.map(category => `
             <details class="puzzle-menu" name="puzzle-types" data-category="${category}">
@@ -49,6 +41,14 @@ export default function puzzles(content) {
           <button type="button" data-retry hidden>Retry loading levels</button>
           <p class="help picker-notice" role="status"></p>
         </div>
+      </aside>
+      <aside class="panel puzzle-progress-panel" aria-label="Puzzle progress">
+        <h2>Puzzle progress</h2>
+        <dl class="puzzle-stats">
+          <div><dt>Your Puzzle Elo</dt><dd data-rating></dd></div>
+          <div><dt>Your Elo band</dt><dd data-difficulty></dd></div>
+        </dl>
+        <p class="help puzzle-difficulty"></p>
       </aside>
       <dialog class="promotion-dialog" aria-labelledby="puzzle-promotion-title">
         <form method="dialog"><h2 id="puzzle-promotion-title">Promote pawn</h2><div class="action-row">
@@ -73,7 +73,6 @@ export default function puzzles(content) {
   const retry = picker.querySelector("[data-retry]");
   const menus = Array.from(picker.querySelectorAll(".puzzle-menu"));
   const turn = content.querySelector(".puzzle-turn");
-  const title = content.querySelector(".puzzle-objective");
   const lastCategory = practice.active?.puzzle.category ?? practice.lastCategory;
   if (lastCategory) {
     const current = menus.find(menu => menu.dataset.category === lastCategory);
@@ -155,12 +154,9 @@ export default function puzzles(content) {
     heartLabel.setAttribute("aria-label", `${hearts} of 3 hearts remaining`);
     heartLabel.innerHTML = `<span aria-hidden="true">${"♥".repeat(hearts)}${"♡".repeat(3 - hearts)}</span>`;
     const side = transition ? position.turn : active?.puzzle.side;
-    const turnText = side ? `${colors[side]} ${transition ? "replies" : "to move"}` : "";
+    const turnText = side ? `${colors[side]} to move` : "";
     if (turn.textContent !== turnText) turn.textContent = turnText;
     turn.dataset.side = side ?? "";
-    title.textContent = puzzle
-      ? puzzle.category === "checkmate" ? `Mate in ${Math.ceil(puzzle.line.length / 2)}` : "Win material"
-      : "Choose a puzzle type";
     status.textContent = message;
     status.dataset.outcome = outcome ?? "";
     status.classList.toggle("is-loading", generating);
@@ -349,11 +345,11 @@ export default function puzzles(content) {
         render();
         pickerNotice.textContent = opened || automatic ? "" : message;
         if (opened) {
-          if (!automatic && (title.getBoundingClientRect().top < 0 ||
-              title.getBoundingClientRect().bottom > innerHeight)) {
-            title.scrollIntoView({ block: "center" });
+          if (!automatic && (turn.getBoundingClientRect().top < 0 ||
+              turn.getBoundingClientRect().bottom > innerHeight)) {
+            turn.scrollIntoView({ block: "center" });
           }
-          (automatic ? slot.querySelector("button.square") : title)?.focus({ preventScroll: true });
+          (automatic ? slot.querySelector("button.square") : turn)?.focus({ preventScroll: true });
         } else if (restoreSelector) {
           const menu = menus.find(item => item.dataset.category === category);
           const levelButton = menu?.querySelector(`[data-level="${requested}"]:not(:disabled)`);

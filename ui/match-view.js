@@ -49,7 +49,7 @@ export function renderMatch(content, { title, fourPlayer }) {
   let reviewTools;
 
   content.innerHTML = `
-    <div class="match">
+    <div class="match${fourPlayer ? "" : " standard-board-layout"}">
       <aside class="panel setup">
         <h1>${title}</h1>
         <div class="match-controls"></div>
