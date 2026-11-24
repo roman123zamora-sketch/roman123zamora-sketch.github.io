@@ -37,7 +37,7 @@ export default function puzzles(content) {
           <div><dt>Your Puzzle Elo</dt><dd data-rating></dd></div>
           <div><dt>Your Elo band</dt><dd data-difficulty></dd></div>
         </dl>
-        <button type="button" class="primary puzzle-primary" data-next>Play Rated</button>
+        <button type="button" class="primary puzzle-primary" data-next>Play</button>
         <details class="puzzle-menu">
           <summary>Levels</summary>
           <div class="puzzle-levels"></div>
@@ -138,7 +138,7 @@ export default function puzzles(content) {
     content.querySelector(".puzzle-objective").textContent = transition
       ? `${colors[position.turn]} replies · ${categories[puzzle.category]}`
       : active ? `${colors[puzzle.side]} to move · ${categories[puzzle.category]}`
-      : puzzle ? categories[puzzle.category] : "Choose Play Rated or browse a level.";
+      : puzzle ? categories[puzzle.category] : "Choose Play or open Levels.";
     status.textContent = message;
     status.dataset.outcome = outcome ?? "";
     status.classList.toggle("is-loading", generating);
