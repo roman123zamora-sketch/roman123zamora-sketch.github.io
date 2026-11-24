@@ -81,6 +81,20 @@ local probe=Four.searchApply(state,capture)
 assert(probe.board.e6=="RR" and state.board.e6=="BK" and #state.history==0)
 local committed=Four.apply(state,capture)
 assert(committed.scores.R==20 and committed.history[1].captured=="BK")
+local castlePosition=Four.initial()
+castlePosition.board={h1="RK",k1="RR",a8="BK",g14="YK",n7="GK"}
+local castleOnly=table.clone(Four)
+castleOnly.allLegal=function(position)
+ if position~=castlePosition then return Four.allLegal(position) end
+ for _,option in ipairs(Four.legalMoves(position,"h1")) do
+  if option.special=="castle" then return {option} end
+ end
+ return {}
+end
+local castle=Bot.choose(castleOnly,castlePosition,1000,{depth=1,timeMs=150})
+local castled=Four.apply(castlePosition,castle)
+assert(castled.board.j1=="RK" and castled.board.i1=="RR")
+
 `;
 const vm = await LuauState.createAsync();
 try {

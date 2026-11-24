@@ -365,7 +365,7 @@ function Bot.choose(engine,state,rating,options)
   root=state.turn,rootPositions=state.positions or {}}
  local moves=engine.allLegal(state)
  if #moves==0 then return nil end
- local standard=state.castling~=nil
+ local standard=engine.colors==nil
  if standard and (engine.insufficientMaterial(state) or state.halfmove>=150
   or (search.rootPositions[engine.positionKey(state)] or 0)>=5) then return nil end
  if not standard then
@@ -424,7 +424,7 @@ function Bot.choose(engine,state,rating,options)
   best=tiedMoves[math.min(#tiedMoves,math.floor(roll*#tiedMoves)+1)]
  end
  -- The order key is private; preserve the move contract for all callers.
- return {from=best.from,to=best.to,promotion=best.promotion,special=best.special},
+ return {from=best.from,to=best.to,promotion=best.promotion,special=best.special,rookFrom=best.rookFrom,rookTo=best.rookTo},
   {depth=completed,nodes=search.nodes,score=completedScore,maxDepth=maxDepth,maxNodes=search.maxNodes}
 end
 -- Position analysis is read-only and uses the same scoring as bot play.

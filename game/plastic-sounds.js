@@ -1,5 +1,6 @@
 // Short, dry impacts: a noisy contact excites several inharmonic plastic resonances.
 const sampleRate = 24000;
+const outputGain = 1.24;
 const surfaces = {
   cap: [1280, 2720, 4330, .021, .54],
   rim: [740, 1570, 2890, .032, .36],
@@ -60,13 +61,16 @@ export function createPlasticSample(name) {
       const t = index / sampleRate;
       seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
       const noise = seed / 2147483648 - 1;
-      const edge = (noise - previousNoise * .64) * texture * Math.exp(-t / .0017);
+      const edge = (noise - previousNoise * .43) * texture * .78 * Math.exp(-t / .0021);
       previousNoise = noise;
       const phase = 2 * Math.PI * pitch * t;
-      const body = .56 * Math.sin(low * phase) * Math.exp(-6.2 * t / length) +
+      const body = .60 * Math.sin(low * phase) * Math.exp(-5.9 * t / length) +
         .27 * Math.sin(middle * phase) * Math.exp(-9 * t / length) +
-        .12 * Math.sin(high * phase) * Math.exp(-17 * t / length);
-      const sample = (edge + body) * strength * Math.min(1, t * 4700, (length - t) * 1400);
+        .08 * Math.sin(high * phase) * Math.exp(-18 * t / length);
+      const attack = Math.min(1, t / .00065);
+      const release = Math.min(1, (length - t) / .006);
+      const envelope = attack * attack * (3 - 2 * attack) * release * release;
+      const sample = (edge + body) * strength * envelope * outputGain;
       for (let channel = 0; channel < 2; channel++) channels[channel][start + index] += sample * gains[channel];
     }
   }
