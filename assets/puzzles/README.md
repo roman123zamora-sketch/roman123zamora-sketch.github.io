@@ -1,44 +1,50 @@
 # Verified puzzle library
 
-The public index lists stable position IDs, independently estimated Elo,
-and tactical identities. Each payload contains a FEN, the legal moves from
-the standard starting position, the objective, and the verified solution.
-The source field identifies the PGN Mentor game collection and record.
-The browser reads the index and fetches one selected payload. Level and
-first-attempt progress are browser-local. This season starts at 400 Elo.
-A loss retains the exact board and step, and an eventual practice solve
-counts toward level completion.
+Each of the ten levels from 200–399 through 2250–2500 contains 30 puzzles.
+There are ten checkmate, ten material and ten positional puzzles in each
+level. All positions originate in standard-start games from PGN Mentor.
+Each payload includes its stable position ID, FEN, source game and complete
+legal move history. The browser fetches the index and one puzzle payload
+at a time.
 
-| Band | Published | Required |
-| --- | ---: | ---: |
-| 200–399 | 20 | 20 |
-| 400–599 | 20 | 20 |
-| 600–799 | 20 | 20 |
-| 800–999 | 20 | 20 |
-| 1000–1249 | 9 | 20 |
-| 1250–1499 | 20 | 20 |
-| 1500–1749 | 10 | 20 |
-| 1750–1999 | 2 | 20 |
-| 2000–2249 | 0 | 20 |
-| 2250–2500 | 0 | 20 |
-| Total | 121 | 200 |
+- Checkmate puzzles use a forced-mate proof across every legal defense.
+  The solution includes the longest verified defense.
+- Material puzzles show a settled net gain. The retained proof format
+  searches legal replies and tactical continuations through the exchange.
+  The newer format records independent bounded UCI analysis at the root and
+  against the strongest relevant defenses, followed by legal replay and
+  material checks in Exalted Chess.
+- Positional puzzles identify a concrete strategic goal and explain the
+  improvement. Every accepted move includes reviewed replies and a final
+  board for that choice. The engine checks tactical safety. The curator
+  checks positional features such as pawn support, open files and square
+  control separately. These exercises currently stop after one solver
+  decision. The recorded replies are available from See solution.
 
-The live ladder first runs out of verified positions at 1000–1249.
-Unlocking beyond that band requires completing its full set of twenty
-and meeting the next Elo threshold.
+Difficulty is a curriculum estimate. Tactical calculation length, opposing
+resources, and visibility guide placement. Positional placement also weighs
+plausible competing plans and the strategic concept. The ratings have no
+player calibration data.
 
-Under first-attempt-only scoring, a player who drops below a level's
-minimum after completing every lower puzzle cannot recover Elo by
-replaying those lower puzzles. The app shows the Elo requirement and
-allows practice in eligible levels.
+Level and first-attempt progress remain browser-local. Previously earned
+level access survives the expansion, subject to the level's Elo minimum.
+New unlocks require all 30 puzzles in each preceding level. Retained
+puzzles keep their stable IDs. Rated results, hints, hearts and practice
+after a loss use the same saved progression record.
 
-## Adding verified games
+## Curating an offline release
 
-1. Use the [PGN Mentor game collections](https://www.pgnmentor.com/files.html) as game histories. The optional offline `scripts/mine-puzzle-games.py` accepts PGN files and a local UCI engine to prioritize leads.
-2. Run `node scripts/verify-puzzle-leads.mjs <category> <leads.jsonl> <verified.json>`. Exalted replays the game and verifies the objective and replies. Suggested moves may order verification but have to pass it.
-3. Run `python scripts/estimate-puzzle-levels.py <estimated.json> <verified.json> ...` and `node scripts/publish-puzzle-pool.mjs <estimated.json>`. The offline estimator requires python-chess. The publisher selects up to twenty per band, balancing objectives when the verified supply allows.
-4. Run `node tests/puzzles-test.mjs`. It replays the published positions and checks the mate or settled material result.
-
-The source files can include already verified records when extending the
-library. Keep their stable IDs so review and solved progress continue to
-work.
+1. Use standard-start game collections from [PGN Mentor](https://www.pgnmentor.com/files.html).
+2. For tactics, use `scripts/mine-puzzle-games.py` and
+   `scripts/verify-puzzle-leads.mjs`. The optional
+   `scripts/review-material-puzzles.py` records multi-reply UCI review.
+3. Use `scripts/mine-positional-puzzles.py` to review strategic candidates
+   with a local UCI engine. Pass reviewed material and positional JSONL
+   files to `node scripts/import-reviewed-puzzles.mjs output.json inputs…`
+   for legal replay. The Python scripts require python-chess.
+4. Run `scripts/curate-puzzle-levels.py selected.json existing.json proofs…`.
+   Pass the previous published payloads as `existing.json` to retain
+   compatible progress. Run `node scripts/publish-puzzle-pool.mjs selected.json`.
+   The publisher checks every category quota before writing an index.
+5. Run `node tests/puzzles-test.mjs` to verify the library, legal histories,
+   solution evidence, progress and unlock rules.

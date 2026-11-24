@@ -1,12 +1,12 @@
 import { isRatedPuzzle, levelEntries, levelLabel, levelLock, levelOf, levelProgress, levels,
-  libraryEntries, nextPuzzleLevel, openLibraryPuzzle, puzzlesPerLevel } from "../game/puzzle-library.js";
+  libraryEntries, nextPuzzleLevel, openLibraryPuzzle, puzzleChoice, puzzlesPerLevel, sequencePuzzles } from "../game/puzzle-library.js";
 import { loadPractice, resolvePuzzle, savePractice } from "../game/puzzle-progress.js";
 import { playSound, subscribe } from "../game/session.js";
 import { bindBoardDrag } from "../game/board-drag.js";
 import { getTheme } from "../ui/board-themes.js";
 import { board } from "../ui/chessboard.js";
 
-const categories = { checkmate: "Force checkmate.", material: "Win material through the best trade." };
+const categories = { checkmate: "Force checkmate.", material: "Win material through the best trade.", positional: "Positional puzzle." };
 const colors = { w: "White", b: "Black" };
 
 export default function puzzles(content) {
@@ -41,6 +41,10 @@ export default function puzzles(content) {
         <details class="puzzle-menu">
           <summary>Levels</summary>
           <div class="puzzle-levels"></div>
+        </details>
+        <details class="previous-puzzle-solution" hidden>
+          <summary>Previous positional solution</summary>
+          <p class="help"></p>
         </details>
       </aside>
       <dialog class="promotion-dialog" aria-labelledby="puzzle-promotion-title">
@@ -77,6 +81,8 @@ export default function puzzles(content) {
   let wrongTimer;
   let animationPosition;
   let finished;
+  let positionalTakeaway;
+  const takeawayPanel = content.querySelector(".previous-puzzle-solution");
   let advanceTimer;
   let heartTimer;
   const heartBreak = content.querySelector(".puzzle-heart-break");
@@ -135,11 +141,16 @@ export default function puzzles(content) {
     heartLabel.style.visibility = puzzle ? "visible" : "hidden";
     heartLabel.setAttribute("aria-label", `${hearts} of 3 hearts remaining`);
     heartLabel.innerHTML = `<span aria-hidden="true">${"♥".repeat(hearts)}${"♡".repeat(3 - hearts)}</span>`;
+    const objective = puzzle?.objective ?? (puzzle?.category === "checkmate"
+      ? `Mate in ${Math.ceil(puzzle.line.length / 2)}.` : categories[puzzle?.category]);
+    const detail = puzzle?.category === "positional" ? "Positional · " + objective : objective;
     content.querySelector(".puzzle-objective").textContent = transition
-      ? `${colors[position.turn]} replies · ${categories[puzzle.category]}`
-      : active ? `${colors[puzzle.side]} to move · ${categories[puzzle.category]}`
-      : puzzle ? categories[puzzle.category] : "Choose Play or open Levels.";
+      ? `${colors[position.turn]} replies · ${detail}`
+      : active ? `${colors[puzzle.side]} to move · ${detail}`
+      : puzzle ? detail : "Choose Play or open Levels.";
     status.textContent = message;
+    takeawayPanel.hidden = !positionalTakeaway;
+    takeawayPanel.querySelector("p").textContent = positionalTakeaway ?? "";
     status.dataset.outcome = outcome ?? "";
     status.classList.toggle("is-loading", generating);
     slot.setAttribute("aria-busy", String(generating));
@@ -159,6 +170,25 @@ export default function puzzles(content) {
         if (step.response && (index < puzzle.steps.length - 1 || puzzle.category === "material")) {
           item.textContent += ` Reply: ${step.response.from}–${step.response.to}.`;
         }
+        if (step.choices && Object.values(step.choices).length > 1) {
+          const otherMoves = Object.values(step.choices).filter(choice => choice.move.from !== from || choice.move.to !== to);
+          item.textContent += " Also accepted: " + otherMoves.map(({ move }) => `${move.from}–${move.to}`).join(", ") + ".";
+        }
+        instructions.append(item);
+        if (puzzle.category === "positional") {
+          const proof = Object.values(step.choices ?? []).find(choice => choice.move.from === from && choice.move.to === to);
+          const replies = Object.values(proof?.replies ?? {});
+          if (replies.length) {
+            const evidence = document.createElement("li");
+            evidence.textContent = "Verified replies include " + replies.map(({ reply }) => `${reply.from}–${reply.to}`).join(", ") + ".";
+            instructions.append(evidence);
+          }
+        }
+      }
+      for (const explanation of [puzzle.explanation, puzzle.alternative?.explanation]) {
+        if (!explanation) continue;
+        const item = document.createElement("li");
+        item.textContent = explanation;
         instructions.append(item);
       }
     }
@@ -274,11 +304,14 @@ export default function puzzles(content) {
       }
       const candidates = levelEntries(entries, level).filter(entry => entry.id !== practice.active?.puzzle.id);
       const unsolved = candidates.filter(entry => practice.libraryProgress[entry.id] !== "solved");
-      const playableEntries = unsolved.length || (automatic && !allowReplay) ? unsolved : candidates;
+      const playableEntries = sequencePuzzles(
+        unsolved.length || (automatic && !allowReplay) ? unsolved : candidates,
+        levelEntries(entries, level), practice);
+      // Stable sorting keeps the interleaved order within each group.
+
       playableEntries.sort((a, b) =>
         Number(a.id === finished?.puzzle.id) - Number(b.id === finished?.puzzle.id) ||
-        Number(a.id === practice.lastSkipped) - Number(b.id === practice.lastSkipped) ||
-        Math.abs(a.difficulty - practice.rating) - Math.abs(b.difficulty - practice.rating));
+        Number(a.id === practice.lastSkipped) - Number(b.id === practice.lastSkipped));
       for (const entry of playableEntries) {
         const puzzle = await openLibraryPuzzle(entry);
         if (disposed || request !== generation) return;
@@ -327,6 +360,10 @@ export default function puzzles(content) {
     finished = { puzzle: active.puzzle, hearts: active.hearts, position: step.afterMove ?? step.position };
     outcome = "solved";
     message = `Solved. Rating ${delta > 0 ? "+" + delta : delta < 0 ? "−" + Math.abs(delta) : "unchanged"}.`;
+    if (step.explanation) {
+      positionalTakeaway = [step.explanation, active.puzzle.alternative?.explanation].filter(Boolean).join(" ");
+      message += " " + step.explanation;
+    }
     const { count, available, complete } = levelProgress(entries, practice.libraryProgress, level);
     const nextLevel = nextPuzzleLevel(entries, practice, level);
     if (complete && !alreadyComplete) {
@@ -351,7 +388,7 @@ export default function puzzles(content) {
       advanceTimer = setTimeout(() => {
         advanceTimer = undefined;
         startPuzzle(nextLevel, true, nextLevel < level);
-      }, complete ? 1450 : 850);
+      }, step.explanation ? 3000 : complete ? 1450 : 850);
     }
     playSound("solved");
     renderLibrary();
@@ -364,7 +401,8 @@ export default function puzzles(content) {
     if (!active) return;
     const step = active.puzzle.steps[active.step];
     selected = null;
-    if (step.move.from !== move.from || step.move.to !== move.to || step.move.promotion !== move.promotion) {
+    const accepted = puzzleChoice(step, move);
+    if (!accepted) {
       playSound("wrong");
       wrong = move.from;
       clearTimeout(wrongTimer);
@@ -391,7 +429,7 @@ export default function puzzles(content) {
     active.step++;
     active.hint = 0;
     if (active.step === active.puzzle.steps.length) {
-      finishPuzzle(active, step);
+      finishPuzzle(active, accepted);
       return;
     }
     playSound("move");

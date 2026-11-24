@@ -14,12 +14,14 @@
   align-content: center;
   justify-items: center;
   inline-size: 100%;
-  block-size: 4rem;
+  min-block-size: 5.25rem;
   margin-block-end: .55rem;
   text-align: center;
 }
 .puzzle-heading .help { margin: .12rem 0 0; }
-.puzzle-objective { font-weight: 700; }
+.puzzle-objective { font-weight: 700; margin: 0; overflow-wrap: anywhere; }
+.previous-puzzle-solution { margin-block-start: .75rem; }
+.previous-puzzle-solution summary { cursor: pointer; padding: .65rem .35rem; }
 .puzzle-game-controls {
   display: flex;
   flex-wrap: wrap;

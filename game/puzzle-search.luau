@@ -734,6 +734,55 @@ local function gameMove(engine,state,notation)
  return selected
 end
 
+local function recordedMove(engine,state,move)
+ for _,legal in ipairs(engine.legalMoves(state,move.from)) do
+  if legal.to==move.to and legal.promotion==move.promotion then return legal end
+ end
+end
+
+local function importReviewedMaterial(engine,state,options)
+ local line={}
+ local current=state
+ if claimable(engine,state) then return {} end
+ for _,move in ipairs(options.line) do
+  local legal=recordedMove(engine,current,move)
+  if not legal then return {} end
+  table.insert(line,legal)
+  current=engine.apply(current,legal)
+ end
+ local initial=balance(state,state.turn)
+ if balance(current,state.turn)<math.max(100,initial+options.gain) then return {} end
+ local puzzle=serialize(engine,state,line,options,fingerprint(engine,state),options.gain)
+ puzzle.materialProof=3
+ return {puzzle}
+end
+
+-- Convert an offline positional proof to an interactive one-decision puzzle.
+local function importPositional(engine,state,options)
+ local first=recordedMove(engine,state,options.first)
+ if not first or claimable(engine,state) then return {} end
+ local puzzle=serialize(engine,state,{first},options,fingerprint(engine,state))
+ local choices={}
+ for _,option in ipairs(options.options) do
+  local move=recordedMove(engine,state,option.move)
+  if not move then return {} end
+  local child=engine.apply(state,move)
+  for _,reply in ipairs(option.replies) do
+   local position=child
+   for _,candidate in ipairs(reply.line) do
+    local legal=recordedMove(engine,position,candidate)
+    if not legal then return {} end
+    position=engine.apply(position,legal)
+   end
+  end
+  local position=engine.public(child)
+  position.history=nil
+  table.insert(choices,{move=move,position=position,replies=option.replies,score=option.score,explanation=option.explanation})
+ end
+ puzzle.steps[1].choices=choices
+ return {puzzle}
+end
+
 function Puzzle.fromGame(engine,bot,options)
  local state=engine.initial()
  local positions={}
@@ -743,6 +792,8 @@ function Puzzle.fromGame(engine,bot,options)
   table.insert(positions,state)
   state=engine.apply(state,move)
  end
+ if options.category=="positional" then return importPositional(engine,state,options) end
+ if options.category=="material" and options.reviewed then return importReviewedMaterial(engine,state,options) end
  if options.exactPosition then
   local moves=engine.allLegal(state)
   if #moves==0 or claimable(engine,state) then return {} end

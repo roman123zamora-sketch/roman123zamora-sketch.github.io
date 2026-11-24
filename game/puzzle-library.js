@@ -1,6 +1,8 @@
 import { loadPublishedPuzzle, readPublishedIndex } from "./puzzle-pool.js";
 
-export const puzzlesPerLevel = 20;
+export const puzzleCategories = ["checkmate", "material", "positional"];
+export const puzzlesPerCategory = 10;
+export const puzzlesPerLevel = puzzleCategories.length * puzzlesPerCategory;
 export const levels = [
   [200, 399], [400, 599], [600, 799], [800, 999],
   [1000, 1249], [1250, 1499], [1500, 1749], [1750, 1999],
@@ -26,11 +28,12 @@ export function levelEntries(entries, level) {
 export function levelProgress(entries, solved, level) {
   const puzzles = levelEntries(entries, level);
   const count = puzzles.filter(entry => solved[entry.id] === "solved").length;
-  return { count, available: puzzles.length, complete: count === puzzlesPerLevel };
+  return { count, available: puzzles.length, complete: count === puzzlesPerLevel && puzzleCategories.every(category =>
+    puzzles.filter(puzzle => puzzle.category === category).length === puzzlesPerCategory) };
 }
 
 export function levelLock(entries, practice, level) {
-  for (let prior = 0; prior < level; prior++) {
+  for (let prior = 0; level > (practice.earnedLevel ?? 0) && prior < level; prior++) {
     const { count, complete } = levelProgress(entries, practice.libraryProgress, prior);
     if (!complete) {
       return `Solve all ${puzzlesPerLevel} in ${levelLabel(levels[prior])} (${count} solved).`;
@@ -66,4 +69,20 @@ export function nextPuzzleLevel(entries, practice, current) {
 export async function openLibraryPuzzle(entry) {
   const puzzle = await loadPublishedPuzzle(entry.category, entry);
   if (puzzle?.id === entry.id && puzzle.category === entry.category && puzzle.difficulty === entry.difficulty) return puzzle;
+}
+
+export function sequencePuzzles(candidates, level, practice) {
+  const solvedByCategory = new Map(puzzleCategories.map(category => [
+    category, level.filter(entry => entry.category === category && practice.libraryProgress[entry.id] === "solved").length
+  ]));
+  return [...candidates].sort((a, b) =>
+    (solvedByCategory.get(a.category) ?? 0) - (solvedByCategory.get(b.category) ?? 0) ||
+    Math.abs(a.difficulty - practice.rating) - Math.abs(b.difficulty - practice.rating) ||
+    puzzleCategories.indexOf(a.category) - puzzleCategories.indexOf(b.category));
+}
+
+export function puzzleChoice(step, move) {
+  const variants = step.choices ?? [step];
+  return Object.values(variants).find(variant => variant.move.from === move.from &&
+    variant.move.to === move.to && variant.move.promotion === move.promotion);
 }

@@ -1,3 +1,4 @@
+import { previousLevels } from "./puzzle-legacy-levels.js";
 import { readSetting, writeSetting } from "./session.js";
 
 // This key is also the reset marker. Never replace an existing season record
@@ -15,12 +16,18 @@ export function loadPractice() {
     const saved = JSON.parse(readSetting(puzzleProgressKey));
     if (saved && Number.isFinite(saved.rating) && Array.isArray(saved.rated) && saved.libraryProgress) {
       if (!validActive(saved.active)) saved.active = null;
+      if (!Number.isInteger(saved.earnedLevel)) {
+        let earned = 0;
+        while (previousLevels[earned]?.every(id => saved.libraryProgress[id] === "solved")) earned++;
+        saved.earnedLevel = earned;
+        savePractice(saved);
+      }
       return saved;
     }
   } catch {
     // Begin with a fresh record if the saved record cannot be read.
   }
-  const practice = { rating: startingPuzzleRating, rated: [], libraryProgress: {}, active: null };
+  const practice = { rating: startingPuzzleRating, rated: [], libraryProgress: {}, active: null, earnedLevel: 0 };
   savePractice(practice);
   return practice;
 }

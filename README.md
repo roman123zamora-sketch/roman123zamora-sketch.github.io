@@ -172,20 +172,21 @@ node tests/learn-course-test.mjs
 
 ## Puzzles
 
-Puzzles uses a pre-verified ladder through 2500 Elo. Players complete the
+Puzzles uses a pre-verified ladder through 2500 Elo. Each level has ten
+checkmate, ten material and ten positional puzzles. Players complete the
 lower levels and meet the next level's Elo requirement to unlock it. The
 level list shows progress and lock reasons. After a solve, the next
 eligible position opens automatically. After a loss, the same position
 remains open in practice.
 
-The browser commits the outcome, rating, and attempt state together. The
-new progression storage key starts returning players at 400 once and
-leaves their legacy record available in browser storage. Rated credit is
-available on the first completed attempt in the player's Elo band.
+The browser commits the outcome, rating, and attempt state together.
+The expansion preserves Elo, retained solves and previously earned level
+access. Rated credit is available on the first completed attempt in the
+player's Elo band.
 Lower-band attempts and replays leave Elo unchanged.
 
-See [the library documentation](assets/puzzles/README.md) for publishing,
-current coverage, and gaps.
+See [the library documentation](assets/puzzles/README.md) for verification and
+publishing.
 
 ```sh
 node tests/puzzles-test.mjs
