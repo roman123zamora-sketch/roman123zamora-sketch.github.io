@@ -3,6 +3,7 @@ import { createChessPiece, pieceName } from "./chess-pieces.js";
 const colors = { w: "white", b: "black", R: "red", B: "blue", Y: "yellow", G: "green" };
 const standard = "rnbqkbnr";
 const mirrored = "rnbkqbnr";
+const previewPosition = { a4: "bR", b4: "bN", c1: "wN", d1: "wR" };
 const boardLayouts = new WeakMap();
 function startingPosition(fourPlayer) {
   const squares = new Map();
@@ -63,8 +64,8 @@ export function board(theme, fourPlayer = false, sample = false, options = {}) {
         }
       }
       square.className = corner ? "square cutout" : (row + column) % 2 ? "square dark" : "square";
-      const encoded = options.state?.board[address];
-      const piece = options.state ? (encoded && { type: encoded[1], side: colors[encoded[0]] }) : position?.get(`${size - ranks[row]},${"abcdefghijklmn".indexOf(files[column])}`);
+      const encoded = sample ? previewPosition[address] : options.state?.board[address];
+      const piece = sample || options.state ? (encoded && { type: encoded[1], side: colors[encoded[0]] }) : position?.get(`${size - ranks[row]},${"abcdefghijklmn".indexOf(files[column])}`);
       if (!corner && !sample) {
         const description = piece ? `${piece.side} ${pieceName(piece.type)}` : "empty";
         square.setAttribute("aria-label", `${address}, ${description}`);

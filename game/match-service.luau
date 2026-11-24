@@ -50,15 +50,6 @@ local function getProfile(p)
  for _,record in ipairs(profile.history) do
   if type(record)=="table" and not record.id then record.id=historyId(profile.history) end
  end
- -- Board themes: Void was retired and replaced by Galaxy — carry ownership/equip over.
- do
-  local owned=type(profile.ownedBoards)=="table" and profile.ownedBoards or {}
-  if profile.equippedBoard=="void" or table.find(owned,"void") then
-   if Themes.exists("galaxy") and not table.find(owned,"galaxy") then table.insert(owned,"galaxy") end
-   if profile.equippedBoard=="void" then profile.equippedBoard="galaxy" end
-  end
-  profile.ownedBoards=owned
- end
  -- Board themes: sanitize the owned list and equipped id against the theme library.
  if not Themes.exists(profile.equippedBoard) then profile.equippedBoard=Themes.defaultTheme end
  do
@@ -74,7 +65,11 @@ local function getProfile(p)
    if not table.find(profile.ownedBoards,theme.id) then table.insert(profile.ownedBoards,theme.id) end
   end
  end
- profileCache[id]=profile; return profile
+ profileCache[id]=profile
+ if ok and type(saved)=="table" and saved.equippedBoard~=profile.equippedBoard then
+  pcall(function() Profiles:SetAsync(id,profile) end)
+ end
+ return profile
 end
 local function saveProfile(p)
  local profile=profileCache[tostring(p.UserId)]; if profile and Profiles then pcall(function() Profiles:SetAsync(tostring(p.UserId),profile) end) end

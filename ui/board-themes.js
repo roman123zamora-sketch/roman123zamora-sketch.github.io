@@ -1,16 +1,16 @@
 import { session } from "../game/session.js";
 
-const classic = {
-  id: "classic", price: 0, name: "Classic",
+const blue = {
+  id: "classic", price: 0, name: "Blue",
   light: "#ecf6ff", dark: "#7fa5cc", frame: "#324e70", stroke: "#496b90"
 };
 
 export function getThemes() {
-  return session.catalog?.map(theme => theme.id === classic.id ? classic : theme) ?? [classic];
+  return session.catalog?.map(theme => theme.id === blue.id ? blue : theme) ?? [blue];
 }
 
 export function getTheme() {
-  return getThemes().find(theme => theme.id === session.profile.equippedBoard) ?? classic;
+  return getThemes().find(theme => theme.id === session.profile.equippedBoard) ?? blue;
 }
 
 const tokens = {
