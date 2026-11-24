@@ -13,11 +13,15 @@ const published = await Promise.all(Object.entries(index).flatMap(([category, en
     assert.equal(puzzle.id, entry.id);
     assert.equal(puzzle.difficulty, entry.difficulty);
     assert.equal(puzzle.idea, entry.idea);
+    assert.equal(puzzle.revision, entry.revision);
     assert.match(puzzle.fen, /^[^ ]+ [wb] [^ ]+ [^ ]+ \d+ \d+$/);
     assert(["PGN Mentor", "Exalted self-play"].includes(puzzle.source.archive));
     return puzzle;
   })));
 const puzzles = published;
+const alternateStep = puzzles.flatMap(puzzle => puzzle.steps).find(step => step.alternatives?.length);
+assert(alternateStep, "The revised library contains verified alternate solutions");
+assert.equal(puzzleChoice(alternateStep, alternateStep.alternatives[0].steps[0].move), alternateStep.alternatives[0]);
 assert(puzzles.length >= levels.length * puzzlesPerLevel);
 assert.equal(new Set(puzzles.map(puzzle => puzzle.id)).size, puzzles.length);
 assert.equal(new Set(puzzles.map(puzzle => puzzle.fen.split(" ")[0])).size, puzzles.length);
@@ -68,6 +72,14 @@ local function apply(state,move)
   if legal.to==move.to and legal.promotion==move.promotion then return Chess.apply(state,legal) end
  end
  error("Illegal puzzle move")
+end
+local function sameBoard(actual, expected, id)
+ for square,piece in pairs(actual.board) do assert(expected.board[square]==piece,id.." missing piece on "..square) end
+ for square,piece in pairs(expected.board) do assert(actual.board[square]==piece,id.." extra piece on "..square) end
+ assert(actual.turn==expected.turn and Chess.status(actual)==expected.status,id.." displayed state differs from legal replay")
+end
+local function sameMove(a,b)
+ return a.from==b.from and a.to==b.to and a.promotion==b.promotion
 end
 local values={P=100,N=310,B=330,R=500,Q=900}
 local function balance(state,side)
@@ -205,7 +217,34 @@ for _,puzzle in ipairs(puzzles) do
       accepted.promotion==move.promotion,puzzle.id.." does not force the stated mate")
    end
   end
-  final=apply(final,move)
+  local step=puzzle.steps[math.ceil(ply/2)]
+  if ply%2==1 then
+   assert(sameMove(move,step.move),puzzle.id.." has a mismatched solver move")
+   local legal=Chess.allLegal(final)
+   for _,alternative in ipairs(step.alternatives or {}) do
+    local branch=final
+    for i,option in ipairs(alternative.line) do
+     local frame=alternative.steps[math.ceil(i/2)]
+     assert(sameMove(option,i%2==1 and frame.move or frame.response))
+     branch=apply(branch,option)
+     sameBoard(branch,i%2==1 and (frame.afterMove or frame.position) or frame.position,puzzle.id)
+    end
+    assert(balance(branch,puzzle.side)>=math.max(100,balance(state,puzzle.side)+puzzle.gain),
+     puzzle.id.." alternate does not earn the promised gain")
+   end
+   assert(#legal==#step.legal,puzzle.id.." has a mismatched legal-move list")
+   for _,option in ipairs(legal) do
+    local found=false
+    for _,displayed in ipairs(step.legal) do if sameMove(option,displayed) then found=true; break end end
+    assert(found,puzzle.id.." omitted a legal move")
+   end
+   final=apply(final,move)
+   sameBoard(final,step.afterMove or step.position,puzzle.id)
+  else
+   assert(sameMove(move,step.response),puzzle.id.." has a mismatched defender move")
+   final=apply(final,move)
+   sameBoard(final,step.position,puzzle.id)
+  end
  end
  if puzzle.category=="checkmate" then
   assert(Chess.status(final)=="checkmate")

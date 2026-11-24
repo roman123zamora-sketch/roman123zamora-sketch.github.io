@@ -13,7 +13,16 @@ shows the current collection totals.
 
 Checkmate verification covers all legal defenses. Material verification
 uses a legal tactical search or bounded offline UCI review depending on
-the proof format. The difficulty labels are curriculum estimates.
+the proof format. The difficulty labels are curriculum estimates. Verified alternate lines
+are stored alongside the decision where they apply. Each line carries its own
+board snapshots and legal moves, so choosing it preserves the same scoring
+and progress rules.
+
+The November 2026 audit replayed the 500 published positions. For Material,
+the offline review compared published defender moves with Stockfish 15.1
+and followed forcing replies past the apparent payoff. The released changes
+retain every puzzle slot ID and Elo label. Revised slots include a revision
+number so a resumed attempt switches to the corrected line.
 
 ## Curating an offline release
 

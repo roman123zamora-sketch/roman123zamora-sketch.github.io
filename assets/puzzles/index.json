@@ -1255,32 +1255,38 @@
     {
       "id": "1722531420",
       "difficulty": 200,
-      "idea": "material:N:B:-:dKd7dPa6dPf7dPg6sKg4sPc5sPg3sPg5/c6/b4/a5"
+      "idea": "material:N:B:-:dKd7dPa6dPf7dPg6sKg4sPc5sPg3sPg5/c6/b4",
+      "revision": 1
     },
     {
       "id": "259014116",
       "difficulty": 200,
-      "idea": "material:R:R:-:dKb8dPa6dPb7dPf6dPg7dPh7sKb1sPa4sPc2sPf5sPg4sPh3/d7/d8/c7"
+      "idea": "material:R:R:-:dKb8dPa6dPb7dPf6dPg7dPh7sKb1sPa4sPc2sPf5sPg4sPh3/d7/d8",
+      "revision": 1
     },
     {
       "id": "1964465575",
       "difficulty": 200,
-      "idea": "material:Q:R:-:dKb8dPb7dPc7dPh7sKa1sPa3sPb2sPc4sPd3sPf4sPh2/c5/d4/h6"
+      "idea": "material:Q:R:-:dKb8dPb7dPc7dPh7sKa1sPa3sPb2sPc4sPd3sPf4sPh2/c5/d4",
+      "revision": 1
     },
     {
       "id": "1356674402",
       "difficulty": 200,
-      "idea": "material:R:B:-:dKa7dPb6dPd5dPg5dPh6sKb1sPb3sPc2/f8/c8/g6"
+      "idea": "material:R:B:-:dKa7dPb6dPd5dPg5dPh6sKb1sPb3sPc2/f8/c8",
+      "revision": 1
     },
     {
       "id": "819127180",
       "difficulty": 200,
-      "idea": "material:B:B:-:dKd8dPb7dPe3dPf4dPg6dPh5sKc2sPa2sPc4sPc5sPg2sPh2/e6/f7/e2"
+      "idea": "material:B:B:-:dKd8dPb7dPe3dPf4dPg6dPh5sKc2sPa2sPc4sPc5sPg2sPh2/e6/f7",
+      "revision": 1
     },
     {
       "id": "1640049179",
       "difficulty": 270,
-      "idea": "material:B:Q:-:dKb8dPa4dPc7dPh7sKb2sPb4sPd2sPe3sPe5sPf4sPh2/a6/b5/d8"
+      "idea": "material:B:Q:-:dKb8dPa4dPc7dPh7sKb2sPb4sPd2sPe3sPe5sPf4sPh2/a6/b5",
+      "revision": 1
     },
     {
       "id": "1940498355",
@@ -1295,7 +1301,8 @@
     {
       "id": "1458844703",
       "difficulty": 345,
-      "idea": "material:Q:Q:-:dKb8dPa7dPb6dPc7dPd5dPf4dPg4sKa1sPa3sPb2sPd4sPf2sPg2sPh2/c6/c2/a5"
+      "idea": "material:Q:Q:-:dKb8dPa7dPb6dPc7dPd5dPf4dPg4sKa1sPa3sPb2sPd4sPf2sPg2sPh2/c6/c2",
+      "revision": 1
     },
     {
       "id": "1294140740",
@@ -1305,17 +1312,20 @@
     {
       "id": "37049988",
       "difficulty": 230,
-      "idea": "material:Q:N:-:dKb8dPc7dPf6dPg7dPh7sKa1sPa2sPb2sPh2/b3/b6/b7"
+      "idea": "material:Q:N:-:dKb8dPc7dPf6dPg7dPh7sKa1sPa2sPb2sPh2/b3/b6",
+      "revision": 1
     },
     {
       "id": "2074294643",
       "difficulty": 265,
-      "idea": "material:N:B:-:dKd7dPa5dPb6dPd4dPd5sKc2sPb3sPf5/g4/f6/d6"
+      "idea": "material:N:B:-:dKd7dPa5dPb6dPd4dPd5sKc2sPb3sPf5/g4/f6",
+      "revision": 1
     },
     {
       "id": "1345368808",
       "difficulty": 300,
-      "idea": "material:N:B:-:dKb7dPa5dPb4dPe5dPf4dPg5dPh5sKc2sPb3sPb5sPe4sPf3sPg2sPh3/c8/e7/h4"
+      "idea": "material:N:B:-:dKb7dPa5dPb4dPe5dPf4dPg5dPh5sKc2sPb3sPb5sPe4sPf3sPg2sPh3/c8/e7",
+      "revision": 1
     },
     {
       "id": "222551067",
@@ -1325,62 +1335,74 @@
     {
       "id": "696562082",
       "difficulty": 360,
-      "idea": "material:N:R:-:dKa4dPa7sKc3sPc2sPd3/b4/a2/a1"
+      "idea": "material:N:R:-:dKa4dPa7sKc3sPc2sPd3/b4/a2",
+      "revision": 1
     },
     {
       "id": "1657016722",
       "difficulty": 220,
-      "idea": "material:B:Q:-:dKd8dPa6dPb7dPc7dPe7dPf7dPh7sKe2sPa2sPb2sPd4sPf2sPf3sPh2/d3/c2/h6"
+      "idea": "material:B:Q:-:dKd8dPa6dPb7dPc7dPe7dPf7dPh7sKe2sPa2sPb2sPd4sPf2sPf3sPh2/d3/c2",
+      "revision": 1
     },
     {
       "id": "1204298672",
       "difficulty": 235,
-      "idea": "material:B:Q:-:dKd8dPb6dPc7dPe7dPf7dPg7dPh7sKd1sPa2sPb2sPc2sPd4sPf2sPg2sPh2/f1/a6/g8"
+      "idea": "material:B:Q:-:dKd8dPb6dPc7dPe7dPf7dPg7dPh7sKd1sPa2sPb2sPc2sPd4sPf2sPg2sPh2/f1/a6",
+      "revision": 1
     },
     {
       "id": "679804853",
       "difficulty": 255,
-      "idea": "material:K:B:-:dKc8dPa7dPb7dPc7dPd6dPe7dPf7dPg7dPh7sKb1sPb2sPc2sPd4sPf2sPg2sPh2/b1/a2/g8"
+      "idea": "material:K:B:-:dKc8dPa7dPb7dPc7dPd6dPe7dPf7dPg7dPh7sKb1sPb2sPc2sPd4sPf2sPg2sPh2/b1/a2",
+      "revision": 1
     },
     {
       "id": "526562923",
       "difficulty": 270,
-      "idea": "material:Q:N:-:dKd8dPa5dPb7dPc7dPd7dPe6dPf7dPg7dPh6sKd1sPa2sPb2sPc2sPd2sPf2sPg2sPh3/e2/e5/g8"
+      "idea": "material:Q:N:-:dKd8dPa5dPb7dPc7dPd7dPe6dPf7dPg7dPh6sKd1sPa2sPb2sPc2sPd2sPf2sPg2sPh3/e2/e5",
+      "revision": 1
     },
     {
       "id": "490480126",
       "difficulty": 290,
-      "idea": "material:Q:B:-:dKd8dPa7dPb7dPc7dPe7dPf6dPg7dPh7sKd1sPa2sPb2sPc2sPd4sPf2sPg2sPh2/a5/d5/c8"
+      "idea": "material:Q:B:-:dKd8dPa7dPb7dPc7dPe7dPf6dPg7dPh7sKd1sPa2sPb2sPc2sPd4sPf2sPg2sPh2/a5/d5",
+      "revision": 1
     },
     {
       "id": "1441716440",
       "difficulty": 305,
-      "idea": "material:B:B:-:dKb8dPa7dPb7dPc7dPf7sKd1sPa2sPd2sPd3sPf2sPg2sPh4/c1/b2/g8"
+      "idea": "material:B:B:-:dKb8dPa7dPb7dPc7dPf7sKd1sPa2sPd2sPd3sPf2sPg2sPh4/c1/b2",
+      "revision": 1
     },
     {
       "id": "865840752",
       "difficulty": 325,
-      "idea": "material:Q:N:-:dKd8dPa5dPb7dPc7dPe6dPf7dPg7sKd1sPa2sPb2sPc2sPd4sPd5sPg2sPh2/e1/f2/h8"
+      "idea": "material:Q:N:-:dKd8dPa5dPb7dPc7dPe6dPf7dPg7sKd1sPa2sPb2sPc2sPd4sPd5sPg2sPh2/e1/f2",
+      "revision": 1
     },
     {
       "id": "138299096",
       "difficulty": 340,
-      "idea": "material:Q:N:-:dKb8dPa7dPb7dPc7dPd6dPe7dPf7dPg7dPh7sKb1sPa2sPb2sPc2sPe4sPf2sPf3sPh2/e3/d4/g8"
+      "idea": "material:B:Q:-:dKd8dPa7dPb7dPc5dPh4sKd2sPa2sPb2sPc3sPf4sPg5/d3/b5",
+      "revision": 1
     },
     {
       "id": "1463174365",
       "difficulty": 360,
-      "idea": "material:P:N:-:dKd7dPa7dPb6dPc7dPd6dPe6dPf7dPh7sKd1sPa2sPb2sPc2sPe4sPf2sPg2sPh2/g2/f3/h6"
+      "idea": "material:Q:R:-:dKd8dPa7dPc6dPg7dPh7sKg1sPa2sPb2sPc2sPd3/b7/a8",
+      "revision": 1
     },
     {
       "id": "492017192",
       "difficulty": 375,
-      "idea": "material:Q:N:-:dKb8dPa7dPb7dPc7dPd6dPe5dPf7dPh7sKd1sPa2sPb2sPc2sPd2sPe4sPh2/f3/f2/h6"
+      "idea": "material:Q:N:-:dKb8dPa7dPb7dPc7dPd6dPe5dPf7dPh7sKd1sPa2sPb2sPc2sPd2sPe4sPh2/f3/f2",
+      "revision": 1
     },
     {
       "id": "804832568",
       "difficulty": 430,
-      "idea": "material:R:N:-:dKc7dPa7dPb6dPd5dPd6dPh5sKd2sPa2sPb2sPc3sPd4sPg5sPh4/f7/f4/h3"
+      "idea": "material:R:N:-:dKc7dPa7dPb6dPd5dPd6dPh5sKd2sPa2sPb2sPc3sPd4sPg5sPh4/f7/f4",
+      "revision": 1
     },
     {
       "id": "1035196415",
@@ -1395,17 +1417,20 @@
     {
       "id": "915329158",
       "difficulty": 530,
-      "idea": "material:R:B:-:dKd7dPa4dPb5dPg6dPh7sKg1sPd5sPf2sPg3sPh2/c4/d4/a3"
+      "idea": "material:R:B:-:dKd7dPa4dPb5dPg6dPh7sKg1sPd5sPf2sPg3sPh2/c4/d4",
+      "revision": 1
     },
     {
       "id": "1976219954",
       "difficulty": 560,
-      "idea": "material:R:Q:-:dKa7dPa6dPb6sKb3sPa2sPb2sPc3sPd3/f1/f4/h5"
+      "idea": "material:R:Q:-:dKa7dPa6dPb6sKb3sPa2sPb2sPc3sPd3/f1/f4",
+      "revision": 1
     },
     {
       "id": "567750730",
       "difficulty": 410,
-      "idea": "material:Q:B:-:dKc6dPd5dPe4dPf6dPg7dPh7sKa1sPa2sPb2sPf5sPg4sPh3/a7/f7/d7"
+      "idea": "material:Q:B:-:dKc6dPd5dPe4dPf6dPg7dPh7sKa1sPa2sPb2sPf5sPg4sPh3/a7/f7",
+      "revision": 1
     },
     {
       "id": "1499167706",
@@ -1430,17 +1455,20 @@
     {
       "id": "658281161",
       "difficulty": 430,
-      "idea": "material:R:R:-:dKc3dPa5dPe4dPg7dPh6sKb1sPg4sPh3/d1/g1/g6"
+      "idea": "material:R:R:-:dKc3dPa5dPe4dPg7dPh6sKb1sPg4sPh3/d1/g1",
+      "revision": 1
     },
     {
       "id": "316236197",
       "difficulty": 465,
-      "idea": "material:P:Q:-:dKb7dPa5dPb6dPc7dPd5dPd6sKb2sPa4sPb3sPc2sPd4sPf6sPg4/f6/e7/d7"
+      "idea": "material:B:Q:-:dKb8dPa7dPb7dPc7dPd6dPg7sKb1sPa2sPb3sPc2sPd3sPh4/f3/h5",
+      "revision": 1
     },
     {
       "id": "455567977",
       "difficulty": 500,
-      "idea": "material:P:R:-:dKb8dPa7dPb7dPc7dPd6dPf6dPg4sKb1sPa2sPb3sPc2sPf5sPg2sPh2/f5/e6/f5"
+      "idea": "material:P:R:-:dKb8dPa7dPb7dPc7dPd6dPf6dPg4sKb1sPa2sPb3sPc2sPf5sPg2sPh2/f5/e6",
+      "revision": 1
     },
     {
       "id": "238164331",
@@ -1450,7 +1478,8 @@
     {
       "id": "370694629",
       "difficulty": 560,
-      "idea": "material:R:N:-:dKa8dPa5dPb7dPc7dPg5dPh6sKb1sPa2sPb3sPc2sPh2/f7/e7/h5"
+      "idea": "material:R:N:-:dKa8dPa5dPb7dPc7dPg5dPh6sKb1sPa2sPb3sPc2sPh2/f7/e7",
+      "revision": 1
     },
     {
       "id": "427360727",
@@ -1460,12 +1489,14 @@
     {
       "id": "139931284",
       "difficulty": 435,
-      "idea": "material:Q:R:-:dKd8dPa7dPb7dPc7dPe7dPf7dPg7sKf1sPa2sPb2sPc2sPc3sPf2sPg2sPh2/d3/d5/e8"
+      "idea": "material:Q:R:-:dKd8dPa7dPb7dPc7dPe7dPf7dPg7sKf1sPa2sPb2sPc2sPc3sPf2sPg2sPh2/d3/d5",
+      "revision": 1
     },
     {
       "id": "237919030",
       "difficulty": 455,
-      "idea": "material:K:B:-:dKd8dPc7dPe7dPf7dPg7dPh7sKd1sPa2sPb2sPd2sPf2sPg2sPh2/d1/c2/g8"
+      "idea": "material:K:B:-:dKd8dPc7dPe7dPf7dPg7dPh7sKd1sPa2sPb2sPd2sPf2sPg2sPh2/d1/c2",
+      "revision": 1
     },
     {
       "id": "1452723960",
@@ -1475,37 +1506,44 @@
     {
       "id": "2037805445",
       "difficulty": 490,
-      "idea": "material:Q:Q:-:dKa7dPa6dPb7dPc7dPd6dPg7dPh7sKg1sPa2sPb2sPc2sPf2sPg2sPh2/f3/e4/a8"
+      "idea": "material:Q:Q:-:dKa7dPa6dPb7dPc7dPd6dPg7dPh7sKg1sPa2sPb2sPc2sPf2sPg2sPh2/f3/e4",
+      "revision": 1
     },
     {
       "id": "393430537",
       "difficulty": 505,
-      "idea": "material:N:R:-:dKd8dPa7dPd7dPe5dPf7dPg7dPh7sKb1sPa2sPb2sPd3sPe4sPf2sPg2sPh2/c7/a8/a6"
+      "idea": "material:N:R:-:dKd8dPa7dPd7dPe5dPf7dPg7dPh7sKb1sPa2sPb2sPd3sPe4sPf2sPg2sPh2/c7/a8",
+      "revision": 1
     },
     {
       "id": "1347532838",
       "difficulty": 525,
-      "idea": "material:P:B:-:dKd7dPa7dPb7dPc7dPd5dPe6dPf7dPg7dPh5sKd1sPa2sPb2sPc2sPd4sPf2sPg2sPh2/d4/c5/g8"
+      "idea": "material:P:B:-:dKd7dPa7dPb7dPc7dPd5dPe6dPf7dPg7dPh5sKd1sPa2sPb2sPc2sPd4sPf2sPg2sPh2/d4/c5",
+      "revision": 1
     },
     {
       "id": "1640192287",
       "difficulty": 540,
-      "idea": "material:P:N:-:dKd8dPa7dPb7dPc7dPd7dPe6dPf7dPg7sKb1sPa2sPb2sPc2sPd4sPf2sPg2sPh2/g2/f3/f6"
+      "idea": "material:P:N:-:dKd8dPa7dPb7dPc7dPd7dPe6dPf7dPg7sKb1sPa2sPb2sPc2sPd4sPf2sPg2sPh2/g2/f3",
+      "revision": 1
     },
     {
       "id": "456930121",
       "difficulty": 560,
-      "idea": "material:N:R:-:dKd8dPa7dPb7dPf7dPg7dPh7sKe1sPa2sPb2sPc2sPe2sPf2sPg2sPh2/c7/a8/a6"
+      "idea": "material:N:R:-:dKd8dPa7dPb7dPf7dPg7dPh7sKe1sPa2sPb2sPc2sPe2sPf2sPg2sPh2/c7/a8",
+      "revision": 1
     },
     {
       "id": "1314544392",
       "difficulty": 575,
-      "idea": "material:Q:Q:-:dKb8dPa7dPb7dPc7dPe5dPf7dPg7dPh6sKg1sPa2sPb2sPc2sPd2sPe4sPf2sPg2sPh2/f5/d7/f6"
+      "idea": "material:Q:Q:-:dKb8dPa7dPb7dPc7dPe5dPf7dPg7dPh6sKg1sPa2sPb2sPc2sPd2sPe4sPf2sPg2sPh2/f5/d7",
+      "revision": 1
     },
     {
       "id": "1739739216",
       "difficulty": 700,
-      "idea": "material:R:N:-:dKa7dPa6dPb7dPc4dPg5dPh5sKa2sPa3sPb2sPc2/f8/f6/g4"
+      "idea": "material:R:N:-:dKa7dPa6dPb7dPc4dPg5dPh5sKa2sPa3sPb2sPc2/f8/f6/f6/d4",
+      "revision": 1
     },
     {
       "id": "767416049",
@@ -1555,27 +1593,32 @@
     {
       "id": "1092427309",
       "difficulty": 630,
-      "idea": "material:R:R:-:dKc6dPa6dPe6dPf5dPh5sKf3sPa4sPb3sPc4sPe5sPf4sPh2/b7/g7/c5"
+      "idea": "material:R:R:-:dKc6dPa6dPe6dPf5dPh5sKf3sPa4sPb3sPc4sPe5sPf4sPh2/b7/g7",
+      "revision": 1
     },
     {
       "id": "1802823024",
       "difficulty": 665,
-      "idea": "material:B:R:-:dKb8dPa6dPb7dPc7sKb1sPa2sPb2sPg3sPh4/b4/f8/h8"
+      "idea": "material:B:R:-:dKb8dPa6dPb7dPc7sKb1sPa2sPb2sPg3sPh4/b4/f8",
+      "revision": 1
     },
     {
       "id": "1511649906",
       "difficulty": 700,
-      "idea": "material:Q:B:-:dKa7dPa6dPc5dPg7dPh7sKb1sPa2sPb2sPc2sPf2sPg2sPh2/e3/e6/h6"
+      "idea": "material:Q:B:-:dKa7dPa6dPc5dPg7dPh7sKb1sPa2sPb2sPc2sPf2sPg2sPh2/e3/e6",
+      "revision": 1
     },
     {
       "id": "359152295",
       "difficulty": 730,
-      "idea": "material:R:Q:-:dKc6dPa7dPb7dPd6dPg5sKd1sPc2sPd2sPf5sPg2/e7/e4/g3"
+      "idea": "material:R:Q:-:dKc6dPa7dPb7dPd6dPg5sKd1sPc2sPd2sPf5sPg2/e7/e4",
+      "revision": 1
     },
     {
       "id": "521517280",
       "difficulty": 760,
-      "idea": "material:N:B:-:dKb7dPb6dPc5dPe3sKb1sPa2sPa3/e6/f8/e7"
+      "idea": "material:N:B:-:dKb7dPb6dPc5dPe3sKb1sPa2sPa3/e6/f8",
+      "revision": 1
     },
     {
       "id": "1035536661",
@@ -1630,12 +1673,14 @@
     {
       "id": "1953311253",
       "difficulty": 820,
-      "idea": "material:B:Q:-:dKb8dPa7dPb7dPc7sKb1sPa2sPb2sPc2sPf2sPg2sPh2/c6/b5/g8"
+      "idea": "material:B:Q:-:dKb8dPa7dPb7dPc7sKb1sPa2sPb2sPc2sPf2sPg2sPh2/c6/b5",
+      "revision": 1
     },
     {
       "id": "1351248376",
       "difficulty": 840,
-      "idea": "material:B:R:-:dKc8dPa7dPb7dPd4dPh7sKb1sPa2sPb2sPc2sPf2sPg6sPh2/e5/h8/c7"
+      "idea": "material:B:R:-:dKc8dPa7dPb7dPd4dPh7sKb1sPa2sPb2sPc2sPf2sPg6sPh2/e5/h8",
+      "revision": 1
     },
     {
       "id": "2138844281",
@@ -1650,7 +1695,8 @@
     {
       "id": "578145315",
       "difficulty": 900,
-      "idea": "material:Q:N:-:dKb6dPa7dPg7sKb1sPb2sPc2sPd3sPe4/e5/e6/c6"
+      "idea": "material:Q:N:-:dKb6dPa7dPg7sKb1sPb2sPc2sPd3sPe4/e5/e6",
+      "revision": 1
     },
     {
       "id": "1549094808",
@@ -1680,22 +1726,26 @@
     {
       "id": "1755688197",
       "difficulty": 830,
-      "idea": "material:R:B:-:dKb7dPa7dPb6dPe5sKa2sPb2sPb3sPc2sPd3sPe4/f8/d8/h1"
+      "idea": "material:R:B:-:dKb7dPa7dPb6dPe5sKa2sPb2sPb3sPc2sPd3sPe4/f8/d8",
+      "revision": 1
     },
     {
       "id": "1127667986",
       "difficulty": 865,
-      "idea": "material:Q:N:-:dKd8dPa7dPb7dPc7dPd5dPf5dPf6dPh7sKb1sPa2sPb2sPc2sPd4sPf2sPg2sPh2/g7/f8/e8"
+      "idea": "material:Q:N:-:dKd8dPa7dPb7dPc7dPd5dPf5dPf6dPh7sKb1sPa2sPb2sPc2sPd4sPf2sPg2sPh2/g7/f8",
+      "revision": 1
     },
     {
       "id": "1663068866",
       "difficulty": 900,
-      "idea": "material:N:B:-:dKd7dPb4dPc6dPc7dPf4dPh6sKa1sPa4sPb2sPh3/e6/f8/e8"
+      "idea": "material:N:B:-:dKd7dPb4dPc6dPc7dPf4dPh6sKa1sPa4sPb2sPh3/e6/f8",
+      "revision": 1
     },
     {
       "id": "1133735086",
       "difficulty": 930,
-      "idea": "material:R:Q:-:dKa8dPa7dPc5dPg6dPh7sKb1sPa2sPb2sPe4sPf4sPh3/d6/e6/e7"
+      "idea": "material:R:Q:-:dKa8dPa7dPc5dPg6dPh7sKb1sPa2sPb2sPe4sPf4sPh3/d6/e6",
+      "revision": 1
     },
     {
       "id": "642163842",
@@ -1710,32 +1760,38 @@
     {
       "id": "1428421745",
       "difficulty": 835,
-      "idea": "material:Q:N:-:dKd8dPa7dPb7dPc7dPd7dPe6dPf6dPg7dPh7sKb1sPa2sPb2sPc2sPe4sPf2sPg2/e2/g4/e5"
+      "idea": "material:Q:N:-:dKd8dPa7dPb7dPc7dPd7dPe6dPf6dPg7dPh7sKb1sPa2sPb2sPc2sPe4sPf2sPg2/e2/g4",
+      "revision": 1
     },
     {
       "id": "1271406110",
       "difficulty": 855,
-      "idea": "material:Q:Q:-:dKc7dPa5dPb7dPd5dPf7dPg6dPh7sKb1sPa2sPb2sPc2sPd4sPf2sPg2sPh2/e1/e8/f6"
+      "idea": "material:Q:Q:-:dKc7dPa5dPb7dPd5dPf7dPg6dPh7sKb1sPa2sPb2sPc2sPd4sPf2sPg2sPh2/e1/e8",
+      "revision": 1
     },
     {
       "id": "1421855944",
       "difficulty": 870,
-      "idea": "material:Q:N:-:dKd8dPa7dPb7dPc7dPd7dPe5dPf6dPg5dPh5sKb1sPa2sPb2sPc2sPc3sPf2sPg2sPh2/e3/e4/h6"
+      "idea": "material:Q:N:-:dKd8dPa7dPb7dPc7dPd7dPe5dPf6dPg5dPh5sKb1sPa2sPb2sPc2sPc3sPf2sPg2sPh2/e3/e4",
+      "revision": 1
     },
     {
       "id": "985604647",
       "difficulty": 890,
-      "idea": "material:Q:N:-:dKd8dPa5dPb7dPc7dPd6dPe7dPf7dPg7dPh7sKb1sPa2sPb2sPc2sPe4sPg2sPh2/e2/f2/h6"
+      "idea": "material:Q:N:-:dKd8dPa5dPb7dPc7dPd6dPe7dPf7dPg7dPh7sKb1sPa2sPb2sPc2sPe4sPg2sPh2/e2/f2",
+      "revision": 1
     },
     {
       "id": "926349742",
       "difficulty": 905,
-      "idea": "material:P:-:-:dKa8dPb7dPc6dPf7dPg7dPh7sKa1sPa2sPb3sPd6sPf3sPh2/d6/d7/d2/e1"
+      "idea": "material:P:-:-:dKa8dPb7dPc6dPf7dPg7dPh7sKa1sPa2sPb3sPd6sPf3sPh2/d6/d7/d2/f8",
+      "revision": 1
     },
     {
       "id": "188300357",
       "difficulty": 925,
-      "idea": "material:P:P:-:dKb5dPa6dPb7dPc4dPd4sKb1sPb2sPd3sPh5/d3/c4/c4/b3"
+      "idea": "material:P:P:-:dKb5dPa6dPb7dPc4dPd4sKb1sPb2sPd3sPh5/d3/c4/c4/b3",
+      "revision": 1
     },
     {
       "id": "1744382281",
@@ -1770,7 +1826,8 @@
     {
       "id": "598817138",
       "difficulty": 1090,
-      "idea": "material:N:-:-:dKc8dPa6dPb6dPd6dPf3dPg7dPh3sKa2sPb2sPc4sPd5sPg3sPh2/c6/e7/d8/f5"
+      "idea": "material:N:-:-:dKc8dPa6dPb6dPd6dPf3dPg7dPh3sKa2sPb2sPc4sPd5sPg3sPh2/c6/e7/d8/f5",
+      "revision": 1
     },
     {
       "id": "804241662",
@@ -1790,7 +1847,8 @@
     {
       "id": "215730682",
       "difficulty": 1180,
-      "idea": "material:Q:N:-:dKd8dPa7dPc6dPe6dPf7dPg7dPh7sKb1sPa2sPb2sPd4sPe4sPf2sPg2sPh2/b3/b8"
+      "idea": "material:Q:P:-:dKb8dPa7dPb7dPd6dPg7dPh7sKb1sPb2sPc4sPf3sPg2sPh2/d3/d6/c7/a7",
+      "revision": 1
     },
     {
       "id": "739791303",
@@ -1805,32 +1863,38 @@
     {
       "id": "54453244",
       "difficulty": 1040,
-      "idea": "material:R:B:-:dKc6dPd5dPf6dPg7dPh7sKb1sPa2sPb3sPc2sPd4sPf5sPg4sPh3/e7/f7/g8"
+      "idea": "material:R:B:-:dKc6dPd5dPf6dPg7dPh7sKb1sPa2sPb3sPc2sPd4sPf5sPg4sPh3/e7/f7",
+      "revision": 1
     },
     {
       "id": "1986367242",
       "difficulty": 1080,
-      "idea": "material:R:R:-:dKb8dPa7dPc6dPc7dPf4dPh6sKa2sPa3sPb2sPc2sPh2/d7/d1/h5"
+      "idea": "material:R:R:-:dKb8dPa7dPc6dPc7dPf4dPh6sKa2sPa3sPb2sPc2sPh2/d7/d1",
+      "revision": 1
     },
     {
       "id": "553762941",
       "difficulty": 1120,
-      "idea": "material:N:B:-:dKa8dPa7dPc5dPg7dPh6sKa1sPa2sPc3sPf2sPg2sPg3/c4/a5/c7"
+      "idea": "material:N:B:-:dKa8dPa7dPc5dPg7dPh6sKa1sPa2sPc3sPf2sPg2sPg3/c4/a5",
+      "revision": 1
     },
     {
       "id": "529039154",
       "difficulty": 1165,
-      "idea": "material:B:B:-:dKb8dPa7dPb7dPc7dPd5dPg7dPh7sKb1sPa2sPb3sPc2sPd4sPh3/b2/c3/g8"
+      "idea": "material:B:B:-:dKb8dPa7dPb7dPc7dPd5dPg7dPh7sKb1sPa2sPb3sPc2sPd4sPh3/b2/c3",
+      "revision": 1
     },
     {
       "id": "755074400",
       "difficulty": 1205,
-      "idea": "material:Q:R:-:dKa7dPb7dPc7dPe5dPf6dPg7dPh7sKb1sPa2sPb2sPc2sPd5sPf2sPh2/g4/c8/h6"
+      "idea": "material:Q:R:-:dKa7dPb7dPc7dPe5dPf6dPg7dPh7sKb1sPa2sPb2sPc2sPd5sPf2sPh2/g4/c8",
+      "revision": 1
     },
     {
       "id": "1272858417",
       "difficulty": 1020,
-      "idea": "material:Q:N:-:dKd8dPa7dPb7dPc7dPf7dPg7dPh6sKf1sPa2sPb2sPc2sPf2sPg2sPh2/e4/e5/g8"
+      "idea": "material:Q:N:-:dKd8dPa7dPb7dPc7dPf7dPg7dPh6sKf1sPa2sPb2sPc2sPf2sPg2sPh2/e4/e5",
+      "revision": 1
     },
     {
       "id": "741644240",
@@ -1870,7 +1934,8 @@
     {
       "id": "1366786027",
       "difficulty": 1200,
-      "idea": "material:P:Q:-:dKb8dPa7dPb4dPb5dPf7dPg7dPh7sKb1sPa2sPd3sPd6sPe5sPf5sPh4/d6/c7/c7/c2"
+      "idea": "material:P:Q:-:dKb8dPa7dPb4dPb5dPf7dPg7dPh7sKb1sPa2sPd3sPd6sPe5sPf5sPh4/d6/c7/c7/c2",
+      "revision": 1
     },
     {
       "id": "1211014764",
@@ -1935,7 +2000,8 @@
     {
       "id": "1840117403",
       "difficulty": 1330,
-      "idea": "material:N:Q:-:dKd7dPa7dPb7dPe5dPh7sKg1sPa2sPb2sPc2sPf2sPg2sPh2/c7/d5/b8"
+      "idea": "material:N:Q:-:dKd7dPa7dPb7dPe5dPh7sKg1sPa2sPb2sPc2sPf2sPg2sPh2/c7/d5",
+      "revision": 1
     },
     {
       "id": "288255146",
@@ -1945,12 +2011,14 @@
     {
       "id": "1085075710",
       "difficulty": 1415,
-      "idea": "material:B:R:-:dKb7dPa7dPb5dPg4sKa2sPa3sPb2sPg2sPg3/h5/g6/e2"
+      "idea": "material:B:R:-:dKb7dPa7dPb5dPg4sKa2sPa3sPb2sPg2sPg3/h5/g6",
+      "revision": 1
     },
     {
       "id": "742767606",
       "difficulty": 1455,
-      "idea": "material:Q:Q:-:dKa8dPa6dPe4dPf6dPh7sKa1sPa5sPb2sPg4sPh2/d6/c7/h6"
+      "idea": "material:Q:Q:-:dKa8dPa6dPe4dPf6dPh7sKa1sPa5sPb2sPg4sPh2/d6/c7",
+      "revision": 1
     },
     {
       "id": "334014106",
@@ -2040,7 +2108,8 @@
     {
       "id": "1216557873",
       "difficulty": 1695,
-      "idea": "material:N:-:-:dKb8dPa7dPb6dPc5dPh7sKb2sPa2sPc2sPc3sPg4sPh2/c4/d6/d6/d6"
+      "idea": "material:N:-:-:dKb8dPa7dPb6dPc5dPh7sKb2sPa2sPc2sPc3sPg4sPh2/c4/d6/d6/d6",
+      "revision": 1
     },
     {
       "id": "5220773",
@@ -2110,12 +2179,14 @@
     {
       "id": "542304940",
       "difficulty": 1655,
-      "idea": "material:B:-:-:dKb8dPa7dPc6dPg6dPh7sKb1sPa2sPb3sPc2sPg2sPh2/f6/e5/f8/c7"
+      "idea": "material:B:-:-:dKb8dPa7dPc6dPg6dPh7sKb1sPa2sPb3sPc2sPg2sPh2/f6/e5/c8/c7",
+      "revision": 1
     },
     {
       "id": "1301342876",
       "difficulty": 1680,
-      "idea": "material:R:-:-:dKd3dPd5dPg5dPh6sKa2sPa6sPb3sPf2sPg2sPh3/e6/e3/e3/e3"
+      "idea": "material:R:-:-:dKd3dPd5dPg5dPh6sKa2sPa6sPb3sPf2sPg2sPh3/e6/e3/e3/e3",
+      "revision": 1
     },
     {
       "id": "1416797224",
@@ -2220,7 +2291,8 @@
     {
       "id": "39453813",
       "difficulty": 1840,
-      "idea": "material:N:-:-:dKb7dPa7dPb4dPd4dPh5sKa1sPa2/f7/e5/d7/d3"
+      "idea": "material:N:-:-:dKb7dPa7dPb4dPd4dPh5sKa1sPa2/f7/e5/d7/d3",
+      "revision": 1
     },
     {
       "id": "1625103442",
@@ -2280,7 +2352,8 @@
     {
       "id": "1281241729",
       "difficulty": 2135,
-      "idea": "material:R:-:-:dKd7dPc5dPc7dPd5dPh5sKf6sPd4sPe7/g7/g8/d6/d8"
+      "idea": "material:R:-:-:dKd7dPc5dPc7dPd5dPh5sKf6sPd4sPe7/g7/g8/d4/e8",
+      "revision": 1
     },
     {
       "id": "120909846",
@@ -2330,17 +2403,20 @@
     {
       "id": "242413918",
       "difficulty": 2020,
-      "idea": "material:B:Q:-:dKb8dPa5dPa7dPf6dPg7dPh6sKb2sPc2sPc5/a6/c8/c8/c6"
+      "idea": "material:B:Q:-:dKb8dPa5dPa7dPf6dPg7dPh6sKb2sPc2sPc5/a6/c8/c8/c6",
+      "revision": 1
     },
     {
       "id": "419572748",
       "difficulty": 2045,
-      "idea": "material:R:-:-:dKd7dPa3sKe5sPa2sPc7sPh4/h8/d8/c6/c8"
+      "idea": "material:R:-:-:dKd7dPa3sKe5sPa2sPc7sPh4/h8/d8/c6/c8",
+      "revision": 1
     },
     {
       "id": "400701245",
       "difficulty": 2065,
-      "idea": "material:B:B:-:dKa8dPa6dPf5dPg4dPh4sKd2sPa4sPc2sPd4sPe3/h1/d5/b7/b7"
+      "idea": "material:B:B:-:dKa8dPa6dPf5dPg4dPh4sKd2sPa4sPc2sPd4sPe3/h1/d5/b7/b7",
+      "revision": 1
     },
     {
       "id": "1795278769",
@@ -2360,7 +2436,8 @@
     {
       "id": "1296049200",
       "difficulty": 2155,
-      "idea": "material:R:-:-:dKb8dPa7dPb7dPc7dPf6dPh7sKb1sPa2sPa4sPc5sPh3/e2/g2/e8/g1"
+      "idea": "material:R:-:-:dKb8dPa7dPb7dPc7dPf6dPh7sKb1sPa2sPa4sPc5sPh3/e2/g2/e8/g1",
+      "revision": 1
     },
     {
       "id": "313382619",
@@ -2370,12 +2447,14 @@
     {
       "id": "1738757795",
       "difficulty": 2200,
-      "idea": "material:Q:-:-:dKb8dPa7dPb6dPf4dPg4dPh7sKa2sPa3sPb4sPc5sPe6sPg3/c6/d6/b7/b6"
+      "idea": "material:Q:-:-:dKb8dPa7dPb6dPf4dPg4dPh7sKa2sPa3sPb4sPc5sPe6sPg3/c6/d6/a8/b6",
+      "revision": 1
     },
     {
       "id": "713833860",
       "difficulty": 2225,
-      "idea": "material:P:N:-:dKa8dPa7dPb6dPg6dPh7sKb1sPa2sPb4sPf3sPh2/b4/c5/b4/b3"
+      "idea": "material:P:N:-:dKa8dPa7dPb6dPg6dPh7sKb1sPa2sPb4sPf3sPh2/b4/c5/b4/b3",
+      "revision": 1
     },
     {
       "id": "1370366772",
@@ -2410,7 +2489,8 @@
     {
       "id": "2101728586",
       "difficulty": 2405,
-      "idea": "material:B:B:-:dKa8dPa7dPb4dPd4dPh5sKa1sPa2/h1/b7/b7/e5"
+      "idea": "material:B:B:-:dKa8dPa7dPb4dPd4dPh5sKa1sPa2/h1/b7/b7/e5",
+      "revision": 1
     },
     {
       "id": "991035721",
@@ -2420,7 +2500,8 @@
     {
       "id": "599636365",
       "difficulty": 2450,
-      "idea": "material:B:-:-:dKb5dPa6dPb7dPd4sKb1sPb3sPh5/d1/e2/d3/d3"
+      "idea": "material:B:-:-:dKb5dPa6dPb7dPd4sKb1sPb3sPh5/d1/e2/d3/d3",
+      "revision": 1
     },
     {
       "id": "935233166",
@@ -2430,12 +2511,14 @@
     {
       "id": "1247361783",
       "difficulty": 2290,
-      "idea": "material:P:-:-:dKb8dPa5dPb4dPg3dPg7dPh6sKf3sPe5sPh5/e5/e6/b6/e7"
+      "idea": "material:P:-:-:dKb8dPa5dPb4dPg3dPg7dPh6sKf3sPe5sPh5/e5/e6/a7/e7",
+      "revision": 1
     },
     {
       "id": "818871950",
       "difficulty": 2330,
-      "idea": "material:B:P:-:dKd8dPa6dPb5dPc7dPf6dPg7dPh5sKb1sPb2sPb4sPc2sPe4sPg2sPh4/b6/c7/d7/b6"
+      "idea": "material:B:P:-:dKd8dPa6dPb5dPc7dPf6dPg7dPh5sKb1sPb2sPb4sPc2sPe4sPg2sPh4/b6/c7/d7/b6",
+      "revision": 1
     },
     {
       "id": "983574809",
@@ -2490,7 +2573,8 @@
     {
       "id": "456450221",
       "difficulty": 2430,
-      "idea": "material:B:-:-:dKd7dPg7dPh6sKb6sPc7sPe4sPg3sPh2/d5/c6/d6/e5"
+      "idea": "material:B:-:-:dKd7dPg7dPh6sKb6sPc7sPe4sPg3sPh2/d5/c6/d6/e5",
+      "revision": 1
     },
     {
       "id": "422702943",

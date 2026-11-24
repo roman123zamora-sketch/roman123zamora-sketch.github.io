@@ -111,6 +111,7 @@ export default function puzzles(content) {
   let advanceTimer;
   let heartTimer;
   const heartBreak = content.querySelector(".puzzle-heart-break");
+  let checkingSavedPuzzle = Boolean(practice.active);
   const playable = () => practice.active;
   let message = practice.active?.finishing ? "Attempt ended. Finish this puzzle in practice." : "";
   let outcome;
@@ -126,7 +127,7 @@ export default function puzzles(content) {
   }
 
   function canMove() {
-    return playable() && !generating && !transition && !promotion;
+    return playable() && !checkingSavedPuzzle && !generating && !transition && !promotion;
   }
 
   function render() {
@@ -250,7 +251,23 @@ export default function puzzles(content) {
     entries = await libraryEntries();
     if (disposed) return;
     libraryFailed = entries.length === 0;
-    if (!libraryFailed) migrateLibraryProgress(entries, practice);
+    if (!libraryFailed) {
+      migrateLibraryProgress(entries, practice);
+      const saved = practice.active;
+      const entry = saved && entries.find(candidate => candidate.id === saved.puzzle.id);
+      if (entry && entry.revision !== saved.puzzle.revision) {
+        const audited = await openLibraryPuzzle(entry);
+        if (disposed) return;
+        if (practice.active === saved && audited) {
+          saved.puzzle = audited;
+          saved.step = 0;
+          saved.hint = 0;
+          message = "This puzzle’s solution was updated. Start again with your remaining hearts.";
+          savePractice(practice);
+        }
+      }
+    }
+    checkingSavedPuzzle = false;
     renderLibrary();
     render();
   }
@@ -310,7 +327,7 @@ export default function puzzles(content) {
   }
 
   async function startPuzzle(category, level, { automatic = false, replay = false } = {}) {
-    if (generating || transition || promotion) return;
+    if (checkingSavedPuzzle || generating || transition || promotion) return;
     if (!replay && practice.active?.puzzle.category === category && level === levelOf(practice.active.puzzle.difficulty)) {
       slot.querySelector("button.square")?.focus({ preventScroll: true });
       return;
@@ -410,7 +427,7 @@ export default function puzzles(content) {
       updateRecommendation(entries, practice, category, level);
       savePractice(practice);
     }
-    finished = { puzzle: active.puzzle, hearts: active.hearts, position: step.afterMove ?? step.position };
+    finished = { puzzle: active.puzzle, hearts: active.hearts, position: step.position };
     outcome = "solved";
     message = `Solved. ${categories[category]} rating ${delta > 0 ? "+" + delta : delta < 0 ? "−" + Math.abs(delta) : "unchanged"}.`;
     const { count, complete } = levelProgress(entries, practice.libraryProgress, level, category);
@@ -444,7 +461,7 @@ export default function puzzles(content) {
   function attempt(move) {
     const active = playable();
     if (!active) return;
-    const step = active.puzzle.steps[active.step];
+    let step = active.puzzle.steps[active.step];
     selected = null;
     const accepted = puzzleChoice(step, move);
     if (!accepted) {
@@ -474,13 +491,22 @@ export default function puzzles(content) {
       render();
       return;
     }
+    if (accepted.steps) {
+      const { puzzle } = active;
+      active.puzzle = {
+        ...puzzle,
+        steps: [...puzzle.steps.slice(0, active.step), ...accepted.steps],
+        line: [...puzzle.line.slice(0, active.step * 2), ...accepted.line]
+      };
+      step = accepted.steps[0];
+    }
     clearTimeout(wrongTimer);
     wrong = null;
     const landing = playPositionMove(move, currentPosition(active));
     active.step++;
     active.hint = 0;
     if (active.step === active.puzzle.steps.length) {
-      finishPuzzle(active, accepted, landing);
+      finishPuzzle(active, step, landing);
       return;
     }
     if (step.afterMove?.status === "check") playSound("check", landing + .036);
@@ -609,7 +635,9 @@ export default function puzzles(content) {
   loadLibrary().catch(error => {
     if (disposed) return;
     console.error("Puzzle library unavailable.", error);
+    checkingSavedPuzzle = false;
     libraryFailed = true;
+    render();
     renderLibrary();
   });
   return () => {

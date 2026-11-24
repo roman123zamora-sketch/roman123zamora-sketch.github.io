@@ -713,7 +713,7 @@ end
 -- Offline game imports replay SAN against the normal legal move generator.
 local function gameMove(engine,state,notation)
  local token=string.gsub(notation,"[+#!?]+$","")
- local castle=token=="O-O" and "castleK" or token=="O-O-O-O" and "castleQ"
+ local castle=token=="O-O" and "castleK" or token=="O-O-O" and "castleQ"
  local promotion=string.match(token,"=([QRBN])$")
  if promotion then token=string.sub(token,1,-3) end
  local destination=string.match(token,"([a-h][1-8])$")

@@ -367,9 +367,10 @@ local function searchBot(m,engine,generation,rating)
  return move,details,true
 end
 
+local BOT_THINK_SECONDS=1
 local function runFourBots(m,generation)
  while not m.over and m.botGeneration==generation and m.state.turn~="R" do
-  task.wait(.12)
+  task.wait(BOT_THINK_SECONDS)
   if m.over or m.botGeneration~=generation then return end
   local color=m.state.turn
   local move,_,current=searchBot(m,Four,generation,m.botRatings[color])
@@ -383,7 +384,7 @@ local function runFourBots(m,generation)
 end
 
 local function runChessBot(m,generation)
- task.wait(.12)
+ task.wait(BOT_THINK_SECONDS)
  if m.over or m.botGeneration~=generation or m.state.turn~="b" then return end
  local move,details,current=searchBot(m,Chess,generation,m.botRating)
  if not current then return end

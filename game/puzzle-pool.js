@@ -24,7 +24,7 @@ const indexes = new Map();
 
 export function readPublishedIndex(name = "index") {
   if (!indexes.has(name)) {
-    const request = fetch(new URL(name + ".json", assetRoot))
+    const request = fetch(new URL(name + ".json", assetRoot), { cache: "no-cache" })
       .then(response => {
         if (!response.ok) throw new Error("Puzzle library unavailable");
         return response.json();
@@ -39,9 +39,12 @@ const payloads = new Map();
 
 export function loadPublishedPuzzle(category, entry) {
   if (entry.origin) return Promise.resolve(entry);
-  const key = category + "/" + entry.id;
+  const path = category + "/" + entry.id;
+  const key = path + "@" + (entry.revision ?? 0);
   if (!payloads.has(key)) {
-    const request = fetch(new URL(key + ".json", assetRoot))
+    const asset = new URL(path + ".json", assetRoot);
+    if (entry.revision) asset.searchParams.set("revision", entry.revision);
+    const request = fetch(asset)
       .then(response => response.ok ? response.json() : undefined)
       .catch(() => undefined)
       .then(puzzle => {

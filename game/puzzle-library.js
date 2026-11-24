@@ -95,10 +95,11 @@ export function isRatedPuzzle(practice, puzzle) {
 
 export async function openLibraryPuzzle(entry) {
   const puzzle = await loadPublishedPuzzle(entry.category, entry);
-  if (puzzle?.id === entry.id && puzzle.category === entry.category && puzzle.difficulty === entry.difficulty) return puzzle;
+  if (puzzle?.id === entry.id && puzzle.category === entry.category && puzzle.difficulty === entry.difficulty && puzzle.revision === entry.revision) return puzzle;
 }
 
 export function puzzleChoice(step, move) {
-  const answer = step.move;
-  return answer.from === move.from && answer.to === move.to && answer.promotion === move.promotion ? step : undefined;
+  const matches = answer => answer.from === move.from && answer.to === move.to && answer.promotion === move.promotion;
+  if (matches(step.move)) return step;
+  return step.alternatives?.find(branch => matches(branch.steps[0].move));
 }
