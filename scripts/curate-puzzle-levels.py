@@ -9,7 +9,7 @@ import chess
 BANDS = [(200, 399), (400, 599), (600, 799), (800, 999), (1000, 1249),
          (1250, 1499), (1500, 1749), (1750, 1999), (2000, 2249), (2250, 2500)]
 CATEGORIES = ("checkmate", "material")
-QUOTA = 15
+QUOTA = 25
 
 
 def board_key(puzzle):
@@ -51,14 +51,16 @@ def curate(existing, candidates):
         reserve[category].append((complexity(puzzle), puzzle))
 
     for category, options in reserve.items():
-        for band in reversed(range(len(BANDS))):
+        order = (9, 8, 4, 7, 6, 5, 3, 2, 1, 0) if category == "checkmate" else (9, 8, 4, 0, 1, 7, 6, 5, 3, 2)
+        for band in order:
             low, high = BANDS[band]
             existing_band = [puzzle for puzzle in retained
                              if puzzle["category"] == category and low <= puzzle["difficulty"] <= high]
             target = median(map(complexity, existing_band))
             missing = QUOTA - len(existing_band)
             eligible = [item for item in options if (
-                band < 8 or len(item[1]["line"]) >= (5 if category == "checkmate" else 3)
+                band < 7 or len(item[1]["line"]) >= (5 if category == "checkmate" else 3) or
+                (category == "checkmate" and len(item[1]["line"]) == 3 and item[0] >= 29)
             ) and (
                 category != "checkmate" or band < 2 or len(item[1]["line"]) >= 3
             )]

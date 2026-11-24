@@ -740,7 +740,7 @@ local function recordedMove(engine,state,move)
  end
 end
 
-local function importReviewedMaterial(engine,state,options)
+local function importReviewed(engine,state,options)
  local line={}
  local current=state
  if claimable(engine,state) then return {} end
@@ -750,10 +750,14 @@ local function importReviewedMaterial(engine,state,options)
   table.insert(line,legal)
   current=engine.apply(current,legal)
  end
- local initial=balance(state,state.turn)
- if balance(current,state.turn)<math.max(100,initial+options.gain) then return {} end
+ if options.category=="checkmate" then
+  if engine.status(current)~="checkmate" then return {} end
+ else
+  local initial=balance(state,state.turn)
+  if balance(current,state.turn)<math.max(100,initial+options.gain) then return {} end
+ end
  local puzzle=serialize(engine,state,line,options,fingerprint(engine,state),options.gain)
- puzzle.materialProof=3
+ if options.category=="material" then puzzle.materialProof=3 end
  return {puzzle}
 end
 
@@ -766,7 +770,7 @@ function Puzzle.fromGame(engine,bot,options)
   table.insert(positions,state)
   state=engine.apply(state,move)
  end
- if options.category=="material" and options.reviewed then return importReviewedMaterial(engine,state,options) end
+ if options.reviewed then return importReviewed(engine,state,options) end
  if options.exactPosition then
   local moves=engine.allLegal(state)
   if #moves==0 or claimable(engine,state) then return {} end

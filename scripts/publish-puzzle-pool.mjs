@@ -22,14 +22,14 @@ for (const puzzle of candidates) {
 const selected = levels.flatMap((level, band) => {
   const entries = verified.filter(puzzle => levelOf(puzzle.difficulty) === band);
   const groups = puzzleCategories.map(category =>
-    entries.filter(puzzle => puzzle.category === category).slice(0, puzzlesPerCategory));
+    entries.filter(puzzle => puzzle.category === category));
   const puzzles = groups.flat();
-  console.log(levelLabel(level), groups.map(group => group.length).join(" / "), "·", puzzles.length, "of", puzzlesPerLevel);
+  console.log(levelLabel(level), groups.map(group => group.length).join(" / "), "·", puzzles.length, "published · minimum", puzzlesPerLevel);
   return puzzles;
 });
-if (selected.length !== levels.length * puzzlesPerLevel) {
-  throw new Error(`Each category needs ${puzzlesPerCategory} verified puzzles in every band`);
-}
+const shortfall = levels.some((_, band) => puzzleCategories.some(category =>
+  selected.filter(puzzle => levelOf(puzzle.difficulty) === band && puzzle.category === category).length < puzzlesPerCategory));
+if (shortfall) throw new Error(`Some bands have fewer than ${puzzlesPerCategory} verified puzzles.`);
 
 const index = {};
 for (const category of puzzleCategories) {

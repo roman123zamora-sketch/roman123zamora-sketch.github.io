@@ -1,7 +1,7 @@
 import { loadPublishedPuzzle, readPublishedIndex } from "./puzzle-pool.js";
 
 export const puzzleCategories = ["checkmate", "material"];
-export const puzzlesPerCategory = 15;
+export const puzzlesPerCategory = 25;
 export const puzzlesPerLevel = puzzleCategories.length * puzzlesPerCategory;
 export const levels = [
   [200, 399], [400, 599], [600, 799], [800, 999],
@@ -28,22 +28,62 @@ export function levelEntries(entries, level, category) {
 export function levelProgress(entries, solved, level, category) {
   const puzzles = levelEntries(entries, level, category);
   const count = puzzles.filter(entry => solved[entry.id] === "solved").length;
-  const complete = category ? count === puzzlesPerCategory : count === puzzlesPerLevel &&
-    puzzleCategories.every(type => puzzles.filter(puzzle => puzzle.category === type).length === puzzlesPerCategory);
-  return { count, available: puzzles.length, complete };
+  return { count, available: puzzles.length, complete: puzzles.length > 0 && count === puzzles.length };
 }
 
+export const solvesToUnlock = 10;
+
 export function levelLock(entries, practice, level, category) {
-  for (let prior = 0; level > (practice.earnedLevel ?? 0) && prior < level; prior++) {
-    const { count, complete } = levelProgress(entries, practice.libraryProgress, prior, category);
-    if (!complete) {
-      return `Finish ${levelLabel(levels[prior])} (${count} of ${puzzlesPerCategory} solved).`;
-    }
+  if (level <= (practice.previouslyUnlocked?.[category] ?? 0)) return "";
+  for (let prior = practice.earnedLevel ?? 0; prior < level; prior++) {
+    const missing = puzzleCategories.map(category => {
+      const count = levelProgress(entries, practice.libraryProgress, prior, category).count;
+      const remaining = solvesToUnlock - count;
+      const name = category === "checkmate" ? "Checkmate" : "Material";
+      return remaining > 0 ? `${remaining} more ${name} ${remaining === 1 ? "puzzle" : "puzzles"}` : "";
+    }).filter(Boolean);
+    if (missing.length) return `Solve ${missing.join(" and ")} to unlock the next level (${levelLabel(levels[prior])}).`;
   }
-  const [minimum] = levels[level];
-  const rating = practice.ratings[category];
-  if (level && rating < minimum) return `Reach ${minimum} rating (current ${rating}).`;
   return "";
+}
+
+export function highestUnlocked(entries, practice, category) {
+  return levels.findLastIndex((_, level) => !levelLock(entries, practice, level, category));
+}
+
+export function recommendedLevel(entries, practice, category) {
+  const unlocked = highestUnlocked(entries, practice, category);
+  return Math.min(unlocked, practice.recommendations?.[category] ?? levelOf(practice.ratings[category]));
+}
+
+export function updateRecommendation(entries, practice, category, level) {
+  const samples = (practice.firstAttempts ?? []).filter(item => item.category === category && item.level === level).slice(-5);
+  const current = recommendedLevel(entries, practice, category);
+  if (samples.length < 4) return;
+  const struggling = samples.filter(item => item.outcome === "failed" || item.hearts <= 1 || item.hints >= 2).length;
+  const ready = samples.filter(item => item.outcome === "solved" && item.hearts >= 2 && item.hints === 0).length;
+  practice.recommendations ??= {};
+  if (struggling >= 3 && level <= current + 1) {
+    practice.recommendations[category] = Math.max(0, level - 1);
+  } else if (ready >= 4 && level >= current) {
+    const next = Math.min(level + 1, levels.length - 1);
+    practice.recommendations[category] = levelLock(entries, practice, next, category) ? level : next;
+  }
+}
+
+export function practiceQueue(entries, practice, category, level, recentId) {
+  const seen = practice.seen ?? {};
+  const status = practice.libraryProgress;
+  const group = entry => status[entry.id] === "solved" ? 2 : !status[entry.id] && !seen[entry.id] ? 0 : 1;
+  const recentAttempts = (practice.firstAttempts ?? []).filter(item => item.category === category && item.level === level).slice(-5);
+  const needsEasier = recentAttempts.filter(item => item.outcome === "failed" || item.hearts <= 1 || item.hints >= 2).length >= 3;
+  const [low, high] = levels[level];
+  const target = needsEasier ? low + (high - low) / 4 : practice.ratings[category];
+  const recent = entry => Number(entry.id === recentId || entry.id === practice.lastSkipped);
+  return levelEntries(entries, level, category).sort((a, b) =>
+    recent(a) - recent(b) || group(a) - group(b) ||
+    (group(a) === 2 ? (seen[a.id] ?? 0) - (seen[b.id] ?? 0) : 0) ||
+    Math.abs(a.difficulty - target) - Math.abs(b.difficulty - target));
 }
 
 export function isRatedPuzzle(practice, puzzle) {
@@ -51,22 +91,6 @@ export function isRatedPuzzle(practice, puzzle) {
   const rating = practice.ratings[puzzle.category];
   return rating >= low && rating <= high &&
     !practice.rated.includes(puzzle.id) && !practice.libraryProgress[puzzle.id];
-}
-
-export function nextPuzzleLevel(entries, practice, current, category) {
-  const available = levels.map((_, index) => index).filter(index =>
-    !levelLock(entries, practice, index, category) && levelEntries(entries, index, category).length);
-  if (current !== undefined) {
-    if (available.includes(current) && !levelProgress(entries, practice.libraryProgress, current, category).complete) {
-      return current;
-    }
-    if (available.includes(current + 1)) return current + 1;
-    if (levelLock(entries, practice, current, category)) {
-      return available.filter(index => index < current).at(-1);
-    }
-    return;
-  }
-  return available.find(index => !levelProgress(entries, practice.libraryProgress, index, category).complete) ?? available.at(-1);
 }
 
 export async function openLibraryPuzzle(entry) {

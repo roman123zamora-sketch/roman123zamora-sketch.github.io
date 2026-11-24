@@ -90,6 +90,7 @@ node tests/standard-chess-test.mjs
 node tests/match-admission-test.mjs
 node tests/engine-search-test.mjs
 node tests/puzzles-test.mjs
+node tests/puzzle-progression-test.mjs
 ```
 
 ## Online matches
@@ -172,23 +173,21 @@ node tests/learn-course-test.mjs
 
 ## Puzzles
 
-Puzzles uses a pre-verified ladder through 2500 Elo. Each level has fifteen
-checkmate and fifteen material puzzles. Each category has its own rating.
-Players complete earlier levels and meet the next level’s rating requirement
-in that category. The
-level list shows progress and lock reasons. After a solve, the next
-eligible position opens automatically. After a loss, the same position
-remains open in practice.
+Puzzles has ten bands through 2500. Ten unique Checkmate solves and ten
+unique Material solves in a band unlock the next one. Hinted solves and
+solves after a failed attempt count. Collection completion is optional.
+Choose the next level or keep practicing when it unlocks. Ordinary solves
+continue in the same band.
 
-The browser commits the outcome, rating, and attempt state together.
-Existing shared ratings seed both category ratings once. Solves and previously
-earned access carry over. Rated credit is available on the first completed
-attempt in that category’s rating band.
-Lower-band attempts and replays leave Elo unchanged.
+Each category keeps its own rating, personal best and practice recommendation.
+Recommendations use recent first attempts, considering hints and hearts.
+Replays and retries remain available as practice. Solves and earned access
+carry over when new positions are added.
 
 See [the library documentation](assets/puzzles/README.md) for verification and
 publishing.
 
 ```sh
 node tests/puzzles-test.mjs
+node tests/puzzle-progression-test.mjs
 ```

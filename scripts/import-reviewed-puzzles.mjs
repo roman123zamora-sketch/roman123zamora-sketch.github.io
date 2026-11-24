@@ -14,9 +14,10 @@ for (const path of inputs) {
   for (const row of text.trim().split("\n").filter(Boolean)) {
     let lead;
     try { lead = JSON.parse(row); } catch { continue; } // A miner may still be writing the file.
-    if (!lead.line || !lead.verification?.replies) continue;
+    const category = lead.verification?.mateTurns ? "checkmate" : "material";
+    if (!lead.line || (category === "material" && !lead.verification?.replies)) continue;
     const replayed = await runtime("puzzleFromGame", 0, 0, {
-      category: "material", moves: lead.history, reviewed: true, line: lead.line, gain: lead.gain
+      category, moves: lead.history, reviewed: true, line: lead.line, gain: lead.gain
     });
     const puzzle = replayed?.[0];
     if (!puzzle) {

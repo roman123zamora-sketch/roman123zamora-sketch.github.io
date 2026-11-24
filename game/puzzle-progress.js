@@ -1,4 +1,5 @@
 import { previousLevels, previousMixedLevels } from "./puzzle-legacy-levels.js";
+import { levelOf, levelProgress, puzzleCategories } from "./puzzle-library.js";
 import { readSetting, writeSetting } from "./session.js";
 
 // This key is also the reset marker. Never replace an existing season record
@@ -50,6 +51,26 @@ export function savePractice(practice) {
   writeSetting(puzzleProgressKey, JSON.stringify(practice));
 }
 
+export function migrateLibraryProgress(entries, practice) {
+  if (practice.previouslyUnlocked) return;
+  practice.previouslyUnlocked = {};
+  practice.hardest ??= {};
+  for (const category of puzzleCategories) {
+    // Before shared milestones, each category required 15 solves and a rating threshold.
+    let level = 0;
+    while (level < levelOf(practice.ratings[category]) &&
+      (level < (practice.earnedLevel ?? 0) || levelProgress(entries, practice.libraryProgress, level, category).count >= 15)) level++;
+    const played = entries.reduce((highest, entry) => entry.category === category &&
+      practice.libraryProgress[entry.id] ? Math.max(highest, levelOf(entry.difficulty)) : highest, 0);
+    const last = practice.lastCategory === category ? practice.lastLevel ?? 0 : 0;
+    practice.previouslyUnlocked[category] = Math.max(level, played, last);
+    practice.hardest[category] = entries.reduce((best, entry) =>
+      entry.category === category && practice.libraryProgress[entry.id] === "solved"
+        ? Math.max(best, entry.difficulty) : best, practice.hardest[category] ?? 0);
+  }
+  savePractice(practice);
+}
+
 export function puzzleRating(rating, { hearts, hintsUsed = 0 }, outcome) {
   if (outcome === "failed") return rating - 10;
   if (outcome !== "solved") return rating;
@@ -60,6 +81,12 @@ export function resolvePuzzle(practice, active, outcome) {
   if (active !== practice.active || !active) return 0;
   const { category, id } = active.puzzle;
   const prior = practice.ratings[category];
+  if (active.fresh && outcome !== "skipped" && !active.finishing && !practice.libraryProgress[id]) {
+    practice.firstAttempts ??= [];
+    practice.firstAttempts.push({ category, level: levelOf(active.puzzle.difficulty), outcome,
+      hearts: active.hearts, hints: active.hintsUsed ?? 0 });
+    active.fresh = false;
+  }
   if (outcome !== "skipped" && !active.finishing) {
     if (active.rated && !practice.rated.includes(id) && !practice.libraryProgress[id]) {
       practice.ratings[category] = puzzleRating(prior, active, outcome);
@@ -71,7 +98,11 @@ export function resolvePuzzle(practice, active, outcome) {
     active.rated = false;
     active.finishing = true;
   } else {
-    if (outcome === "solved") practice.libraryProgress[id] = "solved";
+    if (outcome === "solved") {
+      practice.libraryProgress[id] = "solved";
+      practice.hardest ??= {};
+      practice.hardest[category] = Math.max(practice.hardest[category] ?? 0, active.puzzle.difficulty);
+    }
     practice.active = null;
   }
   // Persist rating, credit, and the exact position together before advancing.
