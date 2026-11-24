@@ -13,7 +13,7 @@ export default function puzzles(content) {
   content.innerHTML = `
     <div class="match standard-board-layout puzzle-library-layout">
       <section class="board-area aligned-board-area puzzle-play" aria-label="Puzzle board">
-        <p class="puzzle-turn" role="status" tabindex="-1"></p>
+        <p class="puzzle-turn board-turn-label" role="status" tabindex="-1"></p>
         <div class="board-and-eval">
           <div class="board-slot puzzle-board-slot"></div>
           <span class="puzzle-heart-break" aria-hidden="true" hidden>💔</span>

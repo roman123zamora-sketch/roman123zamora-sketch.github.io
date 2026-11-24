@@ -223,3 +223,35 @@ button.square:focus-visible { z-index: 2; outline: 2px solid var(--square-focus)
   .aligned-board-area .bot-eval { inline-size: 2rem; }
   .aligned-board-area .eval-score { font-size: .61rem; }
 }
+
+.board-turn-label {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: .45rem;
+  min-block-size: 1.55rem;
+  color: var(--ice);
+  font-size: clamp(1rem, .88rem + .45vw, 1.2rem);
+  font-weight: 750;
+}
+.board-turn-label:not(:empty)::before {
+  content: "";
+  inline-size: .72em;
+  aspect-ratio: 1;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  background: #f1f7ff;
+}
+.board-turn-label[data-side="b"]::before { background: #0a1429; }
+.board-turn-label[data-side="R"]::before { background: #ef686e; }
+.board-turn-label[data-side="B"]::before { background: #75a8ef; }
+.board-turn-label[data-side="Y"]::before { background: #f3ce72; }
+.board-turn-label[data-side="G"]::before { background: #69cb91; }
+.board-turn-label[hidden] { display: none; }
+.match-review-turn { position: absolute; inset-block-start: 0; inset-inline: 0; }
+.board-area:has(.match-review-turn:not([hidden])) { position: relative; }
+.match:not(.standard-board-layout) > .board-area:has(.match-review-turn:not([hidden])) {
+  padding-block-start: 2rem;
+}
+.replay-turn { margin-block-start: .8rem; }
+.replay-turn:not([hidden]) + .replay-board { margin-block-start: .4rem; }

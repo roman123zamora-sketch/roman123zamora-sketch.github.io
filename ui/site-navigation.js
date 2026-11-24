@@ -2,7 +2,6 @@ import { applyEquippedTheme } from "./board-themes.js";
 import { connect, soundEnabled, toggleSound, unlockSound, playSound, session, subscribe } from "../game/session.js";
 import chess from "../tabs/chess.js";
 import fourPlayerChess from "../tabs/four-player-chess.js";
-import shop from "../tabs/shop.js";
 import inventory from "../tabs/inventory.js";
 import profile from "../tabs/profile.js";
 import learn from "../tabs/learn.js";
@@ -11,7 +10,6 @@ import puzzles from "../tabs/puzzles.js";
 const pages = new Map([
   ["chess", chess],
   ["4-player-chess", fourPlayerChess],
-  ["shop", shop],
   ["inventory", inventory],
   ["profile", profile],
   ["learn", learn],
@@ -38,7 +36,7 @@ for (const link of links) {
 function navigate() {
   const previousBoard = content.querySelector(".aligned-board-area .board-and-eval")?.getBoundingClientRect();
   cleanup?.();
-  const hash = location.hash === "#boards" ? "inventory" : location.hash.slice(1);
+  const hash = ["#boards", "#shop"].includes(location.hash) ? "inventory" : location.hash.slice(1);
   const page = pages.has(hash) ? hash : "chess";
   for (const link of links) {
     if (link.hash === "#" + page) {

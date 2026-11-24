@@ -20,7 +20,7 @@ local matches,playerMatch,lastMatchId={},{},{}
 local queue,queueFour,queueControls={},{},{}
 local challengeOffers={}; local challengeGroups={}; local challengeInvite={}
 local profileCache={}
-local defaultProfile={chessElo=1000,fourElo=1000,leaguePoints=0,allTimeCaptures=0,pieceStorage=0,history={},ownedBoards={"classic"},equippedBoard="classic"}
+local defaultProfile={chessElo=1000,fourElo=1000,leaguePoints=0,allTimeCaptures=0,history={},equippedBoard="classic"}
 local POINTS={Soil={20,6,-5},Grass={18,5,-6},Copper={16,4,-7},Silver={14,3,-8},Gold={12,3,-9},Stone={10,2,-10},Sapphire={8,2,-11}}
 local THRESHOLDS={{"Soil",0},{"Grass",300},{"Copper",600},{"Silver",900},{"Gold",1200},{"Stone",1500},{"Sapphire",1800}}
 local function copy(t) local r={}; for k,v in pairs(t) do r[k]=type(v)=="table" and copy(v) or v end; return r end
@@ -44,29 +44,17 @@ local function getProfile(p)
  if Profiles then ok,saved=pcall(function() return Profiles:GetAsync(id) end) end
  if ok and type(saved)=="table" then for k,v in pairs(saved) do profile[k]=v end end
  profile.botStars=nil; profile.leaguePoints=math.clamp(tonumber(profile.leaguePoints) or 0,0,2100)
- profile.allTimeCaptures=math.max(0,math.floor(tonumber(profile.allTimeCaptures) or 0))
- profile.pieceStorage=math.max(0,math.floor(tonumber(profile.pieceStorage) or 0))
+ local needsCaptureReset=profile.captureStatsVersion~=1
+ profile.allTimeCaptures=needsCaptureReset and 0 or math.max(0,math.floor(tonumber(profile.allTimeCaptures) or 0))
+ profile.captureStatsVersion=1
+ profile.pieceStorage=nil; profile.ownedBoards=nil
  profile.chessElo=tonumber(profile.chessElo) or 1000; profile.fourElo=tonumber(profile.fourElo) or 1000; profile.history=type(profile.history)=="table" and profile.history or {}
  for _,record in ipairs(profile.history) do
   if type(record)=="table" and not record.id then record.id=historyId(profile.history) end
  end
- -- Board themes: sanitize the owned list and equipped id against the theme library.
- if not Themes.exists(profile.equippedBoard) then profile.equippedBoard=Themes.defaultTheme end
- do
-  local seen={[profile.equippedBoard]=true}; local list={profile.equippedBoard}
-  for _,id in ipairs(type(profile.ownedBoards)=="table" and profile.ownedBoards or {}) do
-   if Themes.exists(id) and not seen[id] then seen[id]=true; table.insert(list,id) end
-  end
-  profile.ownedBoards=list
- end
- -- Creator perk: the game's creator owns every board for testing purposes.
- if p.Name=="ExaltedTwinkle" then
-  for _,theme in ipairs(Themes.themes) do
-   if not table.find(profile.ownedBoards,theme.id) then table.insert(profile.ownedBoards,theme.id) end
-  end
- end
+ if profile.equippedBoard~="" and not Themes.exists(profile.equippedBoard) then profile.equippedBoard=Themes.defaultTheme end
  profileCache[id]=profile
- if ok and type(saved)=="table" and saved.equippedBoard~=profile.equippedBoard then
+ if ok and (needsCaptureReset or (type(saved)=="table" and (saved.equippedBoard~=profile.equippedBoard or saved.pieceStorage~=nil or saved.ownedBoards~=nil))) then
   pcall(function() Profiles:SetAsync(id,profile) end)
  end
  return profile
@@ -75,12 +63,7 @@ local function saveProfile(p)
  local profile=profileCache[tostring(p.UserId)]; if profile and Profiles then pcall(function() Profiles:SetAsync(tostring(p.UserId),profile) end) end
 end
 local function profileView(p)
- local v=getProfile(p); return {chessElo=v.chessElo,fourElo=v.fourElo,leaguePoints=v.leaguePoints,league=league(v.leaguePoints),allTimeCaptures=v.allTimeCaptures,pieceStorage=v.pieceStorage,history=v.history or {},ownedBoards=v.ownedBoards,equippedBoard=v.equippedBoard}
-end
--- Piece storage: every capture banks 1 piece; checkmating banks all remaining defender pieces (king included).
-local function awardPieces(p,amount)
- if not p or not p.Parent or not amount or amount<=0 then return end
- local prof=getProfile(p); prof.pieceStorage=(prof.pieceStorage or 0)+amount; saveProfile(p); send(p,"profile",profileView(p))
+ local v=getProfile(p); return {chessElo=v.chessElo,fourElo=v.fourElo,leaguePoints=v.leaguePoints,league=league(v.leaguePoints),allTimeCaptures=v.allTimeCaptures,history=v.history or {},equippedBoard=v.equippedBoard}
 end
 local function fourMode(m) return m.mode=="fourBot" or m.mode=="fourOnline" end
 -- Four-player only: play the fart sound for everyone still in the match, once per
@@ -203,11 +186,6 @@ local function finish(m,winner,reason,placements)
   m.clocks[sideToMove]=math.max(0,m.clocks[sideToMove]-elapsed)
  end
  updateOnlineRatings(m,winner,placements)
- if winner and not fourMode(m) and (reason=="Checkmate" or reason=="Resignation") then
-  local loser=winner=="w" and "b" or "w"; local spoils=0
-  for _,piece in pairs(m.state.board) do if string.sub(piece,1,1)==loser then spoils+=1 end end
-  if spoils>0 then for _,p in ipairs(m.players) do if m.sides[p.UserId]==winner then awardPieces(p,spoils) end end end
- end
  for _,p in ipairs(m.players) do
   local side=m.sides[p.UserId]; local win=winner and side==winner
   local place=(fourMode(m) and placements) and placements[side] or nil
@@ -266,17 +244,13 @@ end
 local function snapshot(m) table.insert(m.snapshots,fourMode(m) and copy(m.state) or m.state) end
 local function normalizeFour(m)
  local state=m.state
- -- A captured king counts as checkmate: the capturer receives the eliminated side's remaining pieces.
+ -- A captured king eliminates its side.
  for _,c in ipairs(Four.colors) do
   if not state.eliminated[c] then
    local hasKing=false; for _,piece in pairs(state.board) do if piece==c.."K" then hasKing=true break end end
    if not hasKing then
     state.eliminated[c]=true; state.eliminationReason[c]="Checkmate"; table.insert(state.eliminationOrder,c)
     if state.turn==c then state.turn=Four.nextColor(c) end
-    local spoils=0; for _,piece in pairs(state.board) do if string.sub(piece,1,1)==c then spoils+=1 end end
-    if spoils>0 and state.lastMove and state.lastMove.color then
-     for _,other in ipairs(m.players) do if m.sides[other.UserId]==state.lastMove.color then awardPieces(other,spoils) end end
-    end
     playFart(m)
    end
   end
@@ -287,10 +261,6 @@ local function normalizeFour(m)
   else
    state.eliminated[c]=true; state.eliminationReason[c]=Four.inCheck(state,c) and "Checkmate" or "Stalemate"; table.insert(state.eliminationOrder,c); state.turn=Four.nextColor(c)
    if state.eliminationReason[c]=="Checkmate" then
-    local spoils=0; for _,piece in pairs(state.board) do if string.sub(piece,1,1)==c then spoils+=1 end end
-    if spoils>0 and state.lastMove and state.lastMove.color then
-     for _,other in ipairs(m.players) do if m.sides[other.UserId]==state.lastMove.color then awardPieces(other,spoils) end end
-    end
     playFart(m)
    end
   end
@@ -319,19 +289,6 @@ local function hasMoved(m,side)
  for _,mv in ipairs(m.state.history) do if mv.color==side then return true end end
  return false
 end
--- Distribute an eliminated/resigned/aborted side's remaining pieces as evenly as possible
--- among the players still alive in the match (remainder goes to randomly chosen players).
-local function distributeSpoils(m,side)
- local alive={}
- for _,p in ipairs(m.players) do local c=m.sides[p.UserId]; if c~=side and not m.state.eliminated[c] then table.insert(alive,p) end end
- local count=0; for _,piece in pairs(m.state.board) do if string.sub(piece,1,1)==side then count+=1 end end
- if count>0 and #alive>0 then
- local order={}; for i=1,#alive do order[i]=i end
- for i=#order,2,-1 do local j=math.random(i); order[i],order[j]=order[j],order[i] end
- local base=math.floor(count/#alive); local rem=count-base*#alive
- for i,idx in ipairs(order) do awardPieces(alive[idx],base+(i<=rem and 1 or 0)) end
- end
-end
 -- Clean abort of a 1v1 match: no rating change, no pieces, no winner. Match simply ends.
 local function abortMatch(m,side)
  if m.over then return end
@@ -344,14 +301,13 @@ local function abortMatch(m,side)
  end
  end
 end
--- Abort in a four-player match: player is removed cleanly (no rating penalty), pieces turn grey
--- and are distributed among the remaining players; the match continues.
+-- Abort in a four-player match: the player is removed and their pieces turn grey.
 local function abortFour(m,side)
  if m.over or m.state.eliminated[side] then return end
  m.state.eliminated[side]=true; m.state.eliminationReason[side]="Aborted"; table.insert(m.state.eliminationOrder,side)
  m.abortedSides[side]=true; m.firstWindow[side]=nil
  if m.state.turn==side then m.state.turn=Four.nextColor(side) end
- distributeSpoils(m,side); playFart(m)
+ playFart(m)
  for _,p in ipairs(m.players) do
  if m.sides[p.UserId]==side and not m.resultsSent[p.UserId] then
  m.resultsSent[p.UserId]=true; playerMatch[p.UserId]=nil
@@ -464,14 +420,11 @@ local function requestMove(p,data)
  end
  if m.mode=="bot" or m.mode=="fourBot" then table.insert(m.humanTurns,#m.snapshots+1) end
  local capturedTarget=m.state.board[to]~=nil or chosen.special=="enpassant"
- local capPiece=m.state.board[to]
  snapshot(m); m.botGeneration+=1; m.state=engine.apply(m.state,chosen)
  if capturedTarget then
-  local grey=capPiece and fourMode(m) and m.state.eliminated and m.state.eliminated[string.sub(capPiece,1,1)]
   local profile=getProfile(p)
   profile.allTimeCaptures+=1
-  if not grey then awardPieces(p,1)
-  else saveProfile(p); send(p,"profile",profileView(p)) end
+  saveProfile(p); send(p,"profile",profileView(p))
  end
  if fourMode(m) and normalizeFour(m) then return end
  m.firstWindow[side]=nil
@@ -552,26 +505,10 @@ Action.OnServerEvent:Connect(function(p,kind,data)
   send(p,"profile",profileView(p))
   local m=matches[playerMatch[p.UserId]]
   if m and not m.over then pair(m,p) end
- elseif kind=="buyBoard" then
-  -- Purchase a board theme with stored captured pieces. Server validates price and ownership.
-  local id=type(data)=="table" and tostring(data.id) or nil
-  local theme=id and Themes.get(id)
-  if not theme then return end
-  local prof=getProfile(p)
-  for _,owned in ipairs(prof.ownedBoards or {}) do if owned==id then send(p,"profile",profileView(p)) return end end
-  local price=theme.price or 0
-  if price>0 and (prof.pieceStorage or 0)<price then send(p,"boardPurchase",{ok=false,id=id,reason="Not enough stored pieces"}) return end
-  prof.pieceStorage=math.max(0,(prof.pieceStorage or 0)-price)
-  table.insert(prof.ownedBoards,id)
-  saveProfile(p)
-  send(p,"boardPurchase",{ok=true,id=id})
-  send(p,"profile",profileView(p))
  elseif kind=="equipBoard" then
-  local id=type(data)=="table" and tostring(data.id) or nil
-  if not id or not Themes.exists(id) then return end
+  local id=type(data)=="table" and data.id or nil
+  if type(id)~="string" or (id~="" and not Themes.exists(id)) then return end
   local prof=getProfile(p)
-  local owned=false; for _,o in ipairs(prof.ownedBoards or {}) do if o==id then owned=true break end end
-  if not owned then return end
   prof.equippedBoard=id; saveProfile(p); send(p,"profile",profileView(p))
  elseif kind=="bot" or kind=="fourBot" then
   if playerMatch[p.UserId] then
@@ -674,7 +611,7 @@ Action.OnServerEvent:Connect(function(p,kind,data)
    elseif m.mode=="fourOnline" then
     if not m.over and not hasMoved(m,side) then abortFour(m,side)
     else
-     m.state.eliminated[side]=true; m.state.eliminationReason[side]="Resignation"; table.insert(m.state.eliminationOrder,side); if m.state.turn==side then m.state.turn=Four.nextColor(side) end; m.firstWindow[side]=nil; distributeSpoils(m,side); playFart(m); m.resultsSent[p.UserId]=true; playerMatch[p.UserId]=nil; send(p,"result",{matchId=m.id,result="loss",reason="Resignation",review=fourReview(m)}); normalizeFour(m); pair(m)
+     m.state.eliminated[side]=true; m.state.eliminationReason[side]="Resignation"; table.insert(m.state.eliminationOrder,side); if m.state.turn==side then m.state.turn=Four.nextColor(side) end; m.firstWindow[side]=nil; playFart(m); m.resultsSent[p.UserId]=true; playerMatch[p.UserId]=nil; send(p,"result",{matchId=m.id,result="loss",reason="Resignation",review=fourReview(m)}); normalizeFour(m); pair(m)
     end
    elseif m.mode=="online" and not m.over and not hasMoved(m,side) then abortMatch(m,side)
    elseif m.mode=="fourBot" then
@@ -705,7 +642,7 @@ Action.OnServerEvent:Connect(function(p,kind,data)
    if m.over or (m.state.eliminated and m.state.eliminated[side]) then m.resultsSent[p.UserId]=true; playerMatch[p.UserId]=nil; return end
    m.state.eliminated[side]=true; m.state.eliminationReason[side]="Left"; table.insert(m.state.eliminationOrder,side); m.firstWindow[side]=nil
    if m.state.turn==side then m.state.turn=Four.nextColor(side) end
-   distributeSpoils(m,side); playFart(m)
+   playFart(m)
    m.resultsSent[p.UserId]=true; playerMatch[p.UserId]=nil
    normalizeFour(m); pair(m)
   else
@@ -818,7 +755,7 @@ Players.PlayerRemoving:Connect(function(p)
  if m and not m.over and m.mode=="online" then
   local winner; for _,other in ipairs(m.players) do if other~=p then winner=m.sides[other.UserId] end end; finish(m,winner,"Opponent disconnected")
  elseif m and not m.over and m.mode=="fourOnline" then
-  local side=m.sides[p.UserId]; m.state.eliminated[side]=true; m.state.eliminationReason[side]="Resignation"; table.insert(m.state.eliminationOrder,side); m.firstWindow[side]=nil; if m.state.turn==side then m.state.turn=Four.nextColor(side) end; distributeSpoils(m,side); playFart(m); playerMatch[p.UserId]=nil; m.resultsSent[p.UserId]=true; normalizeFour(m); pair(m)
+  local side=m.sides[p.UserId]; m.state.eliminated[side]=true; m.state.eliminationReason[side]="Resignation"; table.insert(m.state.eliminationOrder,side); m.firstWindow[side]=nil; if m.state.turn==side then m.state.turn=Four.nextColor(side) end; playFart(m); playerMatch[p.UserId]=nil; m.resultsSent[p.UserId]=true; normalizeFour(m); pair(m)
  end
  saveProfile(p); profileCache[tostring(p.UserId)]=nil
 end)

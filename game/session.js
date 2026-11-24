@@ -29,7 +29,7 @@ export function writeSetting(name, value) {
 
 export const session = {
   catalog: null,
-  profile: { chessElo: 1000, fourElo: 1000, league: "Soil", leaguePoints: 0, pieceStorage: 0, allTimeCaptures: 0, ownedBoards: ["classic"], equippedBoard: "classic" },
+  profile: { chessElo: 1000, fourElo: 1000, league: "Soil", leaguePoints: 0, allTimeCaptures: 0, equippedBoard: "classic" },
   match: null,
   result: null,
   legal: null,
@@ -102,7 +102,6 @@ function receive({ kind, data, requestId }) {
   if (kind === "queued" || kind === "challengeWait") session.queue = data;
   if (kind === "queueCancelled" || kind === "challengeDeclined") session.queue = null;
   if (kind === "challengeOffer" || kind === "rematchOffer") session.offer = { ...data, kind };
-  if (kind === "boardPurchase") session.notice = data.ok ? "Board added to your collection." : data.reason;
   if (kind === "reject") {
     session.movePending = false;
     session.notice = data.reason;

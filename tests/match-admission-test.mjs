@@ -80,10 +80,15 @@ assert.deepEqual(winningMove.move, { from: "d8", to: "h4" });
 assert.deepEqual(await dispatch("bestMove", time, 0, { variant: "chess", state: mateFrames[4] }), {});
 console.log("Best-move analysis returns a legal reply or forced mate, and handles game over.");
 
-await send("join", 4, "Collector", {
+const legacyJoin = await send("join", 4, "Collector", {
   pieceStorage: 9, allTimeCaptures: 12, botStars: { 400: 3 },
-  history: [{ mode: "bot" }, { mode: "fourBot" }, { mode: "online" }]
+  equippedBoard: "duskEmber", history: [{ mode: "bot" }, { mode: "fourBot" }, { mode: "online" }]
 });
+const migratedSave = legacyJoin.find(event => event.kind === "save").data;
+assert.equal(migratedSave.captureStatsVersion, 1);
+assert.equal(migratedSave.allTimeCaptures, 0);
+assert.equal(migratedSave.pieceStorage, undefined);
+assert.equal(migratedSave.ownedBoards, undefined);
 const legacy = (await action(4, "profile")).find(event => event.kind === "profile").data;
 assert.equal(new Set(legacy.history.map(record => record.id)).size, 3);
 const deleted = (await action(4, "deleteHistoryMatch", { id: legacy.history[0].id }))
@@ -92,8 +97,20 @@ assert.deepEqual(deleted.history.map(record => record.mode), ["fourBot", "online
 const cleanProfile = (await action(4, "clearBotHistory")).find(event => event.kind === "profile").data;
 assert.deepEqual(cleanProfile.history, [legacy.history[2]]);
 assert.equal(cleanProfile.botStars, undefined);
-assert.equal(cleanProfile.allTimeCaptures, 12);
-assert.equal(cleanProfile.pieceStorage, 9);
+assert.equal(cleanProfile.allTimeCaptures, 0);
+assert.equal(cleanProfile.pieceStorage, undefined);
+assert.equal(cleanProfile.equippedBoard, "duskEmber");
+const equipped = (await action(4, "equipBoard", { id: "walnut" })).find(event => event.kind === "profile").data;
+assert.equal(equipped.equippedBoard, "walnut");
+const unequipped = (await action(4, "equipBoard", { id: "" })).find(event => event.kind === "profile").data;
+assert.equal(unequipped.equippedBoard, "");
+assert.deepEqual(await action(4, "equipBoard", { id: "unknown" }), []);
+assert.deepEqual(await action(4, "buyBoard", { id: "walnut" }), []);
+const themes = await dispatch("catalog", time, 0);
+assert.equal(themes.length, 8);
+assert.equal(themes.find(theme => theme.id === "walnut").name, "Walnut");
+assert.equal(themes.find(theme => theme.id === "duskEmber").name, "Red");
+assert(themes.every(theme => theme.price === undefined));
 
 await send("join", 5, "Opponent");
 await action(black, "cancelQueue");
@@ -103,10 +120,15 @@ const capturingWhite = captureMatch.find(event => event.data.side === "w").user;
 const defendingBlack = captureMatch.find(event => event.data.side === "b").user;
 await action(capturingWhite, "move", { from: "e2", to: "e4" });
 await action(defendingBlack, "move", { from: "d7", to: "d5" });
-const capture = (await action(capturingWhite, "move", { from: "e4", to: "d5" })).find(event => event.kind === "profile");
-assert.equal(capture.data.allTimeCaptures, capturingWhite === 4 ? 13 : 1);
+const captureEvents = await action(capturingWhite, "move", { from: "e4", to: "d5" });
+const capture = captureEvents.find(event => event.kind === "profile");
+assert.equal(capture.data.allTimeCaptures, 1);
 await action(defendingBlack, "resign");
 const afterResult = (await action(capturingWhite, "profile")).find(event => event.kind === "profile").data;
 assert.equal(afterResult.allTimeCaptures, capture.data.allTimeCaptures);
-assert(afterResult.pieceStorage > capture.data.pieceStorage);
-console.log("Bot-only history deletion, actual captures, and independent piece storage passed.");
+assert.equal(afterResult.pieceStorage, undefined);
+const savedCapture = captureEvents.find(event => event.kind === "save").data;
+await send("join", 6, "Returning", savedCapture);
+const returning = (await action(6, "profile")).find(event => event.kind === "profile").data;
+assert.equal(returning.allTimeCaptures, 1);
+console.log("History, one-time capture reset, free themes and equip/unequip passed.");

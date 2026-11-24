@@ -6,7 +6,7 @@ export default function inventory(content) {
   content.innerHTML = `
     <section class="panel page">
       <h1>Inventory</h1>
-      <p>Equip an owned board to change both chess boards and the site colors.</p>
+      <p>Equip any theme to change the boards and site colors. Unequip it to return to the default Blue look.</p>
       <p class="help collection-notice" role="status"></p>
       <div class="theme-grid"></div>
     </section>`;
@@ -16,47 +16,48 @@ export default function inventory(content) {
   let timeout;
 
   function draw() {
-    const { equippedBoard, ownedBoards } = session.profile;
+    const { equippedBoard } = session.profile;
     const focusedBoard = grid.contains(document.activeElement) ? document.activeElement.dataset.board : null;
     grid.replaceChildren();
-    for (const theme of getThemes().filter(theme => Object.values(ownedBoards).includes(theme.id))) {
+    for (const theme of getThemes()) {
+      const equipped = equippedBoard === theme.id;
+      const card = document.createElement("article");
+      card.className = "theme-card";
+      card.toggleAttribute("data-equipped", equipped);
+      const name = document.createElement("h2");
+      name.textContent = theme.name;
       const button = document.createElement("button");
       button.type = "button";
-      button.className = "theme-card";
       button.dataset.board = theme.id;
-      button.setAttribute("aria-pressed", String(equippedBoard === theme.id));
-      button.setAttribute("aria-busy", String(equipping === theme.id));
+      button.textContent = equipped ? "Unequip" : "Equip";
+      button.setAttribute("aria-label", `${button.textContent} ${theme.name}`);
+      button.setAttribute("aria-busy", String(equipping?.theme === theme.id));
       button.setAttribute("aria-disabled", String(Boolean(equipping)));
-      const name = document.createElement("span");
-      name.textContent = theme.name;
-      button.append(board(theme, false, true), name);
-      if (equippedBoard === theme.id) {
-        const status = document.createElement("small");
-        status.textContent = "Equipped";
-        button.append(status);
-      }
+      card.append(board(theme, false, true), name, button);
       button.addEventListener("click", () => {
-        if (equipping || equippedBoard === theme.id) return;
-        equipping = theme.id;
-        notice.textContent = `Equipping ${theme.name}…`;
+        if (equipping) return;
+        const target = equipped ? "" : theme.id;
+        equipping = { theme: theme.id, target };
+        notice.textContent = equipped ? `Unequipping ${theme.name}…` : `Equipping ${theme.name}…`;
         draw();
         timeout = setTimeout(() => {
           equipping = null;
           notice.textContent = "The board hasn’t changed yet. Try again.";
           draw();
         }, 8000);
-        action("equipBoard", { id: theme.id });
+        action("equipBoard", { id: target });
       });
-      grid.append(button);
+      grid.append(card);
       if (theme.id === focusedBoard) button.focus({ preventScroll: true });
     }
   }
   draw();
   const stop = subscribe(kind => {
-    if (equipping && (kind === "error" || (kind === "profile" && session.profile.equippedBoard === equipping))) {
+    if (equipping && (kind === "error" || (kind === "profile" && session.profile.equippedBoard === equipping.target))) {
       clearTimeout(timeout);
+      const { target } = equipping;
       equipping = null;
-      notice.textContent = kind === "error" ? session.notice : "Board equipped.";
+      notice.textContent = kind === "error" ? session.notice : target ? "Board equipped." : "Board unequipped. Default Blue restored.";
     }
     if (kind === "catalog" || kind === "profile" || kind === "error") draw();
   });

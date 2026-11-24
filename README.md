@@ -2,13 +2,14 @@
 
 Exalted Chess is a browser game for standard and four-player chess. The GitHub
 Pages version runs the original Luau rules and bots in a browser worker. Bot
-matches, profiles, earned pieces, board purchases, and replays work locally.
+matches, profiles, board themes, and replays work locally.
 In bot games, Hint highlights a suggested move on your turn. During an
 opponent’s turn, drag your pieces to queue premoves. A click clears the queue.
 Each premove is checked against the actual board when your turn starts.
 
-Equipping an owned board changes the site palette, along with boards in matches
-and replays. Classic restores the default blue-and-white design.
+All board themes are available in Inventory. Equipping one changes the site
+palette and boards. Unequipping restores default Blue. The profile counts
+actual captures, starting at zero once for profiles from the old shop release.
 
 ## Project layout
 
@@ -21,7 +22,7 @@ styles/
   base.css                     Shared colors, layouts, navigation, and controls
   board.css                    Squares, coordinates, pieces, and move indicators
   match.css                    Match controls, ratings, clocks, and move history
-  collection.css               Shop, board collection, profile, and replay layouts
+  collection.css               Inventory, profile, and replay layouts
   learn.css                    Course cards, diagrams, and practice controls
 ui/
   site-navigation.js           Tab routing and site-wide event wiring
@@ -32,8 +33,7 @@ ui/
 tabs/
   chess.js                     Standard chess tab
   four-player-chess.js         Four-player chess tab
-  shop.js                      Board purchases
-  inventory.js                 Owned boards and equipping
+  inventory.js                 Free board themes and equipping
   profile.js                   Ratings, match history, and replay controls
   learn.js                     Interactive course and saved progress
   learn-lessons.js             Course modules, positions, and exercises
@@ -49,7 +49,7 @@ game/
   luau-runtime.js              Loads Luau modules and exchanges data with JavaScript
   web-adapter.luau             Browser and server bridge to the original game modules
   match-service.luau           Match lifecycle, rewards, profiles, and matchmaking
-  board-catalog.luau           Board names, prices, square colors, and UI palettes
+  board-catalog.luau           Board names, square colors, and UI palettes
   rules/
     standard-chess.luau        Standard rules and draw conditions
     four-player-chess.luau     Four-player rules

@@ -11,7 +11,7 @@ const dataFile = resolve(process.env.EXALTED_DATA ?? resolve(homedir(), ".exalte
 const publicOrigin = process.env.EXALTED_SITE_ORIGIN;
 const files = /^(?:index\.html|assets\/[a-z0-9-]+\.svg|styles\/[a-z0-9-]+\.css|(?:ui|tabs)\/[a-z0-9-]+\.js|game\/(?:[a-z0-9-]+\.(?:js|luau)|(?:rules|engine)\/[a-z0-9-]+\.luau|vendor\/(?:luau-web\.js|lib\/[a-z0-9-]+\.js)))$/;
 const actions = new Set([
-  "profile", "clearBotHistory", "deleteHistoryMatch", "buyBoard", "equipBoard", "bot", "fourBot", "queue", "queueFour", "challenge",
+  "profile", "clearBotHistory", "deleteHistoryMatch", "equipBoard", "bot", "fourBot", "queue", "queueFour", "challenge",
   "challengeRespond", "move", "claimDraw", "reset", "legal", "undo", "resign", "abort", "leave", "cancelQueue",
   "rematch", "rematchRespond", "rematchCancel"
 ]);
@@ -98,7 +98,7 @@ function selectData(kind, data) {
     case "legal": return { ...context, from: address(input.from), requestId: number(input.requestId) };
     case "bot": return { rating: rating(input.rating) };
     case "fourBot": return { ratings: { B: rating(input.ratings?.B), Y: rating(input.ratings?.Y), G: rating(input.ratings?.G) } };
-    case "deleteHistoryMatch": case "buyBoard": case "equipBoard": return { id: typeof input.id === "string" ? input.id.slice(0, 48) : "" };
+    case "deleteHistoryMatch": case "equipBoard": return { id: typeof input.id === "string" ? input.id.slice(0, 48) : undefined };
     case "queue": case "queueFour": return { ...timer, newOpponent: input.newOpponent === true };
     case "challenge": return { ...timer, userId: number(input.userId), userIds: Array.isArray(input.userIds) ? [...new Set(input.userIds.slice(0, 3).map(number).filter(Boolean))] : undefined };
     case "challengeRespond": case "rematchRespond": return { accept: input.accept === true };

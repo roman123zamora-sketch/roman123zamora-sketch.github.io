@@ -1,7 +1,7 @@
 import { session } from "../game/session.js";
 
 const blue = {
-  id: "classic", price: 0, name: "Blue",
+  id: "classic", name: "Blue",
   light: "#ecf6ff", dark: "#7fa5cc", frame: "#324e70", stroke: "#496b90"
 };
 
@@ -39,7 +39,6 @@ function interfaceColors({ ui, light }) {
     badge: blend(ui.panel, ui.blueDark, 60),
     "turn-surface": blend(ui.panel2, ui.blueDark, 68),
     "collection-equipped": blend(ui.panel, ui.blueDark, 60),
-    "collection-disabled": ui.panel,
     "press-ring": blend(ui.blue, "transparent", 42),
     selected: ui.blueDark,
     legal: blend(ui.blueDark, "#081426", 55),

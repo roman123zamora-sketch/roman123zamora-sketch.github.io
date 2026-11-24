@@ -27,7 +27,6 @@ export default function profile(content) {
         <div><dt>Chess Elo</dt><dd>${data.chessElo}</dd></div>
         <div><dt>4-Player Elo</dt><dd>${data.fourElo}</dd></div>
         <div><dt>League points</dt><dd>${data.leaguePoints}</dd></div>
-        <div><dt>Piece Storage</dt><dd>${data.pieceStorage}</dd></div>
         <div><dt>All-time pieces captured</dt><dd>${Number(data.allTimeCaptures ?? 0).toLocaleString()}</dd></div>
       </dl>
       <div class="replay-heading">
@@ -122,6 +121,7 @@ export default function profile(content) {
         <h1 tabindex="-1">Match replay</h1>
         <button type="button" class="return-history">Back to history</button>
       </div>
+      <p class="replay-turn board-turn-label" role="status" hidden></p>
       <div class="board-and-eval replay-board">
         <div class="bot-eval" hidden aria-label="Engine estimate, in pawns">
           <div class="eval-meter" aria-hidden="true"><div class="eval-white"></div></div>
@@ -145,7 +145,13 @@ export default function profile(content) {
     const holder = panel.querySelector(".board-slot");
     const match = { variant: record.v, side: record.side };
     const buttons = [...panel.querySelectorAll("[data-step]")];
+    const turn = panel.querySelector(".replay-turn");
+    const names = { w: "White", b: "Black", R: "Red", B: "Blue", Y: "Yellow", G: "Green" };
     function draw() {
+      const side = positions[ply].turn;
+      turn.hidden = !names[side];
+      turn.dataset.side = side ?? "";
+      turn.textContent = names[side] ? `${names[side]} to move` : "";
       evaluation.update(match, { positions, ply });
       bestMove.update(positions[ply].turn ? positions[ply] : undefined, record.v);
       holder.replaceChildren(board(getTheme(), record.v === "four", false, {

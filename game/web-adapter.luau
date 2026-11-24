@@ -87,7 +87,7 @@ end
 
 local boardCatalog={}
 for _,theme in ipairs(modules.ThemeLibrary.themes) do
- local entry={id=theme.id,name=theme.name,price=theme.price}
+ local entry={id=theme.id,name=theme.name}
  for _,key in ipairs({"light","dark","frame","stroke"}) do
   entry[key]=cssColor(theme.board[key])
  end

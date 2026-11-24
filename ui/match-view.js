@@ -59,6 +59,7 @@ export function renderMatch(content, { title, fourPlayer }) {
         <p class="match-notice help" aria-live="polite"></p>
       </aside>
       <section class="board-area${fourPlayer ? "" : " aligned-board-area"}" aria-label="${title} board">
+        <p class="match-review-turn board-turn-label" role="status" hidden></p>
         <button class="quick-play primary" type="button" data-action="start">Play a bot game</button>
         <div class="board-and-eval">
           <div class="bot-eval" hidden aria-label="Engine estimate, in pawns" title="Engine estimate, in pawns">
@@ -117,6 +118,7 @@ export function renderMatch(content, { title, fourPlayer }) {
   const quickPlay = content.querySelector(".quick-play");
   const dialog = content.querySelector("dialog:not(.result-dialog)");
   const resultDialog = content.querySelector(".result-dialog");
+  const reviewTurn = content.querySelector(".match-review-turn");
   const reviewControls = content.querySelector(".review-controls");
   const bestMove = createBestMoveControl(reviewControls.querySelector("[data-best-move]"),
     reviewControls.querySelector(".best-move-status"), drawBoard);
@@ -359,6 +361,10 @@ export function renderMatch(content, { title, fourPlayer }) {
 
   function drawReview() {
     reviewControls.hidden = !review;
+    const side = review?.positions[review.ply]?.turn;
+    reviewTurn.hidden = !sides[side];
+    reviewTurn.dataset.side = side ?? "";
+    reviewTurn.textContent = sides[side] ? `${sides[side]} to move` : "";
     bestMove.update(review?.positions[review.ply], variant);
     if (!review) bestMove.close();
     if (!review) return;
@@ -589,7 +595,6 @@ export function renderMatch(content, { title, fourPlayer }) {
     content.querySelector(".ratings").innerHTML = `
       <div><dt>Chess Elo</dt><dd>${profile.chessElo}</dd></div>
       <div><dt>4-Player Elo</dt><dd>${profile.fourElo}</dd></div>
-      <div><dt>Stored pieces</dt><dd>${profile.pieceStorage}</dd></div>
       <div><dt>${profile.league} League</dt><dd>${profile.leaguePoints} pts</dd></div>`;
     const queueStatus = session.queue ? `Waiting for players (${session.queue.players ?? session.queue.count}/${session.queue.needed})` : "";
     content.querySelector(".match-notice").textContent = session.notice || queueStatus;
