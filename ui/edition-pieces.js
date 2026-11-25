@@ -11,7 +11,7 @@ export function editionDetail(piece, clip) {
       <path class="edition-relief" stroke="currentColor" stroke-width="1.45"/>
       <path class="edition-grain" stroke="currentColor" stroke-width=".85"/>
     </g>
-    <path d="M25 72q14 2 30 0" stroke="#19151e" stroke-opacity=".64" stroke-width="1.6"/>
-    <path d="M26 68.9q14-1.4 28 0" stroke="currentColor" stroke-width="1.3"/>
+    <path d="M27 72q13 1.8 26 0" stroke="#19151e" stroke-opacity=".64" stroke-width="1.6"/>
+    <path d="M28 69q12-1.2 24 0" stroke="currentColor" stroke-width="1.3"/>
   </g>`;
 }

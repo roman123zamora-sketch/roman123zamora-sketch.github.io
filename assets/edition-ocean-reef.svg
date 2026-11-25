@@ -18,18 +18,22 @@
     </g>
   </defs>
   <path fill="url(#sky)" d="M0 0h1200v840H0z"/>
-  <path d="M5 0h125l90 662h-67zM140 0h48l178 590h-65zM1054 0h72L873 554h-77z" fill="#88e1dd28"/><ellipse cx="990" cy="140" rx="230" ry="290" fill="url(#light)"/><path transform="translate(57 240)" d="M0 0q9-8 18 0-9 8-18 0l-6 4v-8z" fill="#aad9cf" opacity=".56"/><path transform="translate(92 251)" d="M0 0q9-8 18 0-9 8-18 0l-6 4v-8z" fill="#aad9cf" opacity=".56"/><path transform="translate(78 270)" d="M0 0q9-8 18 0-9 8-18 0l-6 4v-8z" fill="#aad9cf" opacity=".56"/><path transform="translate(109 283)" d="M0 0q9-8 18 0-9 8-18 0l-6 4v-8z" fill="#aad9cf" opacity=".56"/><path transform="translate(1019 317)" d="M0 0q9-8 18 0-9 8-18 0l-6 4v-8z" fill="#aad9cf" opacity=".56"/><path transform="translate(1038 335)" d="M0 0q9-8 18 0-9 8-18 0l-6 4v-8z" fill="#aad9cf" opacity=".56"/><path transform="translate(1074 314)" d="M0 0q9-8 18 0-9 8-18 0l-6 4v-8z" fill="#aad9cf" opacity=".56"/><path d="M0 555l120 49 110 48 185 19 140 38 287-39 172-42 186-146v358H0z" fill="#234453"/><path d="M0 739l150-59 158 81 112 79H0zM1200 661l-180 76-64 103h244z" fill="#18313d"/><use href="#branch-coral" transform="translate(38 762) scale(1.18)" color="#ae6e88"/><use href="#branch-coral" transform="translate(119 803) scale(-.82 .82)" color="#c49482"/><use href="#branch-coral" transform="translate(1080 760) scale(1.1)" color="#8b75ac"/><use href="#branch-coral" transform="translate(1142 800) scale(-1.2 1.2)" color="#a66d8b"/><use href="#branch-coral" transform="translate(994 838) scale(.8)" color="#5c9191"/><ellipse cx="85" cy="817" rx="23" ry="10" fill="#ebc4aa"/><path d="M1100 819v-49m-13 9h26m-37 24q7 25 24 25t24-25" fill="#0000" stroke="#718887" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M5 0h125l90 662h-67zM140 0h48l178 590h-65zM1054 0h72L873 554h-77z" fill="#88e1dd28"/><ellipse cx="990" cy="140" rx="230" ry="290" fill="url(#light)"/><path transform="translate(57 240)" d="M0 0q9-8 18 0-9 8-18 0l-6 4v-8z" fill="#aad9cf" opacity=".56"/><path transform="translate(92 251)" d="M0 0q9-8 18 0-9 8-18 0l-6 4v-8z" fill="#aad9cf" opacity=".56"/><path transform="translate(78 270)" d="M0 0q9-8 18 0-9 8-18 0l-6 4v-8z" fill="#aad9cf" opacity=".56"/><path transform="translate(109 283)" d="M0 0q9-8 18 0-9 8-18 0l-6 4v-8z" fill="#aad9cf" opacity=".56"/><path transform="translate(1019 317)" d="M0 0q9-8 18 0-9 8-18 0l-6 4v-8z" fill="#aad9cf" opacity=".56"/><path transform="translate(1038 335)" d="M0 0q9-8 18 0-9 8-18 0l-6 4v-8z" fill="#aad9cf" opacity=".56"/><path transform="translate(1074 314)" d="M0 0q9-8 18 0-9 8-18 0l-6 4v-8z" fill="#aad9cf" opacity=".56"/><path d="M0 555l120 49 110 48 185 19 140 38 287-39 172-42 186-146v358H0z" fill="#234453"/><path d="M0 739l150-59 158 81 112 79H0zM1200 661l-180 76-64 103h244z" fill="#18313d"/>
+  <ellipse cx="51" cy="756" rx="23" ry="8" fill="#17283c" opacity=".6"/>
+  <use href="#branch-coral" transform="translate(51 755) scale(1.13)" color="#ae6e88"/>
+  <use href="#branch-coral" transform="translate(119 803) scale(-.82 .82)" color="#c49482"/><use href="#branch-coral" transform="translate(1080 760) scale(1.1)" color="#8b75ac"/><use href="#branch-coral" transform="translate(1142 800) scale(-1.2 1.2)" color="#a66d8b"/><use href="#branch-coral" transform="translate(994 838) scale(.8)" color="#5c9191"/><ellipse cx="85" cy="817" rx="23" ry="10" fill="#ebc4aa"/><path d="M1100 819v-49m-13 9h26m-37 24q7 25 24 25t24-25" fill="#0000" stroke="#718887" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
   <g transform="translate(18 709)">
     <ellipse cx="83" cy="102" rx="107" ry="24" fill="url(#contact)"/>
     <path d="M0 96Q29 61 58 64L110 46 164 70 163 95 77 119Z" fill="url(#prop)"/>
-<path d="M0 96 58 64l30 11 22-29 54 24-79 33Z" fill="#7496a0"/>
+    <path d="M0 96 58 64l30 11 22-29 54 24-79 33Z" fill="#7496a0"/>
     <path d="M6 95 43 84l19 4 20-6 24 5 30-17m-93 14 15-12m30 12 15-17m20 23 15-3 16-12" fill="none" stroke="#2b4960" stroke-width="2.5"/>
     <path d="m12 98 31-9 19 4 21-5m41 7 16-6 16-12m-86 26 32 3" class="lit" opacity=".36"/>
+    <ellipse cx="45" cy="87" rx="15" ry="4" fill="#263d51" opacity=".56"/>
     <use href="#branch-coral" transform="translate(47 86) rotate(-12) scale(.72)" color="#a96880"/>
     <use href="#plate-coral" transform="translate(39 90) rotate(-9) scale(.74)" color="#bd755c"/>
     <use href="#plate-coral" transform="translate(83 99) scale(.52)" color="#91678c"/>
     <path d="M95 81q21-31 40-3-7 15-28 17Z" fill="#ceab9f"/><path d="m106 89 8-23m3 19 10-15m-23 14 4-13" class="lit"/>
   </g>
   <use href="#plate-coral" transform="translate(1103 787) scale(1.02)" color="#a66d8b"/>
-  <use href="#plate-coral" transform="translate(1168 821) scale(.72)" color="#ad805d"/>
+  <use href="#plate-coral" transform="translate(1161 818) scale(.72)" color="#ad805d"/>
 </svg>
