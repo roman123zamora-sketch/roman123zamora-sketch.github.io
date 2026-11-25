@@ -5,7 +5,7 @@ import { createEvaluationBar } from "./evaluation-bar.js";
 import { bindBoardDrag } from "../game/board-drag.js";
 import { board } from "./chessboard.js";
 import { getTheme } from "./board-themes.js";
-import { createChessPiece } from "./chess-pieces.js";
+import { createChessPiece, pieceName } from "./chess-pieces.js";
 import { premoveIntent, projectPremoves } from "../game/premove-preview.js";
 import { action, playSound, serverNow, session, subscribe, unlockSound } from "../game/session.js";
 
@@ -17,6 +17,8 @@ const timeGroups = [
   ["Rapid", ["10 | 0", "10 | 5", "15 | 10"]]
 ];
 const sides = { w: "White", b: "Black", R: "Red", B: "Blue", Y: "Yellow", G: "Green" };
+const captureValue = { K: 20, Q: 9, R: 5, B: 3, N: 3, P: 1 };
+const captureOrder = "KQRBNP";
 const botLevels = [...Array.from({ length: 15 }, (_, index) => 200 * (index + 1)), "Max"];
 const preferences = { control: "3 | 0", w: 1000, B: 800, Y: 1000, G: 1200 };
 
@@ -87,7 +89,6 @@ export function renderMatch(content, { title, fourPlayer }) {
           <output aria-live="polite"></output>
           <button type="button" data-action="historyNext" aria-label="Next move">→</button>
         </div>
-        <ul class="board-clocks" aria-label="Match clocks" hidden></ul>
         <p class="board-status" aria-live="polite"></p>
         <div class="action-row premove-controls" hidden>
           <button type="button" data-premove-control data-action="undoPremove">Undo last premove</button>
@@ -374,6 +375,7 @@ export function renderMatch(content, { title, fourPlayer }) {
   }
 
   function drawBoard(animateMove = false) {
+    drawTurn();
     const historical = historyPly === null ? undefined : historyFrames[historyPly];
     const browsing = review || historyPly !== null;
     const preview = plannedBoard();
@@ -434,12 +436,17 @@ export function renderMatch(content, { title, fourPlayer }) {
     if (focused) slot.querySelector(`[data-square="${focused}"]`)?.focus({ preventScroll: true });
   }
 
-  function drawReview() {
-    reviewControls.hidden = !review;
-    const side = review?.positions[review.ply]?.turn;
+  function drawTurn() {
+    const position = review?.positions[review.ply] ??
+      (historyPly !== null ? historyFrames[historyPly] : active() ? match().state : undefined);
+    const side = position?.turn;
     reviewTurn.hidden = !sides[side];
     reviewTurn.dataset.side = side ?? "";
     reviewTurn.textContent = sides[side] ? `${sides[side]} to move` : "";
+  }
+
+  function drawReview() {
+    reviewControls.hidden = !review;
     bestMove.update(review?.positions[review.ply], variant);
     if (!review) bestMove.close();
     if (!review) return;
@@ -503,23 +510,24 @@ export function renderMatch(content, { title, fourPlayer }) {
         resetting ? "Resetting game…" :
         session.movePending ? "Sending move…" :
         claiming ? "Choose a move to support your draw claim." :
-        `${sides[data.state.turn]} to move${data.state.status === "check" ? " · Check" : ""}${/bot/i.test(data.mode) && data.state.turn !== data.side ? " · Bot thinking" : ""}`;
+        [data.state.status === "check" ? "Check" : "",
+          /bot/i.test(data.mode) && data.state.turn !== data.side ? "Bot thinking" : ""].filter(Boolean).join(" · ");
     } else if (lobby()) {
       status.textContent = `Waiting for players · ${lobby().count} of ${lobby().needed} joined`;
     } else status.textContent = "";
     if (active() && premoves.length) {
-      status.textContent += ` · Premove queued: ${premoves.map(move => `${move.from}–${move.to}`).join(", ")}`;
+      status.textContent += `${status.textContent ? " · " : ""}Premove queued: ${premoves.map(move => `${move.from}–${move.to}`).join(", ")}`;
     }
-    if (active() && premoveNotice) status.textContent += ` · ${premoveNotice}`;
+    if (active() && premoveNotice) status.textContent += `${status.textContent ? " · " : ""}${premoveNotice}`;
     status.classList.toggle("in-check", data?.state.status === "check" && !outcome);
   }
 
   function drawPlayers() {
     const data = match();
     const list = content.querySelector(".players");
-    const clocks = content.querySelector(".board-clocks");
-    clocks.hidden = !data?.clocks && !lobby();
-    clocks.replaceChildren();
+    const timed = Boolean(data?.clocks || lobby());
+    const history = Object.values(data?.state.history ?? {});
+    const value = move => move.captureValue ?? (move.grey ? 0 : captureValue[move.captured[1]] ?? 0);
     list.replaceChildren();
     for (const side of colors) {
       const name = sides[side];
@@ -527,29 +535,33 @@ export function renderMatch(content, { title, fourPlayer }) {
       const label = document.createElement("span");
       const dot = document.createElement("i");
       dot.className = "side-dot " + name.toLowerCase();
-      label.append(dot, document.createTextNode(data?.players?.[side] ?? name));
+      label.className = "player-name";
+      const player = data?.players?.[side];
+      label.append(dot, document.createTextNode(timed && player ? `${name} · ${player}` : player ?? name));
       const clock = document.createElement("span");
-      clock.className = "clock";
+      clock.className = timed ? "clock match-clock" : "clock";
       clock.dataset.side = side;
       item.classList.toggle("turn", data?.state.turn === side && !result());
       item.classList.toggle("eliminated", !!data?.state.eliminated?.[side]);
-      item.append(label);
-      if (!clocks.hidden) {
-        const chip = document.createElement("li");
-        chip.textContent = name;
-        chip.classList.toggle("turn", data?.state.turn === side && !result());
-        chip.classList.toggle("eliminated", !!data?.state.eliminated?.[side]);
-        chip.append(clock);
-        clocks.append(chip);
-      } else item.append(clock);
-      const captured = Object.values(data?.state.history ?? {}).filter(move => move.color === side && move.captured);
+      item.append(label, clock);
+      const captured = history.filter(move => move.color === side && move.captured)
+        .sort((first, second) => value(second) - value(first) ||
+          captureOrder.indexOf(first.captured[1]) - captureOrder.indexOf(second.captured[1]));
       if (captured.length) {
         const pieces = document.createElement("span");
         pieces.className = "captures";
-        pieces.setAttribute("aria-label", `${captured.length} captured pieces`);
-        for (const move of captured) {
-          pieces.append(createChessPiece(move.captured[1], sides[move.captured[0]].toLowerCase()));
-        }
+        const descriptions = captured.map(move => {
+          const type = move.captured[1];
+          const color = sides[move.captured[0]];
+          const piece = createChessPiece(type, color.toLowerCase());
+          const points = value(move);
+          const description = `${color} ${pieceName(type)}${fourPlayer ? `, ${points} ${points === 1 ? "point" : "points"}` : ""}`;
+          piece.title = description;
+          pieces.append(piece);
+          return description;
+        });
+        pieces.setAttribute("role", "group");
+        pieces.setAttribute("aria-label", `Captured pieces. ${descriptions.join("; ")}`);
         if (fourPlayer) {
           const score = document.createElement("span");
           score.className = "capture-score";
@@ -590,7 +602,7 @@ export function renderMatch(content, { title, fourPlayer }) {
     historyControls.querySelector('[data-action="historyNext"]').disabled = ply === latest;
     historyControls.querySelector("output").textContent = review ? `Move ${ply} of ${latest}`
       : historyPly !== null ? (historyFrames[ply] ? `Viewing history · ${ply}/${latest}` : "Loading history…")
-      : result() ? "Final position" : "Live";
+      : result() ? "Final position" : "";
     drawMoveList(content.querySelector(".move-list"), history, ply);
   }
 
@@ -659,7 +671,7 @@ export function renderMatch(content, { title, fourPlayer }) {
             `<option value="${rating}"${rating === preferences[side] ? " selected" : ""}>${rating}</option>`).join("")}
         </select>
       </label>`).join("");
-    const botMode = (setup && !active()) || starting || /bot/i.test(data?.mode ?? "");
+    const botMode = setup || starting || (active() && /bot/i.test(data?.mode ?? ""));
     const timeLocked = !!(otherMatch || active() || creatingInvite || queued || session.queue);
     const displayedControl = active() && data?.baseSeconds
       ? `${data.baseSeconds / 60} | ${data.increment}`
@@ -993,6 +1005,11 @@ export function renderMatch(content, { title, fourPlayer }) {
     if (kind === "queueCancelled" || kind === "challengeDeclined") queued = false;
     if (["leave", "result", "undoState"].includes(kind)) returnToLive();
     if (kind === "leave" || kind === "result") resetting = false;
+    if (kind === "result") {
+      setup = false;
+      starting = false;
+      onlineInfo = false;
+    }
     if (kind === "leave") {
       reviewTools?.close();
       reviewTools = undefined;

@@ -256,7 +256,7 @@ button.square.premove-trail:focus-visible {
 .board-turn-label[hidden] { display: none; }
 .match-review-turn { position: absolute; inset-block-start: 0; inset-inline: 0; }
 .board-area:has(.match-review-turn:not([hidden])) { position: relative; }
-.match:not(.standard-board-layout) > .board-area:has(.match-review-turn:not([hidden])) {
+.match:not(.standard-board-layout) > .board-area {
   padding-block-start: 2rem;
 }
 .replay-turn { margin-block-start: .8rem; }

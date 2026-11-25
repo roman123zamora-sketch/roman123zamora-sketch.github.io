@@ -95,6 +95,20 @@ local castle=Bot.choose(castleOnly,castlePosition,1000,{depth=1,timeMs=150})
 local castled=Four.apply(castlePosition,castle)
 assert(castled.board.j1=="RK" and castled.board.i1=="RR")
 
+for _,kind in ipairs({"Q","R","B","N"}) do
+ local promotion=Four.initial()
+ promotion.board={d7="RP",e11="BR",d11="YN"}
+ local promoted=Four.apply(promotion,{from="d7",to="d8",promotion=kind})
+ assert(promoted.board.d8=="R"..kind and promoted.promoted.d8 and not promotion.promoted.d8)
+ local relocated=Four.apply(promoted,{from="d8",to="e9"})
+ assert(relocated.promoted.e9 and not relocated.promoted.d8 and promoted.promoted.d8)
+ local captured=Four.apply(relocated,{from="e11",to="e9"})
+ assert(captured.scores.B==1 and captured.history[3].captureValue==1)
+ assert(not captured.promoted.e9 and relocated.promoted.e9)
+ local capturedRook=Four.apply(captured,{from="d11",to="e9"})
+ assert(capturedRook.scores.Y==5 and capturedRook.history[4].captureValue==5)
+end
+
 `;
 const vm = await LuauState.createAsync();
 try {

@@ -47,10 +47,9 @@
 
 .players { display: grid; gap: .45rem; margin: 0 0 1.15rem; padding: 0; list-style: none; }
 .players li {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
   gap: .35rem .55rem;
   padding: .65rem;
   border: 1px solid var(--stroke);
@@ -67,7 +66,18 @@
 .side-dot.blue { background: #7faff2; }
 .side-dot.yellow { background: #f1d077; }
 .side-dot.green { background: #87d68e; }
-.captures { display: flex; align-items: center; flex: 1 0 100%; flex-wrap: wrap; gap: .15rem; }
+.player-name { min-inline-size: 0; }
+.players li.eliminated { opacity: .62; }
+.match-clock {
+  min-inline-size: 5ch;
+  padding: .23rem .4rem;
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--stroke);
+  border-radius: .35rem;
+  font-size: .95rem;
+}
+.captures { grid-column: 1 / -1; display: flex; align-items: center; flex-wrap: wrap; gap: .15rem; }
 .captures .chess-piece { inline-size: 1.05rem; }
 .capture-score { margin-inline-start: auto; color: var(--muted); font-size: .75rem; }
 .move-list { min-block-size: 3rem; max-block-size: 17rem; overflow: auto; margin: 0; padding-inline-start: 1.9rem; font-size: .85rem; }
@@ -179,31 +189,6 @@
   color: inherit;
   font: inherit;
 }
-.board-clocks:not([hidden]) {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: .4rem;
-  margin: .55rem 0 0;
-  padding: 0;
-  list-style: none;
-}
-.board-clocks li {
-  display: flex;
-  align-items: center;
-  gap: .45rem;
-  padding: .3rem .55rem;
-  border: 1px solid transparent;
-  border-radius: .45rem;
-  font-size: .85rem;
-}
-.board-clocks li.turn {
-  border-color: var(--turn-border);
-  background: var(--turn-surface);
-}
-.board-clocks .clock { min-width: 4ch; }
-.board-clocks .eliminated { opacity: .55; }
-
 .board-history-controls:not([hidden]) {
   justify-content: center;
   align-items: center;
@@ -214,6 +199,7 @@
   text-align: center;
   font-size: .83rem;
 }
+.board-history-controls output:empty { display: none; }
 .board-history-controls button, .replay-actions [data-step] { min-inline-size: 2.75rem; }
 .move-list { position: relative; }
 .move-list [aria-current="step"] {
@@ -221,4 +207,8 @@
   box-shadow: inset .16rem 0 var(--turn-border);
   border-radius: .2rem;
   padding-inline-start: .4rem;
+}
+
+@media (max-width: 35rem) {
+  .match:has(.players li.turn .match-clock) > .setup { order: 1; }
 }

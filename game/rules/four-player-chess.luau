@@ -44,7 +44,7 @@ function E.initial()
   local y=i+3; b[sq(1,y)]="B"..standard[i]; b[sq(2,y)]="BP"
   b[sq(14,y)]="G"..mirrored[i]; b[sq(13,y)]="GP"
  end
- return {board=b,castling={d1=true,k1=true,a4=true,a11=true,d14=true,k14=true,n4=true,n11=true},turn="R",eliminated={},eliminationReason={},eliminationOrder={},history={},lastMove=nil,fullmove=1,scores={R=0,B=0,Y=0,G=0}}
+ return {board=b,promoted={},castling={d1=true,k1=true,a4=true,a11=true,d14=true,k14=true,n4=true,n11=true},turn="R",eliminated={},eliminationReason={},eliminationOrder={},history={},lastMove=nil,fullmove=1,scores={R=0,B=0,Y=0,G=0}}
 end
 local function isAttacked(board,target,by)
  local tx,ty=xy(target); if not tx then return false end
@@ -153,6 +153,12 @@ function E.searchApply(state,move)
  local color=string.sub(piece,1,1)
  child.board[move.from]=nil
  child.board[move.to]=color..(move.promotion or string.sub(piece,2,2))
+ local promoted=state.promoted
+ if move.promotion or (promoted and (promoted[move.from] or promoted[move.to])) then
+  child.promoted=table.clone(promoted or {})
+  child.promoted[move.from]=nil
+  child.promoted[move.to]=(move.promotion or promoted[move.from]) and true or nil
+ end
  if move.special=="castle" then
   child.board[move.rookFrom]=nil
   child.board[move.rookTo]=color.."R"
@@ -181,13 +187,16 @@ function E.apply(state,move)
  local captured=state.board[move.to]
  local grey=captured and state.eliminated[string.sub(captured,1,1)]
  local entry={from=move.from,to=move.to,color=color,captured=captured,promotion=move.promotion,special=move.special}
- if grey then entry.grey=true end
+ if captured then
+  local promoted=state.promoted and state.promoted[move.to]
+  entry.captureValue=grey and 0 or promoted and E.values.P or E.values[string.sub(captured,2,2)] or 0
+  if grey then entry.grey=true end
+ end
  nextState.history=table.clone(state.history)
  table.insert(nextState.history,entry)
  nextState.scores=table.clone(state.scores)
- if captured and not grey then
-  local value=E.values[string.sub(captured,2,2)] or 0
-  nextState.scores[color]=(nextState.scores[color] or 0)+value
+ if captured then
+  nextState.scores[color]=(nextState.scores[color] or 0)+entry.captureValue
  end
  nextState.eliminated=table.clone(state.eliminated)
  nextState.eliminationReason=table.clone(state.eliminationReason or {})
