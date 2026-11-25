@@ -113,14 +113,33 @@ document root, and place the service behind HTTPS for public access.
 To keep using GitHub Pages with a separately hosted service, set the
 `exalted-server` meta tag in `index.html` to the service's HTTPS URL ending in
 `/api`. Set `EXALTED_SITE_ORIGIN` on the service to the Pages origin without a
-trailing slash.
+trailing slash. Multiple frontend origins can be listed with commas.
+
+Before enabling accounts on a public deployment, mount persistent storage and
+point `EXALTED_DATA` to a file on that volume (for example,
+`/var/data/profiles.json`). Run one app instance against the file and back it up.
+Render’s ephemeral filesystem is suitable for testing only because a redeploy
+can remove accounts, sessions and rankings. The frontend and API changes must
+be deployed together.
+
+Signup creates a session immediately. Passwords use salted scrypt hashes and
+the store keeps digests of session tokens. Sessions expire after 30 days.
+Changing a password revokes the other sessions on the account. Existing guest
+server records can be claimed during signup using the previous browser session.
+Bot history and practice progress remain browser-local and are separated by
+account. Public records use results recorded by the match server.
+
+Rankings count completed standard online matches by selected time control.
+Each category starts at 1,000 Elo and ranks players after their first result.
+Legacy matches had no per-category rating history, so they do not affect these
+leaderboards. Four-Player Elo is displayed on profiles.
 
 The browser uses authenticated HTTP long polling at `/api/events`. Online
 matches leave when the page unloads or reloads. If the browser cannot notify
 the server, inactivity ends the connection after 30 seconds. Live matches
 are held in memory and end if the service restarts. Bot games run in a browser
 worker, so their turns keep working through a connection interruption.
-The persistent file stores player profiles and results.
+The persistent file stores accounts, sessions, server profiles and results.
 
 **Challenge** creates a private link using the host’s selected time control.
 Open the link in a separate browser session to join. Standard chess needs two

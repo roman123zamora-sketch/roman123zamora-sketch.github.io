@@ -752,7 +752,9 @@ export function renderMatch(content, { title, fourPlayer }) {
   function drawRatings() {
     const profile = session.profile;
     content.querySelector(".ratings").innerHTML = `
-      <div><dt>Chess Elo</dt><dd>${profile.chessElo}</dd></div>
+      <div><dt>Bullet Elo</dt><dd>${profile.ranked?.bullet?.rating ?? 1000}</dd></div>
+      <div><dt>Blitz Elo</dt><dd>${profile.ranked?.blitz?.rating ?? 1000}</dd></div>
+      <div><dt>Rapid Elo</dt><dd>${profile.ranked?.rapid?.rating ?? 1000}</dd></div>
       <div><dt>4-Player Elo</dt><dd>${profile.fourElo}</dd></div>
       <div><dt>${profile.league} League</dt><dd>${profile.leaguePoints} pts</dd></div>`;
     const queueStatus = session.queue ? `Waiting for players (${session.queue.players ?? session.queue.count}/${session.queue.needed})` : "";

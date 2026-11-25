@@ -73,20 +73,29 @@ function artwork(piece, side, id) {
   const body = id + "-body";
   const bevel = id + "-bevel";
   const shadow = id + "-shadow";
+  const steel = id + "-steel";
+  const metalStop = (stop, fallback) => `style="stop-color:var(--metal-${side}-${stop}, ${fallback})"`;
   const profile = profiles[piece];
   const contours = profile.body.replaceAll("BEVEL", `url(#${bevel})`).replaceAll("EYE", side === "white" || side === "yellow" ? edge : detail);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 80 80"
        preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">
     <defs>
       <radialGradient id="${body}" cx="27%" cy="17%" r="86%">
-        <stop stop-color="${light}"/>
-        <stop offset=".55" stop-color="${fill}"/>
-        <stop offset="1" stop-color="${shade}"/>
+        <stop ${metalStop("highlight", light)}/>
+        <stop offset=".55" ${metalStop("face", fill)}/>
+        <stop offset="1" ${metalStop("shadow", shade)}/>
       </radialGradient>
       <linearGradient id="${bevel}" x1="18%" y1="0%" x2="78%" y2="100%">
-        <stop stop-color="${light}"/>
-        <stop offset=".37" stop-color="${fill}"/>
-        <stop offset="1" stop-color="${shade}"/>
+        <stop ${metalStop("highlight", light)}/>
+        <stop offset=".37" ${metalStop("face", fill)}/>
+        <stop offset="1" ${metalStop("shadow", shade)}/>
+      </linearGradient>
+      <linearGradient id="${steel}" x2="83%" y2="98%">
+        <stop ${metalStop("face",fill)}/>
+        <stop offset=".31" ${metalStop("shadow",shade)}/>
+        <stop offset=".43" ${metalStop("highlight",light)}/>
+        <stop offset=".58" ${metalStop("face",fill)}/>
+        <stop offset="1" ${metalStop("shadow",shade)}/>
       </linearGradient>
       <radialGradient id="${shadow}">
         <stop stop-color="#081525" stop-opacity=".35"/>
@@ -94,13 +103,16 @@ function artwork(piece, side, id) {
       </radialGradient>
     </defs>
     <ellipse cx="40" cy="74.5" rx="20" ry="3" fill="url(#${shadow})"/>
-    <g fill="url(#${body})" stroke="${edge}" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round">
+    <g class="piece-finish" style="--piece-steel: url(#${steel}); --piece-plastic: url(#${body})" fill="url(#${body})" stroke="${edge}" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round">
       ${contours}
       <path d="M28 62h24c2 0 3 1.2 3 3v3H25v-3c0-1.8 1-3 3-3Z" fill="url(#${bevel})"/>
       <path d="M26 67h28c2.3 0 3.8 1.6 3.8 3.7v1.1c0 1.7-1.3 2.7-3 2.7H25.2
         c-1.7 0-3-1-3-2.7v-1.1c0-2.1 1.5-3.7 3.8-3.7Z" fill="url(#${bevel})"/>
       <path d="${profile.light}M26 69.5h16" fill="none" stroke="${detail}" stroke-opacity=".44" stroke-width="1.45"/>
       <path d="${profile.inset}" fill="none" stroke="${edge}" stroke-width="1.65" stroke-opacity=".62"/>
+      <g class="metal-rivets" fill="url(#${bevel})" stroke="${edge}" stroke-width=".6">
+        <circle cx="29" cy="71" r="1.3"/><circle cx="51" cy="71" r="1.3"/>
+      </g>
     </g>
   </svg>`;
 }

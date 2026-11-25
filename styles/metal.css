@@ -1,0 +1,48 @@
+.metal-rivets { display: none; }
+:is([data-metal], [data-metal-board]) {
+  --metal-white-highlight: #fff;
+  --metal-white-face: #e9eff4;
+  --metal-white-shadow: #687788;
+  --metal-black-highlight: #a8b4bf;
+  --metal-black-face: #46505c;
+  --metal-black-shadow: #171e27;
+  --metal-red-highlight: #fff0ed;
+  --metal-red-face: #c77876;
+  --metal-red-shadow: #641b28;
+  --metal-blue-highlight: #effaff;
+  --metal-blue-face: #7497c3;
+  --metal-blue-shadow: #233e63;
+  --metal-yellow-highlight: #fffce9;
+  --metal-yellow-face: #d1ae6d;
+  --metal-yellow-shadow: #73501e;
+  --metal-green-highlight: #f0fff5;
+  --metal-green-face: #6cac8b;
+  --metal-green-shadow: #224638;
+  --steel-brush: repeating-linear-gradient(0deg, transparent 0 3px, #ffffff10 3px 4px);
+}
+:is([data-metal], [data-metal-board]) .metal-rivets { display: inline; }
+[data-metal] :is(.panel, .topbar, .promotion-dialog) {
+  background-image: var(--steel-brush), linear-gradient(150deg, #e7eff420, transparent 48%);
+  box-shadow: inset 0 1px #eaf2ff22, var(--shadow);
+}
+[data-metal] :is(button, nav a) {
+  background-image: linear-gradient(#e7eff420, transparent 56%, #0d11192c);
+  box-shadow: inset 0 1px #eaf2ff22;
+}
+[data-metal] .board-frame {
+  background-image: var(--steel-brush), linear-gradient(145deg, #a2aebc, #343b45 36%, #626e7c 72%, #242b34);
+}
+[data-metal] .board:not(.sample) .square:not(.cutout, .marked), [data-metal-board] .square:not(.cutout, .marked) {
+  background-image: var(--steel-brush), linear-gradient(145deg, #ffffff30, transparent 48%, #202c381d);
+}
+[data-metal] .piece-finish, [data-metal-board] .piece-finish { fill: var(--piece-steel); }
+[data-metal] .sample:not([data-metal-board]) .piece-finish { fill: var(--piece-plastic); }
+[data-metal] .sample:not([data-metal-board]) .metal-rivets { display: none; }
+[data-metal] .sample:not([data-metal-board]) {
+  --metal-white-highlight: initial;
+  --metal-white-face: initial;
+  --metal-white-shadow: initial;
+  --metal-black-highlight: initial;
+  --metal-black-face: initial;
+  --metal-black-shadow: initial;
+}

@@ -1,6 +1,9 @@
 import { createPlasticSample, plasticSampleUrl } from "./plastic-sounds.js";
 
-const key = "exalted-chess-profile-v1";
+const legacyProfileKey = "exalted-chess-profile-v1";
+const tokenKey = "exalted-account-session";
+export const accountStorageKey = name => name + (session.account ? ":" + session.account.id : "");
+const profileKey = () => accountStorageKey(legacyProfileKey);
 const settings = "exalted-chess-audio";
 const listeners = new Set();
 const replays = new Map();
@@ -37,6 +40,7 @@ export function writeSetting(name, value) {
 }
 
 export const session = {
+  account: null,
   catalog: null,
   profile: { chessElo: 1000, fourElo: 1000, league: "Soil", leaguePoints: 0, allTimeCaptures: 0, equippedBoard: "classic" },
   match: null,
@@ -76,7 +80,7 @@ function receive({ kind, data, requestId }, fromWorker = false) {
     return;
   }
   if (kind === "save") {
-    writeSetting(key, JSON.stringify(data));
+    writeSetting(profileKey(), JSON.stringify(data));
     return;
   }
   if (kind === "left") {
@@ -185,7 +189,12 @@ async function request(path, options = {}) {
     ...options,
     headers: { "Content-Type": "application/json", ...(token ? { Authorization: "Bearer " + token } : {}) }
   });
-  if (!response.ok) throw Object.assign(new Error(await response.text()), { status: response.status });
+  if (!response.ok) {
+    const body = await response.text();
+    let message;
+    try { const result = JSON.parse(body); message = result.error ?? (typeof result === "string" ? result : null); } catch {}
+    throw Object.assign(new Error(message || "The service is unavailable. Try again."), { status: response.status });
+  }
   return response.json();
 }
 
@@ -203,15 +212,14 @@ function clearMatch() {
   notify("leave");
 }
 
-async function joinServer() {
-  const previous = token ?? readSetting("exalted-server-token");
-  const data = await request("/join", { method: "POST", body: JSON.stringify({ token: previous }) });
-  token = data.token;
-  writeSetting("exalted-server-token", token);
+function applySession(data) {
+  session.account = data.account;
   session.network = true;
   if (data.catalog) receive({ kind: "catalog", data: data.catalog });
   notify("network");
 }
+
+async function joinServer() { applySession(await request("/join", { method: "POST" })); }
 
 async function poll() {
   let delay = 500;
@@ -252,8 +260,13 @@ async function poll() {
           session.notice = session.match ? "The previous match ended while you were disconnected." : "";
           clearMatch();
         }
-      } catch {
-        // Retry via the next poll while the service is unavailable.
+      } catch (error) {
+        if (error.status === 401) {
+          writeSetting(tokenKey, "");
+          session.match = null;
+          location.reload();
+          return;
+        }
       }
     }
   }
@@ -262,22 +275,54 @@ async function poll() {
 
 export async function connect() {
   server = document.querySelector('meta[name="exalted-server"]')?.content || "";
-  if (server) {
-    try {
-      await joinServer();
-      poll();
-      return;
-    } catch (error) {
-      session.notice = "Online service unavailable. Starting a local session.";
-      notify("error", error);
-      server = "";
+  token = readSetting(tokenKey) || undefined;
+  if (!token) return false;
+  try {
+    await joinServer();
+    poll();
+    return true;
+  } catch (error) {
+    if (error.status === 401) writeSetting(tokenKey, "");
+    token = undefined;
+    session.notice = error.message;
+    return false;
+  }
+}
+
+export async function signIn(mode, credentials) {
+  const body = { ...credentials };
+  if (mode === "signup") body.previousToken = readSetting("exalted-server-token");
+  const result = await request("/" + mode, { method:"POST", body:JSON.stringify(body) });
+  writeSetting(tokenKey, result.token);
+  token = result.token;
+  session.account = result.account;
+  if (mode === "signup") {
+    for (const key of [legacyProfileKey, "exalted-chess-puzzle-progression-v2", "exalted-chess-learn-v1"]) {
+      const existing = readSetting(key);
+      if (existing) {
+        writeSetting(accountStorageKey(key), existing);
+        writeSetting(key, "");
+      }
     }
   }
-  startLocalWorker();
+  applySession(result);
+  poll();
+}
+
+export function accountRequest(path) { return request(path); }
+export async function changeAccount(data) {
+  const result = await request("/account", { method:"POST", body:JSON.stringify(data) });
+  if (data.kind === "username") session.account = result;
+  if (data.kind === "logout") {
+    writeSetting(tokenKey, "");
+    session.match = null;
+    location.reload();
+  }
+  return result;
 }
 
 function savedLocalProfile() {
-  try { return JSON.parse(readSetting(key)); }
+  try { return JSON.parse(readSetting(profileKey())); }
   catch { return null; }
 }
 
@@ -316,6 +361,7 @@ function failLocalWorker() {
 }
 
 export function action(first, second) {
+  if (!session.account) return;
   if ((first === "bot" || first === "fourBot") && !session.invite &&
       (!session.match || session.result)) {
     if (session.match) clearMatch();
@@ -409,7 +455,7 @@ function playFallback(sample) {
 }
 
 export function playSound(name, delay = 0) {
-  const sample = createPlasticSample(name);
+  const sample = createPlasticSample(name, session.profile.equippedBoard === "slate");
   if (!sound) return sample.duration;
   if (audio?.state !== "running") {
     if (!delay) playFallback(sample).catch(() => {});
@@ -478,7 +524,7 @@ export function unlockSound(cue) {
   }
   const resumed = audio?.resume().catch(() => {});
   if (cue) {
-    playFallback(createPlasticSample(cue)).catch(async () => {
+    playFallback(createPlasticSample(cue, session.profile.equippedBoard === "slate")).catch(async () => {
       await resumed;
       if (audio?.state === "running") playSound(cue);
     });

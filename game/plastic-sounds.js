@@ -9,10 +9,18 @@ const surfaces = {
   hollow: [290, 685, 1270, .071, .25],
   muffled: [230, 525, 975, .049, .14]
 };
+const metalSurfaces = {
+  softCap: [1220, 2730, 4710, .038, .21],
+  cap: [1390, 3140, 5290, .053, .30],
+  rim: [970, 2180, 3910, .074, .29],
+  piece: [740, 1690, 3070, .092, .25],
+  hollow: [480, 1150, 2310, .11, .22],
+  muffled: [350, 860, 1730, .065, .16]
+};
 const hit = (at, surface, strength, pitch = 1, pan = 0) => ({ at, surface, strength, pitch, pan });
 const cues = {
-  hover: [hit(0, "softCap", .048, 1.08)],
-  button: [hit(0, "softCap", .221), hit(.033, "softCap", .105, 1.11)],
+  hover: [hit(0, "piece", .058, 1.13)],
+  button: [hit(0, "piece", .16, 1.28), hit(.038, "softCap", .10, .94)],
   lift: [hit(0, "piece", .14, 1.13)],
   queue: [hit(0, "piece", .23, 1.08)],
   release: [hit(0, "cap", .13, .8)],
@@ -45,16 +53,17 @@ function moveHits(name, variant) {
   return [land(0)];
 }
 
-export function createPlasticSample(name) {
+export function createPlasticSample(name, metal = false) {
+  const material = metal ? metalSurfaces : surfaces;
   const variant = cues[name] ? 0 : variation++ % variationCount;
-  const key = name + variant;
+  const key = (metal ? "metal:" : "plastic:") + name + variant;
   if (rendered.has(key)) return rendered.get(key);
   const impacts = cues[name] ?? moveHits(name, variant);
-  const duration = Math.max(...impacts.map(impact => impact.at + surfaces[impact.surface][3]));
+  const duration = Math.max(...impacts.map(impact => impact.at + material[impact.surface][3]));
   const channels = Array.from({ length: 2 }, () => new Float32Array(Math.ceil(duration * sampleRate)));
   let seed = 1327 + variant * 917;
   for (const { at, surface, strength, pitch, pan } of impacts) {
-    const [low, middle, high, length, texture] = surfaces[surface];
+    const [low, middle, high, length, texture] = material[surface];
     const start = Math.round(at * sampleRate);
     const gains = [Math.sqrt(1 - pan), Math.sqrt(1 + pan)];
     let previousNoise = 0;

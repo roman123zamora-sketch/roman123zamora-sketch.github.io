@@ -55,6 +55,7 @@ export function applyEquippedTheme() {
   const theme = getTheme();
   if (theme === appliedTheme) return;
   const root = document.documentElement;
+  root.toggleAttribute("data-metal", theme.id === "slate");
   if (appliedTheme?.ui) {
     for (const name of Object.keys(interfaceColors(appliedTheme))) root.style.removeProperty("--" + name);
   }
