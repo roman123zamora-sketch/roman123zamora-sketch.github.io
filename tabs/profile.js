@@ -166,9 +166,11 @@ export default function profile(content) {
       turn.textContent = names[side] ? `${names[side]} to move` : "";
       evaluation.update(match, { positions, ply });
       bestMove.update(positions[ply].turn ? positions[ply] : undefined, record.v);
-      holder.replaceChildren(board(getTheme(), record.v === "four", false, {
+      const frame = board(getTheme(), record.v === "four", false, {
+        frame: holder.firstElementChild,
         state: { ...positions[ply], lastMove: positions[ply].lastMove ?? (ply ? { from: moves[ply - 1].f, to: moves[ply - 1].t } : undefined) }, side: record.side, bestMove: bestMove.move
-      }));
+      });
+      if (frame !== holder.firstElementChild) holder.replaceChildren(frame);
       output.textContent = `Move ${ply} of ${positions.length - 1}`;
       drawMoveList(list, moves, ply);
       buttons[0].disabled = ply === 0;

@@ -139,24 +139,20 @@ export default function puzzles(content) {
     const hintMove = active?.hint && active.puzzle.steps[active.step].move;
     const focused = slot.contains(document.activeElement) ? document.activeElement.dataset.square : null;
     const theme = getTheme();
+    const draggable = canMove() ? new Set(Object.values(active.puzzle.steps[active.step].legal ?? {})
+      .filter(move => position.board[move.from]?.[0] === puzzle.side).map(move => move.from)) : null;
     const nextFrame = board(theme, false, false, {
       frame: slot.firstElementChild,
       state: position ?? { board: {} },
       side: puzzle?.side,
       selected,
       targets: selected && active ? legalFrom(selected) : [],
-      select: canMove() ? select : undefined,
+      select: draggable ? select : undefined,
+      canDrag: draggable ? square => draggable.has(square) : undefined,
+      wrong,
       marks: hintMove ? new Set(active.hint === 1 ? [hintMove.from] : [hintMove.from, hintMove.to]) : undefined
     });
     if (nextFrame !== slot.firstElementChild) slot.replaceChildren(nextFrame);
-    if (wrong) slot.querySelector(`[aria-label^="${wrong},"]`)?.classList.add("puzzle-wrong");
-    if (canMove()) {
-      for (const cell of slot.querySelectorAll("[data-square]")) {
-        if (position.board[cell.dataset.square]?.[0] === puzzle.side && legalFrom(cell.dataset.square).length) {
-          cell.classList.add("drag-enabled");
-        }
-      }
-    }
     if (focused) slot.querySelector(`[data-square="${focused}"]`)?.focus({ preventScroll: true });
 
     for (const entry of content.querySelectorAll("[data-rating]")) {

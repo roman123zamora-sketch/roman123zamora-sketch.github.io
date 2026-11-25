@@ -159,15 +159,10 @@ export default function learn(content) {
         : [];
       const next = board(getTheme(), false, false, {
         frame: slot.firstElementChild, state, side, targets: moves,
-        select: canMove ? select : undefined
+        select: canMove ? select : undefined,
+        canDrag: canMove && (lesson.setup.line || lesson.promotion) ? square => state.board[square]?.[0] === state.turn : undefined
       });
       if (next !== slot.firstElementChild) slot.replaceChildren(next);
-      for (const square of slot.querySelectorAll(".square")) {
-        const name = square.dataset.square;
-        if (canMove && (lesson.setup.line || lesson.promotion) && state.board[name]?.[0] === state.turn) {
-          square.classList.add("drag-enabled");
-        }
-      }
       const ending = !solved && ["Checkmate", "Stalemate", "Neither"].includes(lesson.answer) ? null : { checkmate: "Checkmate", stalemate: "Stalemate", draw: "Draw", check: "Check" }[state.status];
       $("[data-turn]").textContent = lesson.setup.board && !Object.keys(lesson.setup.board).length
         ? `${side === "w" ? "White" : "Black"}’s view`

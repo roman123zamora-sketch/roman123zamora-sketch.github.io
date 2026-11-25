@@ -76,7 +76,7 @@ export function renderMatch(content, { title, fourPlayer }) {
       </aside>
       <section class="board-area${fourPlayer ? "" : " aligned-board-area"}" aria-label="${title} board">
         <p class="match-review-turn board-turn-label" role="status" hidden></p>
-        <button class="quick-play primary" type="button" data-action="start">Play a bot game</button>
+        <button class="quick-play primary" type="button" data-action="setup">Set up bots</button>
         <div class="board-and-eval">
           <div class="bot-eval" hidden aria-label="Engine estimate, in pawns" title="Engine estimate, in pawns">
             <div class="eval-meter" aria-hidden="true"><div class="eval-white"></div></div>
@@ -118,7 +118,7 @@ export function renderMatch(content, { title, fourPlayer }) {
       <h2 id="match-result-title"></h2>
       <p></p>
       <div class="action-row">
-        <button type="button" data-action="rematch">Rematch</button>
+        <button type="button" class="primary" data-action="rematch">Rematch</button>
         <button type="button" data-action="newOpponent">New Game</button>
         <button type="button" data-action="review">Review</button>
       </div>
@@ -403,25 +403,18 @@ export function renderMatch(content, { title, fourPlayer }) {
       reviewAnalysis.textContent = Math.abs(change) < .05 ? "Little change in the engine estimate." :
         `${change > 0 ? "White" : "Black"} gained about ${Math.abs(change).toFixed(1)} pawns of advantage on this move.`;
     }, historyPly === null ? null : { state: historical });
+    const canDrag = !review && boardAcceptsInput();
     const nextFrame = board(getTheme(), fourPlayer, false, {
       frame: slot.firstElementChild,
       state: review?.positions[review.ply] ?? historical ?? data?.state, side: data?.side,
       selected: browsing ? undefined : selected, targets: !browsing && selected ? currentTargets() : [],
       preview: browsing ? undefined : preview.destinations || submitted ? preview : undefined,
       bestMove: review ? bestMove.move : browsing ? undefined : hint.move,
+      canDrag: canDrag ? square => preview.board?.[square]?.[0] === data?.side : undefined, dragSource,
       select: active() && !browsing ? select : undefined, marks: browsing ? undefined : marks,
       mark: address => { if (marks.has(address)) marks.delete(address); else marks.add(address); }
     });
     if (nextFrame !== slot.firstElementChild) slot.replaceChildren(nextFrame);
-    for (const square of slot.querySelectorAll("[data-square]")) {
-      square.classList.toggle("drag-source", square.dataset.square === dragSource);
-      if (!review && boardAcceptsInput() && preview.board?.[square.dataset.square]?.[0] === data?.side) {
-        const piece = square.querySelector(".chess-piece");
-        if (piece) {
-          square.classList.add("drag-enabled");
-        }
-      }
-    }
     if (origin) {
       const destination = slot.querySelector(`[data-square="${move.to}"]`);
       const piece = destination?.querySelector(".chess-piece");
@@ -675,10 +668,10 @@ export function renderMatch(content, { title, fourPlayer }) {
     const data = match();
     const waiting = lobby();
     const otherMatch = (session.match && !data && !session.result) || (session.invite && !waiting);
-    quickPlay.hidden = !!(otherMatch || active() || result() || session.invite || creatingInvite || queued || session.queue);
+    quickPlay.hidden = !!(setup || otherMatch || active() || result() || session.invite || creatingInvite || queued || session.queue);
     quickPlay.disabled = starting;
     quickPlay.setAttribute("aria-busy", String(starting));
-    quickPlay.textContent = starting ? "Starting…" : "Play a bot game";
+
     const ratings = fourPlayer ? ["B", "Y", "G"] : ["w"];
     const selector = ratings.map(side => `
       <label class="rating-choice">${side === "w" ? "Bot rating" : sides[side] + " bot rating"}
@@ -921,7 +914,7 @@ export function renderMatch(content, { title, fourPlayer }) {
     },
     end() {
       dragSource = null;
-      slot.querySelector(".drag-source")?.classList.remove("drag-source");
+      drawBoard();
     },
     drop: (from, to) => chooseDestination(from, to, true)
   });
