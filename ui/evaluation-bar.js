@@ -11,7 +11,7 @@ export function createEvaluationBar(element) {
   let matchId;
   let revision;
   let generation = 0;
-  let scores = new Map();
+  let scores = new WeakMap();
 
   function analyze(state) {
     const { board, turn, halfmove, fullmove, analysis } = state;
@@ -34,8 +34,8 @@ export function createEvaluationBar(element) {
   }
 
   return {
-    update(match, review, onChange) {
-      const state = review?.positions[review.ply] ?? match?.state;
+    update(match, review, onChange, history = null) {
+      const state = history ? history.state : review?.positions[review.ply] ?? match?.state;
       const eligible = Boolean(state?.analysis && match.variant === "chess" && (review || match.mode === "bot"));
       element.hidden = !eligible;
       if (!eligible) {
@@ -44,29 +44,29 @@ export function createEvaluationBar(element) {
         generation++;
         tools?.close();
         tools = undefined;
-        scores.clear();
+        scores = new WeakMap();
         return;
       }
-      const key = review ? `review:${review.ply}` : match.revision;
+      const key = history ? state : review ? `review:${review.ply}` : match.revision;
       if (match.matchId === matchId && key === revision) return;
-      if (match.matchId !== matchId) scores.clear();
-      if (review || match.matchId !== matchId) display(null);
+      if (match.matchId !== matchId) scores = new WeakMap();
+      if (history || review || typeof revision === "object" || match.matchId !== matchId) display(null);
       matchId = match.matchId;
       revision = key;
       element.toggleAttribute("data-flipped", match.side === "b");
       meter.classList.toggle("white-on-top", match.side === "b");
       const current = ++generation;
-      async function getScore(frame, frameKey) {
-        if (review && scores.has(frameKey)) return scores.get(frameKey);
+      async function getScore(frame) {
+        if (scores.has(frame.board)) return scores.get(frame.board);
         const score = await analyze(frame);
-        if (review && generation === current) scores.set(frameKey, score);
+        if (generation === current) scores.set(frame.board, score);
         return score;
       }
-      getScore(state, key).then(async score => {
+      getScore(state).then(async score => {
         if (generation !== current) return;
         display(score);
         if (!onChange || !review?.ply) return;
-        const previous = await getScore(review.positions[review.ply - 1], `review:${review.ply - 1}`);
+        const previous = await getScore(review.positions[review.ply - 1]);
         if (generation === current) onChange(score, previous);
       }).catch(() => {
         if (generation !== current) return;

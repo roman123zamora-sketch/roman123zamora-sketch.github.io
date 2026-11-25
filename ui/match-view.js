@@ -22,8 +22,8 @@ const captureOrder = "KQRBNP";
 const botLevels = [...Array.from({ length: 15 }, (_, index) => 200 * (index + 1)), "Max"];
 const preferences = { control: "3 | 0", w: 1000, B: 800, Y: 1000, G: 1200 };
 
-function boardFrame({ board, turn, lastMove, status, checkedColors, eliminated }) {
-  return { board, turn, lastMove, status, checkedColors, eliminated };
+function boardFrame({ board, turn, lastMove, status, checkedColors, eliminated, halfmove, fullmove, analysis }) {
+  return { board, turn, lastMove, status, checkedColors, eliminated, halfmove, fullmove, analysis };
 }
 
 export function renderMatch(content, { title, fourPlayer }) {
@@ -402,7 +402,7 @@ export function renderMatch(content, { title, fourPlayer }) {
       const change = (score.value - previous.value) / 100;
       reviewAnalysis.textContent = Math.abs(change) < .05 ? "Little change in the engine estimate." :
         `${change > 0 ? "White" : "Black"} gained about ${Math.abs(change).toFixed(1)} pawns of advantage on this move.`;
-    });
+    }, historyPly === null ? null : { state: historical });
     const nextFrame = board(getTheme(), fourPlayer, false, {
       frame: slot.firstElementChild,
       state: review?.positions[review.ply] ?? historical ?? data?.state, side: data?.side,
