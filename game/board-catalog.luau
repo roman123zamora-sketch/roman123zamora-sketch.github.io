@@ -6,7 +6,7 @@ local function rgb(r,g,b) return Color3.fromRGB(r,g,b) end
 ThemeLibrary.themes={
 	{id="classic",name="Blue",
 		board={light=rgb(236,246,255),dark=rgb(127,165,204),frame=rgb(50,78,112),stroke=rgb(73,107,144)}},
-	{id="forest",name="Green",
+	{id="forest",name="Nature",
 		board={light=rgb(232,229,215),dark=rgb(125,139,112),frame=rgb(10,26,16),stroke=rgb(40,100,60)},
 		ui={bg=rgb(9,20,13),top=rgb(13,30,19),panel=rgb(18,44,27),panel2=rgb(14,35,22),muted=rgb(150,190,162),blue=rgb(80,180,110),blueDark=rgb(38,104,62),teal=rgb(28,72,45),green=rgb(90,200,125),gold=rgb(210,190,100)}},
 	{id="walnut",name="Walnut",

@@ -1,0 +1,47 @@
+.nature-piece { display: none; }
+
+[data-nature] .chess-piece, [data-nature-board] .chess-piece {
+  --root-light: #866042;
+  --root-mid: #4e3728;
+  --root-dark: #2c2018;
+  --root-edge: #2a2117;
+  --root-grain: #322417;
+  --root-ridge: #bd9167;
+  --root-shoot: #88b56d;
+  --root-vine: #54734a;
+}
+:is([data-nature], [data-nature-board]) [data-piece-side="white"] {
+  --root-light: #fff0c9;
+  --root-mid: #dbb987;
+  --root-dark: #9b7349;
+  --root-edge: #725336;
+  --root-grain: #99683d;
+  --root-ridge: #fff0c9;
+  --root-shoot: #638a47;
+  --root-vine: #567a44;
+}
+:is([data-nature], [data-nature-board]) [data-piece-side="red"] { --root-shoot: #ef8e78; --root-mid: #733d2b; }
+:is([data-nature], [data-nature-board]) [data-piece-side="blue"] { --root-shoot: #85b8ed; --root-mid: #404c58; }
+:is([data-nature], [data-nature-board]) [data-piece-side="yellow"] { --root-shoot: #edcf6d; --root-mid: #8a682d; --root-light: #e2b66a; }
+:is([data-nature], [data-nature-board]) [data-piece-side="green"] { --root-shoot: #b3d878; --root-mid: #445539; }
+[data-nature] .nature-piece, [data-nature-board] .nature-piece { display: inline; }
+[data-nature] .piece-finish, [data-nature-board] .piece-finish { display: none; }
+[data-nature] .sample:not([data-nature-board]) .nature-piece { display: none; }
+[data-nature] .sample:not([data-nature-board]) .piece-finish { display: inline; }
+.bark-furrow { stroke: var(--root-grain); }
+.bark-ridge { stroke: var(--root-ridge); }
+.growing-vine { stroke: var(--root-vine); }
+.new-growth { fill: var(--root-shoot); }
+[data-nature] .board-frame:has(> .board:not(.sample)) {
+  background: url("../assets/nature-vines.svg") left top / 4rem no-repeat,
+    repeating-linear-gradient(124deg, #513b27 0 5px, #60452a 6px 9px, #36291d 10px 12px);
+  border-color: #967448;
+}
+[data-nature] :is(.panel, .promotion-dialog) {
+  background: url("../assets/nature-vines.svg") top right / 5rem no-repeat,
+    linear-gradient(155deg, var(--panel-gloss), var(--surface) 8rem);
+}
+[data-nature] nav a[aria-current], [data-nature] .primary {
+  border-color: #9eb476;
+  background-image: linear-gradient(155deg, #abbf7836, #44371a28);
+}

@@ -409,7 +409,7 @@ function playFallback(sample) {
 }
 
 export function playSound(name, delay = 0) {
-  const sample = createPlasticSample(name);
+  const sample = createPlasticSample(name, session.profile.equippedBoard === "slate");
   if (!sound) return sample.duration;
   if (audio?.state !== "running") {
     if (!delay) playFallback(sample).catch(() => {});
@@ -478,7 +478,7 @@ export function unlockSound(cue) {
   }
   const resumed = audio?.resume().catch(() => {});
   if (cue) {
-    playFallback(createPlasticSample(cue)).catch(async () => {
+    playFallback(createPlasticSample(cue, session.profile.equippedBoard === "slate")).catch(async () => {
       await resumed;
       if (audio?.state === "running") playSound(cue);
     });
