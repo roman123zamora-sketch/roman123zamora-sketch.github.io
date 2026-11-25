@@ -9,6 +9,8 @@ import { createChessPiece, pieceName } from "./chess-pieces.js";
 import { premoveIntent, projectPremoves } from "../game/premove-preview.js";
 import { action, playSound, serverNow, session, subscribe, unlockSound } from "../game/session.js";
 
+const displayedResults = new WeakSet();
+
 const offlineNotice = "Online play requires a connected match server. This site currently supports bot games.";
 
 const timeGroups = [
@@ -475,7 +477,8 @@ export function renderMatch(content, { title, fourPlayer }) {
 
   function drawResult() {
     const outcome = result();
-    if (!outcome || outcome.final === false || outcome.result === "aborted" || shownResult === outcome.matchId) return;
+    if (!outcome || outcome.final === false || outcome.result === "aborted" || shownResult === outcome.matchId || displayedResults.has(outcome)) return;
+    displayedResults.add(outcome);
     shownResult = outcome.matchId;
     const labels = { win: "Victory", loss: "Loss", draw: outcome.reason === "Stalemate" ? "Stalemate" : "Draw" };
     const title = outcome.placements?.[match().side] === 4 ? "Loss" : labels[outcome.result];

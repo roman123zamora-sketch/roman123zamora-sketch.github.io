@@ -22,9 +22,11 @@
 }
 :is([data-metal], [data-metal-board]) .metal-rivets { display: inline; }
 [data-metal] :is(.panel, .topbar, .promotion-dialog) {
+  background-color: var(--surface);
   background-image: var(--steel-brush), linear-gradient(150deg, #e7eff420, transparent 48%);
   box-shadow: inset 0 1px #eaf2ff22, var(--shadow);
 }
+[data-metal] .topbar { background-color: var(--header); }
 [data-metal] :is(button, nav a) {
   background-image: linear-gradient(#e7eff420, transparent 56%, #0d11192c);
   box-shadow: inset 0 1px #eaf2ff22;
