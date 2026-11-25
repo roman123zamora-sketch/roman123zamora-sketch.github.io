@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 840">
+  <defs>
+    <linearGradient id="air" x2="0" y2="1"><stop stop-color="#628175"/><stop offset="1" stop-color="#172f27"/></linearGradient>
+    <linearGradient id="ground" x2="0" y2="1"><stop stop-color="#375941"/><stop offset="1" stop-color="#102a20"/></linearGradient>
+    <linearGradient id="root" x2=".55" y2="1"><stop stop-color="#81694b"/><stop offset=".33" stop-color="#584533"/><stop offset="1" stop-color="#252e24"/></linearGradient>
+    <radialGradient id="haze"><stop stop-color="#b8d2a2" stop-opacity=".65"/><stop offset="1" stop-color="#b8d2a2" stop-opacity="0"/></radialGradient>
+    <g id="fern">
+      <path fill="currentColor" stroke="#243b2b" stroke-width=".7" d="M4-14Q-27-12-38-30-14-31 3-19-20-25-29-46-8-46 2-32-18-40-21-61-6-57 2-45-10-54-7-72 3-62 5-56 4-70 12-81 16-69 10-54 22-65 33-63 28-46 9-43 26-52 41-46 34-29 7-29 29-36 45-28 36-15 6-16 25-21 37-13 25-4 5-7Z"/>
+      <path d="M0 4Q6-28 5-47t7-30M5-13l-28-11m28 6 26-7M5-27l-22-12m23 6 21-9M6-47l-13-10m13 6 17-8" fill="none" stroke="#c1d49a" stroke-opacity=".45" stroke-width="1.2" stroke-linecap="round"/>
+    </g>
+    <g id="ivy-leaf">
+      <path d="M0 0Q-3-10-13-12q2-6 11-8L4-31l8 12q10-1 13 5Q9-11 0 0Z" fill="currentColor" stroke="#243b2b" stroke-width="1"/>
+      <path d="M0 0 5-25m-2 12-9-3m10 2 13-2" fill="none" stroke="#b2c88e" stroke-opacity=".52" stroke-width="1"/>
+    </g>
+  </defs>
+  <path fill="url(#air)" d="M0 0h1200v840H0Z"/>
+  <path fill="#6d897a" d="M0 455 22 0h17L39 467 117 484l26-484h12l-3 482 81 14 7-496h21l-3 496 96 16L365 0h17l-7 516 389 7L749 0h13l31 515 140-22 17-493h16l-6 482 79-7-5-475h26l7 474 107 16L1169 0h21l10 507v147H0Z"/>
+  <ellipse cx="1026" cy="353" rx="285" ry="247" fill="url(#haze)"/>
+  <path fill="url(#ground)" d="M0 530q192-120 388-42t321 17q202-100 491-20v355H0Z"/>
+  <path fill="#58755a" d="M1018 510q-125 90-217 103t-184 42q194-8 283-57t169-93Z"/>
+  <path fill="#203a2b" d="M0 696q63-59 197-81 82 2 133 107l-98 118H0Zm1200-116q-152 38-239 170l-36 90h275Z"/>
+  <path fill="url(#root)" d="M0 0h129Q64 160 88 327t19 226Q91 646 212 711l122 129H0Z"/>
+  <path fill="none" stroke="#ad9371" stroke-width="3" opacity=".6" d="M94 50Q50 170 65 305t17 202Q42 591 134 685m-97-60q35 71 119 110l56 56"/>
+  <path fill="none" stroke="#6f9562" stroke-width="7" stroke-linecap="round" d="M21 762q72-93 123-49 27 27 13 45-9 12-23 3m-87-18q-18-47-15-74"/>
+  <path fill="#91ab72" d="M37 708q-24-4-22-27 21 5 22 27m25 25q8-31 30-24-5 19-30 24m62-30q-1-29 19-32 5 17-19 32m28 19q25-19 37-1-16 11-37 1"/>
+  <path d="M33 782q24-20 45-15t35-26q12-30 39-30m-106 8q-4-25-23-43m116 59q18-11 37-7" fill="none" stroke="#1e2e22" stroke-width="7" stroke-linecap="round"/>
+  <path d="M33 779q24-20 45-15t35-26q12-30 39-30m-106 8q-4-25-23-43m116 59q18-11 37-7" fill="none" stroke="#809c67" stroke-width="2.5" stroke-linecap="round"/>
+  <use href="#ivy-leaf" transform="translate(49 769) rotate(-44) scale(.8)" color="#71955f"/>
+  <use href="#ivy-leaf" transform="translate(101 752) rotate(36)" color="#648655"/>
+  <use href="#ivy-leaf" transform="translate(119 735) rotate(-36) scale(.86)" color="#8ea66d"/>
+  <use href="#ivy-leaf" transform="translate(156 730) rotate(68) scale(.76)" color="#759260"/>
+  <use href="#fern" transform="translate(35 829) rotate(-33) scale(1.36)" color="#547d59"/>
+  <use href="#fern" transform="translate(56 831) rotate(40) scale(1.05)" color="#759961"/>
+  <use href="#fern" transform="translate(166 848) rotate(32) scale(1.1)" color="#416c53"/>
+  <path fill="#485a46" d="M959 790 986 742l82-16 34 35-39 61Z"/><path fill="#6b8260" d="m986 742 82-16 34 35-88 19Z"/>
+  <path d="m988 763 43 5 35-10m-56 29 32 5 21-9" fill="none" stroke="#233c32" stroke-opacity=".65" stroke-width="2"/>
+  <use href="#fern" transform="translate(1105 816) rotate(-28) scale(1.18)" color="#4f7858"/>
+  <use href="#fern" transform="translate(1112 827) rotate(42)" color="#71915f"/>
+</svg>

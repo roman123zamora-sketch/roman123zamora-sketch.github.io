@@ -1,5 +1,5 @@
 :root { --edition-scene: url("../assets/edition-blue.svg"); }
-[data-nature] { --edition-scene: url("../assets/edition-nature.webp"); }
+[data-nature] { --edition-scene: url("../assets/edition-nature.svg"); }
 [data-metal] { --edition-scene: url("../assets/edition-metal.svg"); }
 
 html body {
@@ -13,10 +13,5 @@ html body {
     /* Bring the foreground into view before the stacked panels cover it. */
     background: linear-gradient(var(--navy) 1%, transparent 31%, #0002 58%, var(--navy) 77%) fixed,
       var(--edition-scene) left top / auto 77svh fixed no-repeat, var(--navy);
-  }
-
-  html:is([data-nature], [data-edition="ocean-reef"]) body {
-    background: linear-gradient(var(--navy), transparent 26%, #0003 64%, var(--navy)) fixed,
-      var(--edition-scene) 3% 50% / cover fixed no-repeat, var(--navy);
   }
 }
