@@ -79,7 +79,7 @@
 }
 .captures { grid-column: 1 / -1; display: flex; align-items: center; flex-wrap: wrap; gap: .15rem; }
 .captures .chess-piece { inline-size: 1.05rem; }
-.capture-score { margin-inline-start: auto; color: var(--muted); font-size: .75rem; }
+.capture-score { margin-inline-start: .25rem; color: var(--ice); font-size: .78rem; font-weight: 750; font-variant-numeric: tabular-nums; }
 .move-list { min-block-size: 3rem; max-block-size: 17rem; overflow: auto; margin: 0; padding-inline-start: 1.9rem; font-size: .85rem; }
 .move-list li { padding-block: .15rem; }
 .empty-moves { list-style: none; margin-inline-start: -1.1rem; color: var(--muted); }

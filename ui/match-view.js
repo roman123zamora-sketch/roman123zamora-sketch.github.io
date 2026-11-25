@@ -527,6 +527,15 @@ export function renderMatch(content, { title, fourPlayer }) {
     const list = content.querySelector(".players");
     const timed = Boolean(data?.clocks || lobby());
     const history = Object.values(data?.state.history ?? {});
+    const totals = Object.fromEntries(colors.map(side => [side, 0]));
+    if (fourPlayer) Object.assign(totals, data?.state.scores);
+    else {
+      for (const [side, type] of Object.values(data?.state.board ?? {})) {
+        if (type !== "K") totals[side] += captureValue[type];
+      }
+    }
+    const [leader, second] = colors.slice().sort((a, b) => totals[b] - totals[a]);
+    const lead = totals[leader] - totals[second];
     const value = move => move.captureValue ?? (move.grey ? 0 : captureValue[move.captured[1]] ?? 0);
     list.replaceChildren();
     for (const side of colors) {
@@ -547,7 +556,8 @@ export function renderMatch(content, { title, fourPlayer }) {
       const captured = history.filter(move => move.color === side && move.captured)
         .sort((first, second) => value(second) - value(first) ||
           captureOrder.indexOf(first.captured[1]) - captureOrder.indexOf(second.captured[1]));
-      if (captured.length) {
+      const leads = side === leader && lead > 0;
+      if (captured.length || leads) {
         const pieces = document.createElement("span");
         pieces.className = "captures";
         const descriptions = captured.map(move => {
@@ -561,13 +571,19 @@ export function renderMatch(content, { title, fourPlayer }) {
           return description;
         });
         pieces.setAttribute("role", "group");
-        pieces.setAttribute("aria-label", `Captured pieces. ${descriptions.join("; ")}`);
-        if (fourPlayer) {
+        if (leads) {
           const score = document.createElement("span");
           score.className = "capture-score";
-          score.textContent = `${data.state.scores?.[side] ?? 0} pts`;
+          score.textContent = `+${lead}`;
+          const unit = lead === 1 ? "point" : "points";
+          const description = fourPlayer
+            ? `${lead} capture ${unit} ahead of second place`
+            : `${lead} material ${unit} ahead`;
+          score.title = description;
+          descriptions.push(description);
           pieces.append(score);
         }
+        pieces.setAttribute("aria-label", descriptions.join(". "));
         item.append(pieces);
       }
       list.append(item);
