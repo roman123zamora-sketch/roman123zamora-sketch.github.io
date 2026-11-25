@@ -1,5 +1,7 @@
 :root {
   --board-padding: clamp(.2rem, .5vw, .4rem);
+  --move-cue-ink: #16334e;
+  --move-cue-rim: #eff7ff;
 }
 
 .board-area, .board-slot { display: grid; min-inline-size: 0; justify-items: center; }
@@ -65,7 +67,10 @@
 }
 
 button.square { padding: 0; border: 0; border-radius: 0; }
-button.square:focus-visible { z-index: 2; outline: 2px solid var(--square-focus); outline-offset: -3px; }
+button.square:focus-visible { z-index: 2; outline: 2px solid var(--move-cue-ink); outline-offset: -3px; }
+button.square:focus-visible:not(.selected, .checked, .premove-trail) {
+  box-shadow: inset 0 0 0 4px var(--move-cue-rim);
+}
 .square.selected { box-shadow: inset 0 0 0 2px #15334f, inset 0 0 0 4px #eaf4ff; }
 .square.last-move { background-color: color-mix(in srgb, var(--light) 65%, #eac46d); }
 .square.dark.last-move { background-color: color-mix(in srgb, var(--dark) 56%, #eac46d); }
@@ -74,12 +79,12 @@ button.square:focus-visible { z-index: 2; outline: 2px solid var(--square-focus)
   position: absolute;
   inset: 36%;
   border-radius: 50%;
-  background: #16334e;
-  box-shadow: 0 0 0 1px #eff7ff;
+  background: var(--move-cue-ink);
+  box-shadow: 0 0 0 1px var(--move-cue-rim);
   pointer-events: none;
 }
-.square.target > .capture-marker { inset: 5%; z-index: 1; border: 2px solid #16334e; background: transparent;
-  box-shadow: 0 0 0 1px #eff7ff, inset 0 0 0 1px #eff7ff9e; }
+.square.target > .capture-marker { inset: 5%; z-index: 1; border: 2px solid var(--move-cue-ink); background: transparent;
+  box-shadow: 0 0 0 1px var(--move-cue-rim), inset 0 0 0 1px #eff7ff9e; }
 @media (hover: hover) {
   button.square:hover { box-shadow: inset 0 0 0 2px var(--square-hover); }
   button.square.selected:hover { box-shadow: inset 0 0 0 2px #15334f, inset 0 0 0 4px #eaf4ff; }

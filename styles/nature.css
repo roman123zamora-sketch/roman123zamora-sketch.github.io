@@ -49,25 +49,14 @@
 .bark-grain { stroke: var(--root-grain); opacity: .76; }
 .vine-light { stroke: var(--root-shoot); opacity: .8; }
 
-[data-nature] :is(.panel, .promotion-dialog, .topbar) {
-  background-color: var(--surface);
-  background-image: url("../assets/nature-vines.svg"),
-    linear-gradient(155deg, #80996818, transparent 10rem);
-  background-repeat: no-repeat;
-  background-position: left top;
-  background-size: 4.6rem, auto;
-  box-shadow: inset 0 1px #b7c49338, inset 0 -2px #0b1f16, var(--shadow);
-}
-
-[data-nature] :is(.panel, .promotion-dialog) {
-  /* Leave the heading clear of the vine. */
-  background-position: right top, left top;
-  background-size: clamp(2.8rem, 6vw, 4.6rem), auto;
-}
-
-[data-nature] .topbar { background-color: var(--header); }
-
-[data-nature] :is(.primary, nav a[aria-current]) {
-  border-color: #9eb476;
-  box-shadow: inset 0 1px #d0e2a44d, inset 0 -2px #303c24;
+[data-nature] {
+  --material-edge: #c5d9a64a;
+  --control-face: linear-gradient(160deg, #b4c69229, #2a442624 55%, #101e1740);
+  --panel-material: url("../assets/nature-vines.svg"), linear-gradient(155deg, #80996818, transparent 10rem);
+  --panel-material-position: right top, left top;
+  --panel-material-size: clamp(2.8rem, 6vw, 4.6rem), auto;
+  --panel-material-repeat: no-repeat;
+  --header-material: var(--panel-material);
+  --header-material-size: 4.6rem, auto;
+  --header-material-repeat: no-repeat;
 }

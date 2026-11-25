@@ -40,6 +40,19 @@
   --dialog-border: #5b82aa;
   --dialog-backdrop: #040c1bc7;
   --collection-equipped: #193f66;
+  --control-size: 2.75rem;
+  --control-face: linear-gradient(165deg, var(--material-edge), transparent 68%);
+  --control-bevel: inset 0 1px var(--material-edge), inset 0 -2px #0004;
+  --control-selected: inset 0 -3px var(--focus);
+  --material-edge: #e5f2ff24;
+  --panel-material: linear-gradient(165deg, var(--panel-gloss), var(--surface) 8rem);
+  --header-material: none;
+  --panel-material-position: left top;
+  --panel-material-size: auto;
+  --panel-material-repeat: repeat;
+  --header-material-size: auto;
+  --header-material-repeat: repeat;
+  --panel-rim: inset 0 1px var(--material-edge), inset 0 -1px #0006;
   --radius: .65rem;
   --panel-radius: 1rem;
   --space: clamp(.75rem, 2vw, 1.75rem);
@@ -63,12 +76,14 @@ h2 { color: var(--muted); font-size: .78rem; font-weight: 750; letter-spacing: .
 dt, .help { color: var(--muted); }
 dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
 
-:where(button:not(.square), select, nav a) {
-  min-block-size: 2.75rem;
+:where(button:not(.square), select, nav a, input:is([type="text"], [type="search"], [type="password"], [type="email"], [type="url"])) {
+  min-block-size: var(--control-size);
   padding: .5rem .75rem;
   border: 1px solid var(--stroke);
   border-radius: var(--radius);
-  background: var(--button);
+  background-color: var(--button);
+  background-image: var(--control-face);
+  box-shadow: var(--control-bevel);
   color: var(--text);
   font: inherit;
   font-size: .875rem;
@@ -76,26 +91,44 @@ dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
   line-height: 1.25;
   transition: background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
 }
+:where(input:is([type="text"], [type="search"], [type="password"], [type="email"], [type="url"])) {
+  min-inline-size: 0;
+  background: var(--recess);
+  box-shadow: inset 0 1px 3px #0004;
+}
 :where(button, select, input) { touch-action: manipulation; }
 :where(button, select) { cursor: pointer; }
-:where(button:not(.square)[aria-pressed="true"], nav a[aria-current]) {
-  background: var(--button-pressed);
+:where(button:not(.square), nav a):is([aria-pressed="true"], [aria-current], [aria-selected="true"]) {
+  background-color: var(--button-pressed);
   border-color: var(--active-border);
+  box-shadow: var(--control-selected), var(--control-bevel);
   color: #fff;
 }
-:where(button:not(.square):active:not(:disabled), nav a:active) { box-shadow: inset 0 0 0 2px var(--press-ring); }
-:where(button:disabled) {
+button.primary:not(:disabled, [aria-disabled="true"]) {
+  background-color: color-mix(in srgb, var(--accent) 83%, var(--ice));
+  border-color: var(--control-border);
+  color: white;
+}
+@media (hover: hover) {
+  :where(button:not(.square), select, nav a):not(:disabled, [aria-disabled="true"]):hover {
+    background-color: var(--button-hover);
+    border-color: var(--hover-border);
+  }
+  button.primary:not(:disabled, [aria-disabled="true"]):hover {
+    background-color: color-mix(in srgb, var(--accent-hover) 78%, var(--ice));
+  }
+}
+:where(button:not(.square), nav a):not(:disabled, [aria-disabled="true"]):active {
+  box-shadow: inset 0 2px 4px #0007, inset 0 0 0 2px var(--press-ring);
+}
+:where(button:not(.square), select):is(:disabled, [aria-disabled="true"]) {
   cursor: default;
-  background: var(--recess);
+  background-color: var(--recess);
+  background-image: none;
+  box-shadow: none;
   color: var(--disabled-text);
 }
 :where(button[aria-busy="true"]) { cursor: progress; }
-@media (hover: hover) {
-  :where(button:not(.square):not(:disabled), select, nav a):hover {
-    background: var(--button-hover);
-    border-color: var(--hover-border);
-  }
-}
 
 .topbar {
   display: grid;
@@ -103,7 +136,10 @@ dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
   align-items: center;
   gap: .625rem 1.25rem;
   padding: .75rem max(var(--space), calc((100vw - 98rem) / 2));
-  background: var(--header);
+  background-color: var(--header);
+  background-image: var(--header-material);
+  background-size: var(--header-material-size);
+  background-repeat: var(--header-material-repeat);
   border-bottom: 1px solid var(--stroke);
 }
 .brand {
@@ -125,8 +161,7 @@ dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
 }
 nav { display: flex; justify-content: center; flex-wrap: wrap; gap: .35rem; }
 nav a { display: grid; place-items: center; padding-inline: clamp(.55rem, 1.25vw, 1rem); text-decoration: none; text-align: center; }
-nav a[aria-current] { box-shadow: inset 0 -3px var(--focus); }
-nav a:not([aria-current]):not(:hover) { border-color: transparent; background: transparent; }
+nav a:not([aria-current]):not(:hover) { border-color: transparent; background: transparent; box-shadow: none; }
 nav a[aria-current]:hover { border-color: var(--active-border); }
 .skip-link {
   position: fixed;
@@ -140,10 +175,6 @@ nav a[aria-current]:hover { border-color: var(--active-border); }
 .skip-link:focus { transform: none; }
 main:focus { outline: none; }
 
-button.primary:not(:disabled) { background: var(--accent); border-color: var(--control-border); }
-@media (hover: hover) {
-  button.primary:hover:not(:disabled) { background: var(--accent-hover); }
-}
 .empty-state {
   padding: clamp(1rem, 2.5vw, 1.5rem);
   border: 1px dashed var(--stroke);
@@ -159,8 +190,12 @@ main { width: min(100%, 100rem); margin-inline: auto; padding: var(--space); }
   padding: clamp(.85rem, 1.6vw, 1.4rem);
   border: 1px solid var(--stroke);
   border-radius: var(--panel-radius);
-  background: linear-gradient(165deg, var(--panel-gloss), var(--surface) 8rem);
-  box-shadow: var(--shadow);
+  background-color: var(--surface);
+  background-image: var(--panel-material);
+  background-position: var(--panel-material-position);
+  background-size: var(--panel-material-size);
+  background-repeat: var(--panel-material-repeat);
+  box-shadow: var(--panel-rim), var(--shadow);
 }
 .inset { padding: .75rem; border: 1px solid var(--stroke); border-radius: var(--radius); background: var(--recess); }
 .action-row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }

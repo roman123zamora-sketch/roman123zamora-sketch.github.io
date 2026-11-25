@@ -1,26 +1,21 @@
 /* Shared construction. Materials set their own lighting, accent, and grain below. */
-[data-edition] :is(.panel, .topbar, .promotion-dialog) {
-  background-color: var(--surface);
-  border-color: color-mix(in srgb, var(--stroke) 72%, var(--material-accent));
-  background-image: linear-gradient(150deg, var(--material-glint), transparent 7rem), var(--material-grain);
-  box-shadow: inset 0 1px var(--material-glint), inset 0 -2px #0008, 0 12px 25px #0004;
+[data-edition] {
+  --material-edge: var(--material-glint);
+  --panel-material: linear-gradient(150deg, var(--material-glint), transparent 7rem), var(--material-grain);
+  --header-material: var(--panel-material);
 }
-[data-edition] .topbar { background-color: var(--header); }
-[data-edition] :is(button:not(.square, :disabled), nav a[aria-current]) {
-  background-image: linear-gradient(165deg, var(--material-glint), transparent 72%);
-  box-shadow: inset 0 1px var(--material-glint), inset 0 -2px #0005;
+[data-edition="origami"] {
+  --control-face: linear-gradient(153deg, #ffe9be28 0 34%, #1b132928 35%, transparent 62%);
 }
-[data-edition] nav a[aria-current] { box-shadow: inset 0 1px var(--material-glint), inset 0 -3px var(--focus); }
-@media (hover: hover) {
-  [data-edition] button:not(.square, :disabled, [aria-disabled="true"]):hover {
-    box-shadow: inset 0 1px var(--material-accent), inset 0 -2px #0006;
-  }
+[data-edition="steampunk"] {
+  --control-face: linear-gradient(#ffdc913a, transparent 33%, #160e0b36 79%, #daaa6828);
 }
-[data-edition] button:is(:disabled, [aria-disabled="true"]):not(.square) {
-  background-image: none;
-  box-shadow: inset 0 1px #0004;
+[data-edition="neon-circuit"] {
+  --control-face: linear-gradient(177deg, #79ffe537, #37597015 28%, #111b2d38);
 }
-[data-edition] button:not(.square, :disabled, [aria-disabled="true"]):active { box-shadow: inset 0 2px 5px #0008; }
+[data-edition="stained-glass"] {
+  --control-face: linear-gradient(140deg, #aecdf22f, transparent 42%, #d99bd326 72%, #1c17392d);
+}
 [data-edition] .board-frame {
   border-color: color-mix(in srgb, var(--material-accent) 46%, var(--navy));
   background-image: var(--material-grain), linear-gradient(142deg,
@@ -244,5 +239,5 @@ html:is([data-metal], [data-nature]) .sample[data-edition-preview] .piece-finish
 
 html[data-edition] .chess-piece:not(.sample .chess-piece)[data-piece-side="black"] .piece-finish,
 [data-edition-preview] [data-piece-side="black"] .piece-finish {
-  stroke: color-mix(in srgb, var(--edition-dark-face) 80%, var(--material-accent));
+  stroke: color-mix(in srgb, var(--edition-dark-face) 61%, var(--material-accent));
 }

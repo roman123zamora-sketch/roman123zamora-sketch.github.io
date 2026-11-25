@@ -22,19 +22,12 @@
   --steel-reflection: linear-gradient(145deg, #ffffff3b, transparent 38%, #10192324 69%, #ffffff15);
 }
 :is([data-metal], [data-metal-board]) .metal-rivets { display: inline; }
-[data-metal] :is(.panel, .topbar, .promotion-dialog) {
-  background-color: var(--surface);
-  background-image: repeating-linear-gradient(0deg, #10192308 0 1px, transparent 1px 4px),
+[data-metal] {
+  --material-edge: #eaf2ff42;
+  --control-face: linear-gradient(#e7eff420, transparent 56%, #0d11192c);
+  --panel-material: repeating-linear-gradient(0deg, #10192308 0 1px, transparent 1px 4px),
     linear-gradient(150deg, #e7eff420, transparent 48%);
-  box-shadow: inset 0 1px #eaf2ff22, var(--shadow);
-}
-[data-metal] .topbar { background-color: var(--header); }
-[data-metal] :is(button:not(.square), nav a) {
-  background-image: linear-gradient(#e7eff420, transparent 56%, #0d11192c);
-  box-shadow: inset 0 1px #eaf2ff22;
-}
-[data-metal] nav a[aria-current] {
-  box-shadow: inset 0 1px #f4fbff54, inset 0 -3px var(--focus);
+  --header-material: var(--panel-material);
 }
 [data-metal] .board-frame {
   border-color: #aeb9c5;
@@ -55,24 +48,6 @@
   --metal-black-highlight: initial;
   --metal-black-face: initial;
   --metal-black-shadow: initial;
-}
-
-[data-metal] :is(.panel, .promotion-dialog) {
-  border-color: #8494a85e;
-  box-shadow: inset 0 1px #eaf2ff3d, inset 0 -1px #0d121a, var(--shadow);
-}
-
-[data-metal] :is(button:not(.square, :disabled), nav a):hover {
-  box-shadow: inset 0 1px #f4fbff68, inset 0 -1px #151e2a;
-}
-
-[data-metal] :is(button:not(.square, :disabled), nav a):active {
-  box-shadow: inset 0 2px 4px #0a1018a0;
-}
-
-[data-metal] button:not(.square):disabled {
-  background-image: none;
-  box-shadow: inset 0 1px #0d111944;
 }
 
 [data-metal] .board:not(.sample) .square:not(.cutout, .marked),
