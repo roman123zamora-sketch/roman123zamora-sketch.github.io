@@ -2,6 +2,7 @@
 const sampleRate = 24000;
 const outputGain = 1.24;
 const surfaces = {
+  softCap: [790, 1580, 2490, .027, .20],
   cap: [1280, 2720, 4330, .021, .54],
   rim: [740, 1570, 2890, .032, .36],
   piece: [480, 1090, 1960, .049, .33],
@@ -10,8 +11,8 @@ const surfaces = {
 };
 const hit = (at, surface, strength, pitch = 1, pan = 0) => ({ at, surface, strength, pitch, pan });
 const cues = {
-  hover: [hit(0, "cap", .075, 1.18)],
-  button: [hit(0, "cap", .23, .86), hit(.04, "cap", .12, 1.12)],
+  hover: [hit(0, "softCap", .048, 1.08)],
+  button: [hit(0, "softCap", .221), hit(.033, "softCap", .105, 1.11)],
   lift: [hit(0, "piece", .14, 1.13)],
   queue: [hit(0, "piece", .23, 1.08)],
   release: [hit(0, "cap", .13, .8)],
