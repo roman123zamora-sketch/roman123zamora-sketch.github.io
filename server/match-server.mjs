@@ -9,13 +9,13 @@ import { createRuntime } from "../game/luau-runtime.js";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const dataFile = resolve(process.env.EXALTED_DATA ?? resolve(homedir(), ".exalted-chess", "profiles.json"));
 const publicOrigin = process.env.EXALTED_SITE_ORIGIN;
-const files = /^(?:index\.html|assets\/(?:[a-z0-9-]+\.svg|puzzles\/(?:index|archive|(?:checkmate|material)\/[0-9]+)\.json)|styles\/[a-z0-9-]+\.css|(?:ui|tabs)\/[a-z0-9-]+\.js|game\/(?:[a-z0-9-]+\.(?:js|luau)|(?:rules|engine)\/[a-z0-9-]+\.luau|vendor\/(?:luau-web\.js|lib\/[a-z0-9-]+\.js)))$/;
+const files = /^(?:index\.html|assets\/(?:[a-z0-9-]+\.svg|edition-(?:nature|ocean-reef)\.webp|puzzles\/(?:index|archive|(?:checkmate|material)\/[0-9]+)\.json)|styles\/[a-z0-9-]+\.css|(?:ui|tabs)\/[a-z0-9-]+\.js|game\/(?:[a-z0-9-]+\.(?:js|luau)|(?:rules|engine)\/[a-z0-9-]+\.luau|vendor\/(?:luau-web\.js|lib\/[a-z0-9-]+\.js)))$/;
 const actions = new Set([
   "profile", "clearBotHistory", "deleteHistoryMatch", "equipBoard", "bot", "fourBot", "queue", "queueFour", "challenge",
   "challengeRespond", "createInvite", "joinInvite", "leaveInvite", "move", "claimDraw", "reset", "legal", "undo", "resign", "abort", "leave", "cancelQueue",
   "rematch", "rematchRespond", "rematchCancel"
 ]);
-const types = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml", ".json": "application/json; charset=utf-8" };
+const types = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml", ".webp": "image/webp", ".json": "application/json; charset=utf-8" };
 const runtime = await createRuntime(path => readFile(resolve(root, "game", path), "utf8"));
 const catalog = await runtime("catalog");
 
