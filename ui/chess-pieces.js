@@ -1,3 +1,5 @@
+import { natureGrowth } from "./nature-pieces.js";
+
 const names = { p: "pawn", n: "knight", b: "bishop", r: "rook", q: "queen", k: "king" };
 
 const palettes = {
@@ -68,12 +70,19 @@ const profiles = {
   }
 };
 
+const pedestal = `<path d="M28 62h24c2 0 3 1.2 3 3v3H25v-3c0-1.8 1-3 3-3Z" fill="BEVEL"/>
+      <path d="M26 67h28c2.3 0 3.8 1.6 3.8 3.7v1.1c0 1.7-1.3 2.7-3 2.7H25.2
+        c-1.7 0-3-1-3-2.7v-1.1c0-2.1 1.5-3.7 3.8-3.7Z" fill="BEVEL"/>`;
+
 function artwork(piece, side, id) {
   const [light, fill, shade, edge, detail] = palettes[side];
   const body = id + "-body";
   const bevel = id + "-bevel";
   const shadow = id + "-shadow";
   const steel = id + "-steel";
+  const bark = id + "-bark";
+  const clip = id + "-bark-clip";
+  const base = pedestal.replaceAll("BEVEL", `url(#${bevel})`);
   const metalStop = (stop, fallback) => `style="stop-color:var(--metal-${side}-${stop}, ${fallback})"`;
   const profile = profiles[piece];
   const contours = profile.body.replaceAll("BEVEL", `url(#${bevel})`).replaceAll("EYE", side === "white" || side === "yellow" ? edge : detail);
@@ -97,6 +106,12 @@ function artwork(piece, side, id) {
         <stop offset=".58" ${metalStop("face",fill)}/>
         <stop offset="1" ${metalStop("shadow",shade)}/>
       </linearGradient>
+      <linearGradient id="${bark}" x1="5%" y1="12%" x2="87%" y2="85%">
+        <stop style="stop-color:var(--root-light)"/>
+        <stop offset=".53" style="stop-color:var(--root-mid)"/>
+        <stop offset="1" style="stop-color:var(--root-dark)"/>
+      </linearGradient>
+      <clipPath id="${clip}">${contours}${base}</clipPath>
       <radialGradient id="${shadow}">
         <stop stop-color="#081525" stop-opacity=".35"/>
         <stop offset="1" stop-color="#081525" stop-opacity="0"/>
@@ -105,14 +120,17 @@ function artwork(piece, side, id) {
     <ellipse cx="40" cy="74.5" rx="20" ry="3" fill="url(#${shadow})"/>
     <g class="piece-finish" style="--piece-steel: url(#${steel}); --piece-plastic: url(#${body})" fill="url(#${body})" stroke="${edge}" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round">
       ${contours}
-      <path d="M28 62h24c2 0 3 1.2 3 3v3H25v-3c0-1.8 1-3 3-3Z" fill="url(#${bevel})"/>
-      <path d="M26 67h28c2.3 0 3.8 1.6 3.8 3.7v1.1c0 1.7-1.3 2.7-3 2.7H25.2
-        c-1.7 0-3-1-3-2.7v-1.1c0-2.1 1.5-3.7 3.8-3.7Z" fill="url(#${bevel})"/>
+      ${base}
       <path d="${profile.light}M26 69.5h16" fill="none" stroke="${detail}" stroke-opacity=".44" stroke-width="1.45"/>
       <path d="${profile.inset}" fill="none" stroke="${edge}" stroke-width="1.65" stroke-opacity=".62"/>
       <g class="metal-rivets" fill="url(#${bevel})" stroke="${edge}" stroke-width=".6">
         <circle cx="29" cy="71" r="1.3"/><circle cx="51" cy="71" r="1.3"/>
       </g>
+    </g>
+    <g class="nature-piece" fill="url(#${bark})" stroke="var(--root-edge)" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round">
+      ${profile.body.replaceAll("BEVEL", `url(#${bark})`).replaceAll("EYE", "var(--root-edge)")}
+      ${pedestal.replaceAll("BEVEL", `url(#${bark})`)}
+      ${natureGrowth(piece, clip)}
     </g>
   </svg>`;
 }
@@ -121,6 +139,7 @@ export function createChessPiece(type, side) {
   const piece = type.toLowerCase();
   const wrapper = document.createElement("span");
   wrapper.className = "chess-piece";
+  wrapper.dataset.pieceSide = side;
   wrapper.dataset.art = `${piece}-${side}`;
   wrapper.innerHTML = artwork(piece, side, `piece-${++nextId}`);
   return wrapper;
