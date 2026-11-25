@@ -18,7 +18,8 @@
   --metal-green-highlight: #f0fff5;
   --metal-green-face: #6cac8b;
   --metal-green-shadow: #224638;
-  --steel-brush: repeating-linear-gradient(0deg, transparent 0 3px, #ffffff10 3px 4px);
+  --steel-brush: repeating-linear-gradient(0deg, #1019230c 0 1px, transparent 1px 3px, #ffffff13 3px 4px);
+  --steel-reflection: linear-gradient(145deg, #ffffff3b, transparent 38%, #10192324 69%, #ffffff15);
 }
 :is([data-metal], [data-metal-board]) .metal-rivets { display: inline; }
 [data-metal] :is(.panel, .topbar, .promotion-dialog) {
@@ -27,15 +28,20 @@
   box-shadow: inset 0 1px #eaf2ff22, var(--shadow);
 }
 [data-metal] .topbar { background-color: var(--header); }
-[data-metal] :is(button, nav a) {
+[data-metal] :is(button:not(.square), nav a) {
   background-image: linear-gradient(#e7eff420, transparent 56%, #0d11192c);
   box-shadow: inset 0 1px #eaf2ff22;
 }
+[data-metal] nav a[aria-current] {
+  box-shadow: inset 0 1px #f4fbff54, inset 0 -3px var(--focus);
+}
 [data-metal] .board-frame {
-  background-image: var(--steel-brush), linear-gradient(145deg, #a2aebc, #343b45 36%, #626e7c 72%, #242b34);
+  border-color: #aeb9c5;
+  background-image: var(--steel-brush), linear-gradient(145deg, #dce6ef, #5b6978 36%, #9fafbf 72%, #394654);
+  box-shadow: inset 0 0 0 2px #eef6ff44, inset 0 0 0 4px #25323e, var(--shadow);
 }
 [data-metal] .board:not(.sample) .square:not(.cutout, .marked), [data-metal-board] .square:not(.cutout, .marked) {
-  background-image: var(--steel-brush), linear-gradient(145deg, #ffffff30, transparent 48%, #202c381d);
+  background-image: var(--steel-brush), var(--steel-reflection);
 }
 [data-metal] .piece-finish, [data-metal-board] .piece-finish { fill: var(--piece-steel); }
 [data-metal] .sample:not([data-metal-board]) .piece-finish { fill: var(--piece-plastic); }

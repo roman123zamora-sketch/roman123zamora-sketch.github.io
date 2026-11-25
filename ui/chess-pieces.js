@@ -101,9 +101,10 @@ function artwork(piece, side, id) {
       </linearGradient>
       <linearGradient id="${steel}" x2="83%" y2="98%">
         <stop ${metalStop("face",fill)}/>
-        <stop offset=".31" ${metalStop("shadow",shade)}/>
-        <stop offset=".43" ${metalStop("highlight",light)}/>
-        <stop offset=".58" ${metalStop("face",fill)}/>
+        <stop offset=".29" ${metalStop("shadow",shade)}/>
+        <stop offset=".40" ${metalStop("face",fill)}/>
+        <stop offset=".45" ${metalStop("highlight",light)}/>
+        <stop offset=".53" ${metalStop("face",fill)}/>
         <stop offset="1" ${metalStop("shadow",shade)}/>
       </linearGradient>
       <linearGradient id="${bark}" x1="5%" y1="12%" x2="87%" y2="85%">
@@ -124,7 +125,9 @@ function artwork(piece, side, id) {
       <path d="${profile.light}M26 69.5h16" fill="none" stroke="${detail}" stroke-opacity=".44" stroke-width="1.45"/>
       <path d="${profile.inset}" fill="none" stroke="${edge}" stroke-width="1.65" stroke-opacity=".62"/>
       <g class="metal-rivets" fill="url(#${bevel})" stroke="${edge}" stroke-width=".6">
-        <circle cx="29" cy="71" r="1.3"/><circle cx="51" cy="71" r="1.3"/>
+        <path d="M28 64h24" fill="none" stroke="var(--metal-${side}-highlight)" stroke-opacity=".7"/>
+        <circle cx="29" cy="71" r="1.7"/><circle cx="51" cy="71" r="1.7"/>
+        <path d="m28.4 71.6 1.2-1.2m20.8 1.2 1.2-1.2" fill="none"/>
       </g>
     </g>
     <g class="nature-piece" fill="url(#${bark})" stroke="var(--root-edge)" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round">
