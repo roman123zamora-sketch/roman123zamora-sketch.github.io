@@ -1,0 +1,227 @@
+/* Shared construction. Materials set their own lighting, accent, and grain below. */
+html[data-edition] body {
+  background: linear-gradient(90deg, transparent, var(--navy) 54%, transparent),
+    linear-gradient(180deg, var(--navy), transparent 48%),
+    var(--edition-scene) center bottom / cover fixed no-repeat, var(--navy);
+}
+[data-edition] :is(.panel, .topbar, .promotion-dialog) {
+  background-color: var(--surface);
+  background-image: linear-gradient(150deg, var(--material-glint), transparent 7rem), var(--material-grain);
+  box-shadow: inset 0 1px var(--material-glint), inset 0 -1px #0007, var(--shadow);
+}
+[data-edition] .topbar { background-color: var(--header); }
+[data-edition] :is(button:not(.square, :disabled), nav a[aria-current]) {
+  background-image: linear-gradient(165deg, var(--material-glint), transparent 72%);
+  box-shadow: inset 0 1px var(--material-glint), inset 0 -2px #0005;
+}
+[data-edition] nav a[aria-current] { box-shadow: inset 0 1px var(--material-glint), inset 0 -3px var(--focus); }
+[data-edition] button:not(.square, :disabled):active { box-shadow: inset 0 2px 5px #0008; }
+[data-edition] .board-frame {
+  background-image: var(--material-grain), linear-gradient(144deg, var(--material-glint), transparent 60%, #0005);
+  box-shadow: inset 0 0 0 1px var(--material-glint), inset 0 0 0 3px #0007, var(--shadow);
+}
+html[data-edition] .board:not(.sample) .square:not(.cutout, .marked),
+.board[data-edition-preview] .square:not(.cutout, .marked) {
+  background-image: var(--material-grain);
+}
+.edition-detail { display: none; }
+html[data-edition] .chess-piece:not(.sample .chess-piece) .edition-detail,
+[data-edition-preview] .edition-detail { display: inline; }
+html[data-edition] .chess-piece:not(.sample .chess-piece) .piece-finish,
+[data-edition-preview] .piece-finish { fill: var(--piece-edition); }
+.edition-detail { color: var(--piece-accent, var(--material-accent)); }
+[data-piece-side="white"] .edition-detail { color: color-mix(in srgb, var(--material-accent) 48%, var(--edition-light-shadow)); }
+:where([data-edition-preview]) { --edition-plane: initial; --edition-plane-color: initial; }
+.edition-plane { d: var(--edition-plane, none); fill: var(--edition-plane-color, transparent); }
+.edition-relief { d: var(--edition-relief); }
+.edition-grain { d: var(--edition-grain); opacity: .58; }
+
+html[data-edition="volcanic"], [data-edition-preview="volcanic"] {
+  --edition-plane: path("M23 19 40 25 39 47 55 61 28 62 30 49Z");
+  --edition-plane-color: #34202e44;
+  --edition-relief: path("M0 0l6 6-3 7 10 5-2 8 8 9M6 6l10 1 7-5M13 18l8 3");
+  --edition-grain: path("M-7 14l10-1m12 14 9-3m-18-20-10-6");
+  --edition-scene: url("../assets/edition-volcanic.svg");
+  --material-accent: #ff9a63;
+  --material-glint: #ff9a6335;
+  --material-grain: repeating-linear-gradient(146deg, transparent 0 19px, #ff916026 20px, #07060516 21px 26px, transparent 27px 80px);
+  --edition-dark-face: #51464c;
+  --edition-dark-shadow: #1e171e;
+  --edition-light-face: #e0cdbd;
+  --edition-light-shadow: #77615b;
+}
+html[data-edition="ocean-reef"], [data-edition-preview="ocean-reef"] {
+  --edition-relief: path("M3 24C17 9 2 8 10 0m-3 15Q-2 11 0 7m8 8q12-5 12-12M5 24l-7 9m7-10q8 0 12 8");
+  --edition-grain: path("M0 2q9-8 18-3m-12 27q-10-4-18 0m27-15 5 2m-7 19 4 2");
+  --edition-scene: url("../assets/edition-ocean-reef.svg");
+  --material-accent: #83d9d4;
+  --material-glint: #83d9d435;
+  --material-grain: repeating-radial-gradient(ellipse at 20% -30%, #c5fff10d 0 1px, transparent 2px 13px);
+  --edition-dark-face: #805698;
+  --edition-dark-shadow: #2b1847;
+  --edition-light-face: #fff0d5;
+  --edition-light-shadow: #bd8d91;
+}
+html[data-edition="haunted"], [data-edition-preview="haunted"] {
+  --edition-relief: path("M2-2c5 4-1 12 2 17s6 1 5-3q-1-4 3-8m3-2q-2 10 2 19");
+  --edition-grain: path("M-4 25q11 4 24 0m-19 5q6 3 12 2m-9-12 2 3");
+  --edition-scene: url("../assets/edition-haunted.svg");
+  --material-accent: #dfba83;
+  --material-glint: #dfba8335;
+  --material-grain: repeating-linear-gradient(90deg, #cab4900a 0 1px, transparent 1px 15px, #0b081514 16px 18px);
+  --edition-dark-face: #565066;
+  --edition-dark-shadow: #1c152a;
+  --edition-light-face: #f8e7bc;
+  --edition-light-shadow: #9f886b;
+}
+html[data-edition="ancient-ruins"], [data-edition-preview="ancient-ruins"] {
+  --edition-relief: path("M-5 11h27m-25 4h24M3 11v4m8-4v4m8-4v4m-18 8 2 2m4 0 2 2");
+  --edition-grain: path("M-6 0l8 4m11-1 4-4m-14 33h17m-22-26 4 2");
+  --edition-scene: url("../assets/edition-ancient-ruins.svg");
+  --material-accent: #e5bd85;
+  --material-glint: #e5bd8535;
+  --material-grain: repeating-linear-gradient(0deg, #1a110f13 0 1px, transparent 2px 17px, #f7dcaf13 18px);
+  --edition-dark-face: #555966;
+  --edition-dark-shadow: #242934;
+  --edition-light-face: #f3dfb0;
+  --edition-light-shadow: #a48b60;
+}
+html[data-edition="steampunk"], [data-edition-preview="steampunk"] {
+  --edition-relief: path("M-1 14h8v9h14v8M-3 16h8v9h14m-10-17h8m-5-4v8");
+  --edition-grain: path("M4 0h3m-1-1v3m12 10h3m-1-1v3m-1 20h3m-1-1v3");
+  --edition-scene: url("../assets/edition-steampunk.svg");
+  --material-accent: #f3c176;
+  --material-glint: #f3c17635;
+  --material-grain: repeating-linear-gradient(0deg, #fff0c20c 0 1px, #2514070e 1px 2px, transparent 2px 4px);
+  --edition-dark-face: #77665b;
+  --edition-dark-shadow: #312624;
+  --edition-light-face: #ffdb8e;
+  --edition-light-shadow: #9c653d;
+}
+html[data-edition="neon-circuit"], [data-edition-preview="neon-circuit"] {
+  --edition-relief: path("M0 0v6l8 6v12l6 5h8M18 2v11l-5 5m-10 2-5 5v6m10-20 7-2");
+  --edition-grain: path("M-1 0h3m15 1h3m0 29h4m-27 2h3m14-9h3");
+  --edition-scene: url("../assets/edition-neon-circuit.svg");
+  --material-accent: #69f1d9;
+  --material-glint: #69f1d935;
+  --material-grain: repeating-linear-gradient(90deg, #8afbe719 0 1px, transparent 1px 16px), repeating-linear-gradient(0deg, #8afbe70e 0 1px, transparent 1px 16px);
+  --edition-dark-face: #314769;
+  --edition-dark-shadow: #14182f;
+  --edition-light-face: #e0ffff;
+  --edition-light-shadow: #6ba9b6;
+}
+html[data-edition="stained-glass"], [data-edition-preview="stained-glass"] {
+  --edition-plane: path("M22 13 42 35 34 59 22 49Z M46 35 62 21 58 63 46 54Z");
+  --edition-plane-color: #e694d65a;
+  --edition-relief: path("M-8 5l16 7 8-14m-8 14 3 13 15-6m-15 6-12-3m12 3 5 13m-17-16-7 10");
+  --edition-grain: path("M-6 7l11 5m6 2 6-10m-4 22 8-4m-22 2 9 3");
+  --edition-scene: url("../assets/edition-stained-glass.svg");
+  --material-accent: #e9a6c8;
+  --material-glint: #e9a6c835;
+  --material-grain: linear-gradient(140deg, #9cd7eb1c, transparent 28%, #d6a0ed20 60%, #f4b5bc20);
+  --edition-dark-face: #665bab;
+  --edition-dark-shadow: #261d56;
+  --edition-light-face: #ffe8ad;
+  --edition-light-shadow: #c2797d;
+}
+html[data-edition="origami"], [data-edition-preview="origami"] {
+  --edition-plane: path("M20 11 46 33 26 54 19 40Z M46 33 62 24 63 64 26 54Z");
+  --edition-plane-color: #fcdfaf42;
+  --edition-relief: path("M-8-4l22 17-11 22m11-22 11-12m-11 12 13 17m-20-4-13-4");
+  --edition-grain: path("M-3 0l18 12 9-8m-9 11 8 12m-17-9-5 11");
+  --edition-scene: url("../assets/edition-origami.svg");
+  --material-accent: #e3be99;
+  --material-glint: #e3be9935;
+  --material-grain: linear-gradient(145deg, #ffffff1c 0 32%, #ffffff03 32% 67%, #1b0f2413 67%);
+  --edition-dark-face: #565388;
+  --edition-dark-shadow: #282342;
+  --edition-light-face: #fff2d4;
+  --edition-light-shadow: #b6a28c;
+}
+html[data-edition="candy"], [data-edition-preview="candy"] {
+  --edition-plane: path("M18 9Q46 21 60 39l2 6Q37 24 19 19Z");
+  --edition-plane-color: #fc9cb247;
+  --edition-relief: path("M-9 0q18 1 31 14M-9 9q18 1 34 13m-28 0q12 0 29 13");
+  --edition-grain: path("M-4 3q11 0 22 10M2 15l6 2m7 10 5 3");
+  --edition-scene: url("../assets/edition-candy.svg");
+  --material-accent: #ffa7be;
+  --material-glint: #ffa7be35;
+  --material-grain: repeating-linear-gradient(135deg, #f0a3b221 0 5px, transparent 5px 15px);
+  --edition-dark-face: #795063;
+  --edition-dark-shadow: #331d3e;
+  --edition-light-face: #fff0d9;
+  --edition-light-shadow: #e7a6a5;
+}
+html[data-edition="cosmic"], [data-edition-preview="cosmic"] {
+  --edition-relief: path("M-8 16q8 6 31-6M-9 18q6 6 31 1M7 4v7m-3-3h6m9 17v6m-3-3h6");
+  --edition-grain: path("M-2 1h1m20 2h1m-8 20h1m-9 5h1m9 7h1");
+  --edition-scene: url("../assets/edition-cosmic.svg");
+  --material-accent: #b9b9ff;
+  --material-glint: #b9b9ff35;
+  --material-grain: radial-gradient(ellipse at 18% 10%, #b3b9fb2b, transparent 60%);
+  --edition-dark-face: #454275;
+  --edition-dark-shadow: #16132b;
+  --edition-light-face: #e8f4ff;
+  --edition-light-shadow: #8799be;
+}
+html[data-edition="toy"], [data-edition-preview="toy"] {
+  --edition-relief: path("M-7 21q13 4 31 0m-29 3q11 6 29 0m-26 8h20");
+  --edition-grain: path("M-1 3q7-3 14 1m-10 3q7-2 13 1m-13 5q9-3 15 0");
+  --edition-scene: url("../assets/edition-toy.svg");
+  --material-accent: #f4bd7e;
+  --material-glint: #f4bd7e35;
+  --material-grain: repeating-linear-gradient(6deg, #6a4c3314 0 1px, transparent 2px 5px, #eac28913 5px 7px, transparent 7px 17px);
+  --edition-dark-face: #415677;
+  --edition-dark-shadow: #182637;
+  --edition-light-face: #ffe4b6;
+  --edition-light-shadow: #c19869;
+}
+html[data-edition="fossil"], [data-edition-preview="fossil"] {
+  --edition-relief: path("M3 7c10-9 18 4 11 10-5 5-13 0-9-5 2-3 7 0 4 2M10 22v11m0-10-7 2m7 1 7 1m-7 2-6 2");
+  --edition-grain: path("M-7 18l10 2m-4 15h23m-26-20 4 1");
+  --edition-scene: url("../assets/edition-fossil.svg");
+  --material-accent: #d9bd92;
+  --material-glint: #d9bd9235;
+  --material-grain: repeating-linear-gradient(10deg, #d6b79311 0 5px, #5c4b411c 5px 7px, transparent 7px 14px);
+  --edition-dark-face: #64615c;
+  --edition-dark-shadow: #29282a;
+  --edition-light-face: #f1dbb4;
+  --edition-light-shadow: #ac8c68;
+}
+
+[data-piece-side="white"] { --edition-face: var(--edition-light-face); --edition-shadow: var(--edition-light-shadow); }
+[data-piece-side="black"] { --edition-face: var(--edition-dark-face); --edition-shadow: var(--edition-dark-shadow); }
+@media (max-width: 42rem) {
+  html[data-edition] body {
+    background: linear-gradient(var(--navy), transparent 24%, color-mix(in srgb, var(--navy) 48%, transparent)),
+      var(--edition-scene) left bottom / auto 100vh fixed no-repeat, var(--navy);
+  }
+}
+
+[data-piece-side="red"] { --piece-accent: #ffac98; }
+[data-piece-side="blue"] { --piece-accent: #a8dbff; }
+[data-piece-side="yellow"] { --piece-accent: #ffda75; }
+[data-piece-side="green"] { --piece-accent: #aff39b; }
+.chess-piece:is([data-piece-side="red"], [data-piece-side="blue"], [data-piece-side="yellow"], [data-piece-side="green"]) {
+  --edition-face: color-mix(in srgb, var(--piece-accent) 55%, var(--edition-dark-face));
+  --edition-shadow: color-mix(in srgb, var(--piece-accent) 30%, var(--edition-dark-shadow));
+}
+/* A material's own preview wins over the currently equipped theme. */
+html:is([data-metal], [data-nature]) .sample[data-edition-preview] .piece-finish {
+  display: inline;
+  fill: var(--piece-edition);
+}
+
+.board.sample:not([data-edition-preview]) {
+  --edition-face: initial;
+  --edition-shadow: initial;
+  --edition-light-face: initial;
+  --edition-light-shadow: initial;
+  --edition-dark-face: initial;
+  --edition-dark-shadow: initial;
+}
+
+html[data-edition] .chess-piece:not(.sample .chess-piece)[data-piece-side="black"] .piece-finish,
+[data-edition-preview] [data-piece-side="black"] .piece-finish {
+  stroke: color-mix(in srgb, var(--edition-dark-face) 80%, var(--material-accent));
+}

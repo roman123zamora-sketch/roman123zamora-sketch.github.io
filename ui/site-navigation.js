@@ -90,11 +90,11 @@ document.addEventListener("keydown", event => {
 document.addEventListener("pointerover", event => {
   if (event.pointerType !== "mouse") return;
   const control = event.target.closest(soundControl);
-  if (control && !control.contains(event.relatedTarget)) playSound("hover");
+  if (control && !control.contains(event.relatedTarget)) playSound("hover", 0, control.dataset.soundBoard);
 });
 document.addEventListener("click", event => {
   const control = event.target.closest(soundControl);
-  if (control && control !== audio && !control.hasAttribute("data-premove-control")) unlockSound("button");
+  if (control && control !== audio && !control.hasAttribute("data-premove-control")) unlockSound("button", control.dataset.soundBoard);
   else if (control !== audio) unlockSound();
 }, { capture: true });
 let previousMatch;

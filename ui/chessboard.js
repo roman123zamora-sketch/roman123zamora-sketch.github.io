@@ -73,6 +73,7 @@ export function board(theme, fourPlayer = false, sample = false, options = {}) {
     if (element.style.getPropertyValue(property) !== theme[color]) element.style.setProperty(property, theme[color]);
   }
   if (sample) {
+    if (theme.edition) element.dataset.editionPreview = theme.id;
     element.toggleAttribute("data-metal-board", theme.id === "slate");
     element.toggleAttribute("data-nature-board", theme.id === "forest");
   }

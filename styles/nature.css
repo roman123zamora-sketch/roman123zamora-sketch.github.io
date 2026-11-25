@@ -33,15 +33,35 @@
 .growing-vine { stroke: var(--root-vine); }
 .new-growth { fill: var(--root-shoot); }
 [data-nature] .board-frame:has(> .board:not(.sample)) {
-  background: url("../assets/nature-vines.svg") left top / 4rem no-repeat,
-    repeating-linear-gradient(124deg, #513b27 0 5px, #60452a 6px 9px, #36291d 10px 12px);
-  border-color: #967448;
+  background: linear-gradient(142deg, #355f45, #1b3928 44%, #163023 76%, #527652);
+  border-color: #66865c;
+  box-shadow: inset 0 0 0 1px #8da77d48, inset 0 0 0 3px #122d20, var(--shadow);
 }
-[data-nature] :is(.panel, .promotion-dialog) {
-  background: url("../assets/nature-vines.svg") top right / 5rem no-repeat,
-    linear-gradient(155deg, var(--panel-gloss), var(--surface) 8rem);
+[data-nature] .board:not(.sample) .square:not(.cutout, .marked),
+[data-nature-board] .square:not(.cutout, .marked) {
+  background-image: url("../assets/nature-board-grain.svg");
+  background-size: 7rem 4rem;
 }
-[data-nature] nav a[aria-current], [data-nature] .primary {
+:is([data-nature] .board:not(.sample), [data-nature-board]) .square.dark:nth-child(3n) {
+  background-position: 2rem 1rem;
+}
+.bark-body { stroke: var(--root-mid); }
+.bark-grain { stroke: var(--root-grain); opacity: .76; }
+.vine-light { stroke: var(--root-shoot); opacity: .8; }
+
+[data-nature] :is(.panel, .promotion-dialog, .topbar) {
+  background-color: var(--surface);
+  background-image: url("../assets/nature-vines.svg"),
+    linear-gradient(155deg, #80996818, transparent 10rem);
+  background-repeat: no-repeat;
+  background-position: left top;
+  background-size: 4.6rem, auto;
+  box-shadow: inset 0 1px #b7c49330, var(--shadow);
+}
+
+[data-nature] .topbar { background-color: var(--header); }
+
+[data-nature] :is(.primary, nav a[aria-current]) {
   border-color: #9eb476;
-  background-image: linear-gradient(155deg, #abbf7836, #44371a28);
+  box-shadow: inset 0 1px #d0e2a44d, inset 0 -2px #303c24;
 }

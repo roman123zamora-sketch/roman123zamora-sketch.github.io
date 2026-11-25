@@ -99,17 +99,22 @@ assert.deepEqual(cleanProfile.history, [legacy.history[2]]);
 assert.equal(cleanProfile.botStars, undefined);
 assert.equal(cleanProfile.allTimeCaptures, 0);
 assert.equal(cleanProfile.pieceStorage, undefined);
-assert.equal(cleanProfile.equippedBoard, "duskEmber");
-const equipped = (await action(4, "equipBoard", { id: "walnut" })).find(event => event.kind === "profile").data;
-assert.equal(equipped.equippedBoard, "walnut");
+assert.equal(cleanProfile.equippedBoard, "classic");
+const equipped = (await action(4, "equipBoard", { id: "volcanic" })).find(event => event.kind === "profile").data;
+assert.equal(equipped.equippedBoard, "volcanic");
 const unequipped = (await action(4, "equipBoard", { id: "" })).find(event => event.kind === "profile").data;
 assert.equal(unequipped.equippedBoard, "");
 assert.deepEqual(await action(4, "equipBoard", { id: "unknown" }), []);
 assert.deepEqual(await action(4, "buyBoard", { id: "walnut" }), []);
 const themes = await dispatch("catalog", time, 0);
-assert.equal(themes.length, 8);
-assert.equal(themes.find(theme => theme.id === "walnut").name, "Walnut");
-assert.equal(themes.find(theme => theme.id === "duskEmber").name, "Red");
+assert.deepEqual(themes.map(theme => theme.id), [
+  "classic", "forest", "slate", "volcanic", "ocean-reef", "haunted", "ancient-ruins",
+  "steampunk", "neon-circuit", "stained-glass", "origami", "candy", "cosmic", "toy", "fossil"
+]);
+assert(themes.slice(3).every(theme => theme.edition === true));
+for (const id of ["walnut", "duskEmber", "lavenderMilk", "sandstorm", "rosewood"]) {
+  assert.deepEqual(await action(4, "equipBoard", { id }), []);
+}
 assert(themes.every(theme => theme.price === undefined));
 
 await send("join", 5, "Opponent");

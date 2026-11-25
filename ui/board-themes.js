@@ -55,6 +55,8 @@ export function applyEquippedTheme() {
   const theme = getTheme();
   if (theme === appliedTheme) return;
   const root = document.documentElement;
+  if (theme.edition) root.dataset.edition = theme.id;
+  else delete root.dataset.edition;
   root.toggleAttribute("data-metal", theme.id === "slate");
   root.toggleAttribute("data-nature", theme.id === "forest");
   if (appliedTheme?.ui) {

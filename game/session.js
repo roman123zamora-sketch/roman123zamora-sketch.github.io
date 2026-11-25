@@ -1,4 +1,4 @@
-import { createPlasticSample, plasticSampleUrl } from "./plastic-sounds.js";
+import { createImpactSample, impactSampleUrl, materialForBoard } from "./plastic-sounds.js";
 
 const key = "exalted-chess-profile-v1";
 const settings = "exalted-chess-audio";
@@ -401,15 +401,15 @@ const pendingSounds = new Set();
 function playFallback(sample) {
   let player = fallbackSounds.get(sample);
   if (!player) {
-    player = new Audio(plasticSampleUrl(sample));
+    player = new Audio(impactSampleUrl(sample));
     fallbackSounds.set(sample, player);
   }
   player.currentTime = 0;
   return player.play();
 }
 
-export function playSound(name, delay = 0) {
-  const sample = createPlasticSample(name, session.profile.equippedBoard === "slate");
+export function playSound(name, delay = 0, boardId = session.profile.equippedBoard) {
+  const sample = createImpactSample(name, materialForBoard(boardId));
   if (!sound) return sample.duration;
   if (audio?.state !== "running") {
     if (!delay) playFallback(sample).catch(() => {});
@@ -460,7 +460,7 @@ export function toggleSound() {
   }
   return sound;
 }
-export function unlockSound(cue) {
+export function unlockSound(cue, boardId = session.profile.equippedBoard) {
   if (!sound) return;
   const AudioContext = globalThis.AudioContext ?? globalThis.webkitAudioContext;
   try {
@@ -473,14 +473,14 @@ export function unlockSound(cue) {
     // Some browsers expose Web Audio even when they cannot start an audio device.
   }
   if (audio?.state === "running") {
-    if (cue) playSound(cue);
+    if (cue) playSound(cue, 0, boardId);
     return;
   }
   const resumed = audio?.resume().catch(() => {});
   if (cue) {
-    playFallback(createPlasticSample(cue, session.profile.equippedBoard === "slate")).catch(async () => {
+    playFallback(createImpactSample(cue, materialForBoard(boardId))).catch(async () => {
       await resumed;
-      if (audio?.state === "running") playSound(cue);
+      if (audio?.state === "running") playSound(cue, 0, boardId);
     });
   }
 }

@@ -13,14 +13,36 @@ const growth = {
   k: ["M38 4c-3 14 10 17 4 26-8 10-22 5-15-10 M54 20c5 11-12 12-13 22s8 13 4 22 M35 39c9 7-5 12 1 24",
       "M42 43q9-3 11 2-4 4-11-2 M35 31q-8-8-10-4 0 5 10 4"]
 };
-const baseRoots = "M22 69c7 2 13-8 23-4s9 7 15 6 M23 74c12-1 13-5 21-4s8 4 16 3";
-const baseVine = "M25 68c8 2 15-5 21-2 7 4 11 1 12-2";
+
+const pedestalRoots = ["M22 69c7 2 13-8 23-4s9 7 15 6", "M23 74c12-1 13-5 21-4s8 4 16 3"];
+const vines = {
+  p: "M33 34c-2-6 12-9 16-3m-14 14c8 1 15-4 15-9",
+  r: "M25 27c4-6 14 5 22 0s8-9 10-3M34 44q15 11 19-1",
+  n: "M56 17c9 13 3 32-8 42",
+  b: "M31 37c5 8 21 2 19-7m-7 17q-10 7-9 14",
+  q: "M26 29c11 10 21 12 30 1m-20 15q15 3 12 13",
+  k: "M24 32c7 11 23 14 31 1m-20 15q15 4 11 13"
+};
+
+function root(path) {
+  return `<path class="bark-furrow" d="${path}" stroke-width="5.8"/>
+    <path class="bark-body" d="${path}" stroke-width="4.1" transform="translate(-.32 -.35)"/>
+    <path class="bark-ridge" d="${path}" stroke-width="1.1" transform="translate(-1.05 -.9)"/>
+    <path class="bark-grain" d="${path}" stroke-width=".65" stroke-dasharray="3 3 1 4" transform="translate(.6 .4)"/>`;
+}
+
 export function natureGrowth(piece, clip) {
   const [roots, shoots] = growth[piece];
+  // Paint one complete root at a time so a foreground root covers the roots behind it.
+  const rootPaths = [...roots.split(/ (?=M)/), ...pedestalRoots];
+  const vine = `${vines[piece]} M25 68c8 2 15-5 21-2 7 4 11 1 12-2`;
   return `<g class="nature-growth" clip-path="url(#${clip})" stroke-linecap="round" stroke-linejoin="round">
-    <path class="bark-furrow" d="${roots} ${baseRoots}" fill="none" stroke-width="3.1"/>
-    <path class="bark-ridge" d="${roots} ${baseRoots}" fill="none" stroke-width="1.15" transform="translate(-.75 -.7)"/>
-    <path class="growing-vine" d="${baseVine}" fill="none" stroke-width="1.8"/>
+    <g fill="none">
+      ${rootPaths.map(root).join("")}
+      <path class="bark-furrow" d="${vine}" stroke-width="3.2" transform="translate(.55 .7)"/>
+      <path class="growing-vine" d="${vine}" stroke-width="2"/>
+      <path class="vine-light" d="${vine}" stroke-width=".65" transform="translate(-.33 -.42)"/>
+    </g>
     <path class="new-growth" d="${shoots} M30 68q-3-5-7-4 0 4 7 4 M51 69q4-5 7-4-1 5-7 4 M34 69l-3 4 6-3z" stroke-width=".55"/>
   </g>`;
 }

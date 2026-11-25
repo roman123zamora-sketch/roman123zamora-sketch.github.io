@@ -6,7 +6,7 @@ export default function inventory(content) {
   content.innerHTML = `
     <section class="panel page">
       <h1>Inventory</h1>
-      <p>Equip any theme to change the boards and site colors. Unequip it to return to the default Blue look.</p>
+      <p>Equip any theme to change the board, pieces, interface, and sounds. Unequip it to return to the default Blue look.</p>
       <p class="help collection-notice" role="status"></p>
       <div class="theme-grid"></div>
     </section>`;
@@ -29,6 +29,7 @@ export default function inventory(content) {
       const button = document.createElement("button");
       button.type = "button";
       button.dataset.board = theme.id;
+      if (!equipped) button.dataset.soundBoard = theme.id;
       button.textContent = equipped ? "Unequip" : "Equip";
       button.setAttribute("aria-label", `${button.textContent} ${theme.name}`);
       button.setAttribute("aria-busy", String(equipping?.theme === theme.id));

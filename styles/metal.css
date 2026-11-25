@@ -24,7 +24,8 @@
 :is([data-metal], [data-metal-board]) .metal-rivets { display: inline; }
 [data-metal] :is(.panel, .topbar, .promotion-dialog) {
   background-color: var(--surface);
-  background-image: var(--steel-brush), linear-gradient(150deg, #e7eff420, transparent 48%);
+  background-image: repeating-linear-gradient(0deg, #10192308 0 1px, transparent 1px 4px),
+    linear-gradient(150deg, #e7eff420, transparent 48%);
   box-shadow: inset 0 1px #eaf2ff22, var(--shadow);
 }
 [data-metal] .topbar { background-color: var(--header); }
@@ -53,4 +54,27 @@
   --metal-black-highlight: initial;
   --metal-black-face: initial;
   --metal-black-shadow: initial;
+}
+
+[data-metal] :is(.panel, .promotion-dialog) {
+  border-color: #8494a85e;
+  box-shadow: inset 0 1px #eaf2ff3d, inset 0 -1px #0d121a, var(--shadow);
+}
+
+[data-metal] :is(button:not(.square, :disabled), nav a):hover {
+  box-shadow: inset 0 1px #f4fbff68, inset 0 -1px #151e2a;
+}
+
+[data-metal] :is(button:not(.square, :disabled), nav a):active {
+  box-shadow: inset 0 2px 4px #0a1018a0;
+}
+
+[data-metal] button:not(.square):disabled {
+  background-image: none;
+  box-shadow: inset 0 1px #0d111944;
+}
+
+[data-metal] .board:not(.sample) .square:not(.cutout, .marked),
+[data-metal-board] .square:not(.cutout, .marked) {
+  --steel-brush: repeating-linear-gradient(0deg, #1019230a 0 1px, transparent 1px 3px, #ffffff0b 3px 4px);
 }
