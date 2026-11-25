@@ -201,7 +201,20 @@ button.square:focus-visible { z-index: 2; outline: 2px solid var(--square-focus)
 .eval-score[data-side="w"] { background: #f4f8ff; color: #142335; }
 .eval-score[data-side="b"] { background: #111c2d; color: #f4f8ff; }
 
-.square.premove-preview:not(.selected) { box-shadow: inset 0 0 0 2px #426cab; }
+/* Keep the trail inside the square so it can coexist with keyboard focus. */
+.square.premove-trail { outline: 2px dashed #c22946; outline-offset: -3px; }
+button.square.premove-trail:focus-visible {
+  outline-color: var(--square-focus);
+  box-shadow: inset 0 0 0 4px #c22946;
+}
+.square > .premove-marker {
+  max-inline-size: calc(100% - .25rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
 .square.premove-preview:not(.drag-source) .chess-piece { opacity: .82; }
 .premove-controls { justify-content: center; margin-block-start: .45rem; }
 .premove-controls[hidden] { display: none; }

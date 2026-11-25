@@ -113,9 +113,10 @@ export function board(theme, fourPlayer = false, sample = false, options = {}) {
         options.state?.checkedColors ? Object.values(options.state.checkedColors).includes(encoded?.[0]) :
           options.state?.status === "check" && encoded?.[0] === options.state.turn
       );
+      const steps = options.preview?.trail?.get(address);
       if (checked) {
         square.classList.add("checked");
-        square.append(marker("check-marker", "!"));
+        if (!steps) square.append(marker("check-marker", "!"));
         square.setAttribute("aria-label", square.getAttribute("aria-label") + ", in check");
       }
       if (!corner && !sample) {
@@ -133,6 +134,12 @@ export function board(theme, fourPlayer = false, sample = false, options = {}) {
         if (options.preview?.destinations?.has(address)) {
           square.classList.add("premove-preview");
           square.setAttribute("aria-label", square.getAttribute("aria-label") + ", planned position");
+        }
+        if (steps) {
+          square.classList.add("premove-trail");
+          square.append(marker("check-marker premove-marker", (checked ? "! " : "") + steps.join("·")));
+          square.setAttribute("aria-label", square.getAttribute("aria-label") +
+            `, queued ${steps.length === 1 ? "move" : "moves"} ${steps.join(", ")}`);
         }
         const suggestion = options.bestMove;
         if (suggestion && (address === suggestion.from || address === suggestion.to)) {

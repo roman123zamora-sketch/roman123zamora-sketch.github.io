@@ -7,6 +7,10 @@ const second = premoveIntent(projectPremoves(position, [first]).board, "f3", "g5
 const chained = projectPremoves(position, [first, second]);
 assert.equal(chained.board.g5, "wN");
 assert.deepEqual([...chained.destinations], ["g5"]);
+assert.deepEqual([...chained.trail], [["f3", [1]], ["g5", [2]]]);
+const returned = premoveIntent(chained.board, "g5", "f3", "w");
+assert.deepEqual([...projectPremoves(position, [first, second, returned]).trail], [["f3", [1, 3]], ["g5", [2]]]);
+assert.deepEqual([...projectPremoves({ ...position, f3: "wN", g1: undefined }, [second]).trail], [["g5", [1]]]);
 assert.equal(chained.board.f3, undefined);
 assert.equal(position.g5, "bB");
 assert.equal(projectPremoves({ ...position, g1: undefined }, [first, second]).board.g5, "bB");
@@ -22,6 +26,7 @@ for (const [side, from, to, rookFrom, rookTo] of [
   const castle = premoveIntent(real, from, to, side);
   const preview = projectPremoves(real, [castle]);
   assert.deepEqual(preview.board, { [to]: side + "K", [rookTo]: side + "R" });
+  assert.deepEqual([...preview.trail], [[to, [1]], [rookTo, [1]]]);
   assert.equal(premoveIntent({ ...real, [rookTo]: side + "N" }, from, to, side), undefined);
 }
 for (const [side, from, to] of [

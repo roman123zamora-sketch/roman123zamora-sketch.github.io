@@ -121,10 +121,7 @@ dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
   place-items: center;
   inline-size: 2.15rem;
   aspect-ratio: 1;
-  border-radius: .6rem;
-  background: var(--badge);
-  color: var(--ice);
-  font-size: 1.4rem;
+  flex: none;
 }
 nav { display: flex; justify-content: center; flex-wrap: wrap; gap: .35rem; }
 nav a { display: grid; place-items: center; padding-inline: clamp(.55rem, 1.25vw, 1rem); text-decoration: none; text-align: center; }
@@ -180,7 +177,7 @@ main { width: min(100%, 100rem); margin-inline: auto; padding: var(--space); }
   *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
 }
 
-.brand img { inline-size: 95%; block-size: 95%; display: block; }
+.brand img { inline-size: 100%; block-size: 100%; display: block; }
 
 @media (max-width: 22rem) {
   main { padding-inline: .25rem; }

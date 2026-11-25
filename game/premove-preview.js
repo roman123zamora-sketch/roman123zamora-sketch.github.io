@@ -35,19 +35,26 @@ export function premoveIntent(board, from, to, side) {
 export function projectPremoves(realBoard, moves) {
   const board = { ...realBoard };
   const destinations = new Set();
-  for (const move of moves) {
+  const trail = new Map();
+  function land(square, step) {
+    const visits = trail.get(square) ?? [];
+    visits.push(step);
+    trail.set(square, visits);
+    destinations.add(square);
+  }
+  for (const [index, move] of moves.entries()) {
     if (board[move.from] !== move.piece || (move.rookFrom && board[move.rookFrom] !== move.piece[0] + "R")) break;
     delete board[move.from];
     destinations.delete(move.from);
     board[move.to] = move.promotion ? move.piece[0] + move.promotion : move.piece;
-    destinations.add(move.to);
+    land(move.to, index + 1);
     if (move.rookFrom) {
       const rook = board[move.rookFrom];
       delete board[move.rookFrom];
       destinations.delete(move.rookFrom);
       board[move.rookTo] = rook;
-      destinations.add(move.rookTo);
+      land(move.rookTo, index + 1);
     }
   }
-  return { board, destinations };
+  return { board, destinations, trail };
 }
