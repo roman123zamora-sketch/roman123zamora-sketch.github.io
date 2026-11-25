@@ -64,7 +64,7 @@ export function materialForBoard(id) {
 
 const hit = (at, surface, strength, pitch = 1, pan = 0) => ({ at, surface, strength, pitch, pan });
 const cues = {
-  hover: [hit(0, "piece", .058, 1.13)],
+  hover: [hit(0, "softCap", .045, .92)],
   button: [hit(0, "piece", .16, 1.28), hit(.038, "softCap", .10, .94)],
   lift: [hit(0, "piece", .14, 1.13)],
   queue: [hit(0, "piece", .23, 1.08)],
@@ -83,9 +83,27 @@ const interactionCues = {
     button: [hit(0, "cap", .14, .94), hit(.027, "softCap", .065, .94)]
   },
   nature: {
-    hover: [hit(0, "softCap", .031, 1.15), hit(.013, "softCap", .019, .83, .12)],
+    hover: [hit(0, "softCap", .040, 1.15), hit(.011, "softCap", .019, .83, .12)],
     button: [hit(0, "rim", .15, 1.12), hit(.026, "softCap", .071)]
   }
+};
+// A short secondary contact identifies the material after the initial impact.
+const captureFinish = {
+  plastic: hit(.058, "cap", .10, .92, .35),
+  nature: hit(.061, "cap", .10, .79, .24),
+  metal: hit(.051, "softCap", .087, 1.1, .32),
+  volcanic: hit(.059, "muffled", .16, .84, .14),
+  "ocean-reef": hit(.058, "hollow", .09, 1.22, .22),
+  haunted: hit(.057, "rim", .08, .68, .25),
+  "ancient-ruins": hit(.061, "cap", .13, .79, .23),
+  steampunk: hit(.052, "cap", .095, 1.18, .26),
+  "neon-circuit": hit(.049, "softCap", .085, 1.25, .20),
+  "stained-glass": hit(.051, "softCap", .088, 1.03, .31),
+  origami: hit(.041, "cap", .14, .67, .28),
+  candy: hit(.048, "cap", .12, .86, .24),
+  cosmic: hit(.056, "muffled", .084, 1.18, .19),
+  toy: hit(.058, "piece", .11, 1.11, .26),
+  fossil: hit(.053, "cap", .12, .75, .24)
 };
 const rendered = new Map();
 const variationCount = 4;
@@ -95,14 +113,10 @@ function moveHits(name, variant, finish) {
   const weight = name.endsWith("light") ? 0 : name.endsWith("heavy") ? 2 : 1;
   const pitch = [1.15, 1, .88][weight] * [.96, 1.04, 1.01, .985][variant];
   const land = at => hit(at, weight === 2 ? "hollow" : "piece", [.37, .44, .52][weight], pitch);
-  if (name.startsWith("capture") && finish !== "plastic") return [
-    hit(0, "rim", .32, finish === "nature" ? .86 : 1.06, .16),
-    land(.025),
-    hit(.069, "cap", .10, .81, .32)
-  ];
   if (name.startsWith("capture")) return [
-    hit(0, "rim", .29, 1.07, .12), land(.034),
-    hit(.078, "cap", .13, .9, .52), hit(.101, "piece", .08, 1.25, .57)
+    hit(0, "rim", .30, .98, .14),
+    land(.019),
+    captureFinish[finish] ?? captureFinish.plastic
   ];
   if (name.startsWith("castle")) return [land(0), hit(.055, "piece", .44, 1.02)];
   if (name.startsWith("promote")) {

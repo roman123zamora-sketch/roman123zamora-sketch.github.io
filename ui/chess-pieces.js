@@ -121,10 +121,10 @@ function artwork(piece, side, id) {
         <stop offset="1" ${metalStop("shadow", shade)}/>
       </linearGradient>
       <linearGradient id="${edition}" x1="12%" y1="6%" x2="90%" y2="85%">
-        <stop style="stop-color:var(--edition-face, ${light})"/>
+        <stop style="stop-color:var(--edition-highlight, ${light})"/>
         <stop offset=".32" style="stop-color:var(--edition-face, ${fill})"/>
         <stop offset=".73" style="stop-color:var(--edition-shadow, ${shade})"/>
-        <stop offset="1" style="stop-color:var(--edition-face, ${fill})"/>
+        <stop offset="1" style="stop-color:var(--edition-rim, ${fill})"/>
       </linearGradient>
       <linearGradient id="${bark}" x1="5%" y1="12%" x2="87%" y2="85%">
         <stop style="stop-color:var(--root-light)"/>

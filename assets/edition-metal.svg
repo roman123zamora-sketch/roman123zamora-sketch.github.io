@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 840">
+  <defs>
+    <linearGradient id="room" x2="0" y2="1"><stop stop-color="#151c26"/><stop offset="1" stop-color="#4b5a68"/></linearGradient>
+    <linearGradient id="steel" x2=".7" y2="1"><stop stop-color="#a5bcc8"/><stop offset=".22" stop-color="#637b8d"/><stop offset=".55" stop-color="#354353"/><stop offset=".74" stop-color="#708797"/><stop offset="1" stop-color="#273647"/></linearGradient>
+    <linearGradient id="surface" x2="0" y2="1"><stop stop-color="#697f91"/><stop offset="1" stop-color="#263646"/></linearGradient>
+    <radialGradient id="light"><stop stop-color="#eef8ff" stop-opacity=".64"/><stop offset="1" stop-color="#b5dff3" stop-opacity="0"/></radialGradient>
+  </defs>
+  <path fill="url(#room)" d="M0 0h1200v840H0Z"/>
+  <path fill="#182733" d="M0 194 316 305h571l313-142v449H0Z"/>
+  <path fill="#344550" stroke="#537080" d="M8 205 184 265v261H8Zm1017 38 164-59v342h-164Z"/>
+  <path fill="#adc5d2" d="m24 211 134 46v7L24 225Zm1022 33 116-42v11l-116 43Z"/>
+  <ellipse cx="116" cy="484" rx="155" ry="228" fill="url(#light)"/>
+  <path fill="url(#surface)" d="M0 534 303 463h598l299 62v315H0Z"/>
+  <path fill="#c0d5df3a" d="M28 548 150 520l224 320H17zM1046 526l116 13 33 301h-319Z"/>
+  <path fill="none" stroke="#43576a" d="M0 654h1200M0 765h1200M160 840l291-367m642 367L784 473"/>
+  <path fill="#192b3d" opacity=".8" d="M0 800 209 773l95 67H0Z"/>
+  <path fill="url(#steel)" stroke="#8fa8b8" d="M0 731 143 685l107 50-6 56-118 26L0 787Z"/>
+  <path fill="#748c9d" d="M0 731 143 685l107 50-116 30Z"/>
+  <path fill="none" stroke="#c1d4df" d="m0 733 143-46 104 48-113 29m-2 2-6 50"/>
+  <path fill="none" stroke="#263747" stroke-width="3" d="m139 706 60 22m-80-16 62 24m-82-16 65 25"/>
+</svg>
