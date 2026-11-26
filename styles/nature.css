@@ -37,14 +37,6 @@
   border-color: #66865c;
   box-shadow: inset 0 0 0 1px #8da77d48, inset 0 0 0 3px #122d20, var(--shadow);
 }
-[data-nature] .board:not(.sample) .square:not(.cutout, .marked),
-[data-nature-board] .square:not(.cutout, .marked) {
-  background-image: url("../assets/nature-board-grain.svg");
-  background-size: 7rem 4rem;
-}
-:is([data-nature] .board:not(.sample), [data-nature-board]) .square.dark:nth-child(3n) {
-  background-position: 2rem 1rem;
-}
 .bark-body { stroke: var(--root-mid); }
 .bark-grain { stroke: var(--root-grain); opacity: .76; }
 .vine-light { stroke: var(--root-shoot); opacity: .8; }

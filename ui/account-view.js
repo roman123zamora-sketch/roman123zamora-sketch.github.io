@@ -26,7 +26,7 @@ export function showWelcome(content, enter, notice) {
     status.textContent = "";
     form.hidden = false;
     form.innerHTML = `<label>Username <input type="text" name="username" autocomplete="username" maxlength="24" required></label>
-      <label>Password <input name="password" type="password" autocomplete="${signup ? "new-password" : "current-password"}" required></label>
+      <label>Password <input name="password" type="password" autocomplete="${signup ? "new-password" : "current-password"}"${signup ? ' aria-describedby="signup-password-reminder"' : ""} required>${signup ? '<small id="signup-password-reminder">Please write down your password</small>' : ""}</label>
       ${signup ? '<small>Use 3–24 letters, numbers or underscores and a password of at least 10 characters.</small>' : ""}
       <button class="primary" type="submit">${button.textContent}</button>`;
     form.elements.username.focus();
