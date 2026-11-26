@@ -176,14 +176,17 @@ export default function profile(content) {
       });
       if (frame !== holder.firstElementChild) holder.replaceChildren(frame);
       output.textContent = `Move ${ply} of ${positions.length - 1}`;
-      drawMoveList(list, moves, ply);
+      drawMoveList(list, moves, ply, goToPly);
       buttons[0].disabled = ply === 0;
       buttons[1].disabled = ply === positions.length - 1;
     }
-    for (const button of buttons) button.addEventListener("click", () => {
-      ply += Number(button.dataset.step);
+    function goToPly(next) {
+      ply = Math.max(0, Math.min(positions.length - 1, next));
       draw();
-    });
+    }
+    for (const button of buttons) button.addEventListener("click", () =>
+      goToPly(ply + Number(button.dataset.step)));
+
     draw();
     panel.querySelector("h1").focus();
   }

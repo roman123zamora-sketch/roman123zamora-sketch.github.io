@@ -208,11 +208,20 @@
 .board-history-controls output:empty { display: none; }
 .board-history-controls button, .replay-actions [data-step] { min-inline-size: 2.75rem; }
 .move-list { position: relative; }
-.move-list [aria-current="step"] {
+.move-list .move-history-entry {
+  inline-size: 100%;
+  min-block-size: 2rem;
+  text-align: start;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+.move-list .move-history-entry:hover { background: var(--button-hover); }
+.move-list .move-history-entry:focus-visible { outline-offset: -2px; }
+.move-list .move-history-entry[aria-current="step"] {
   background: var(--turn-surface);
   box-shadow: inset .16rem 0 var(--turn-border);
   border-radius: .2rem;
-  padding-inline-start: .4rem;
 }
 
 @media (max-width: 35rem) {

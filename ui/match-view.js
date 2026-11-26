@@ -331,7 +331,7 @@ export function renderMatch(content, { title, fourPlayer }) {
   function cancelPremovesOnClick(event) {
     const path = event.composedPath();
     if (!path.includes(slot) && !path.includes(dialog) &&
-        !event.target.closest("[data-premove-control], .board-history-controls")) cancelPremoves();
+        !event.target.closest("[data-premove-control], .board-history-controls, .move-history-entry")) cancelPremoves();
   }
 
   function invalidatePremoves() {
@@ -615,7 +615,7 @@ export function renderMatch(content, { title, fourPlayer }) {
     historyControls.querySelector("output").textContent = review ? `Move ${ply} of ${latest}`
       : historyPly !== null ? (historyFrames[ply] ? `Viewing history · ${ply}/${latest}` : "Loading history…")
       : result() ? "Final position" : "";
-    drawMoveList(content.querySelector(".move-list"), history, ply);
+    drawMoveList(content.querySelector(".move-list"), history, ply, goToHistory);
   }
 
   function returnToLive() {
@@ -624,16 +624,21 @@ export function renderMatch(content, { title, fourPlayer }) {
     historyTools = undefined;
   }
 
-  async function stepHistory(direction) {
+  function stepHistory(direction) {
+    const ply = review?.ply ?? historyPly ?? Object.values(match()?.state.history ?? {}).length;
+    return goToHistory(ply + direction);
+  }
+
+  async function goToHistory(ply) {
     if (review) {
-      review.ply = Math.max(0, Math.min(review.positions.length - 1, review.ply + direction));
+      review.ply = Math.max(0, Math.min(review.positions.length - 1, ply));
       drawReview();
     } else {
       const data = match();
       if (!data) return;
       const history = Object.values(data.state.history);
       const latest = history.length;
-      const next = Math.max(0, Math.min(latest, (historyPly ?? latest) + direction));
+      const next = Math.max(0, Math.min(latest, ply));
       if (next === latest) returnToLive();
       else {
         historyPly = next;
