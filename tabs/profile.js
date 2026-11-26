@@ -1,3 +1,4 @@
+import { addAccountControls } from "../ui/account-view.js";
 import { drawMoveList } from "../ui/move-history.js";
 import { createPositionTools } from "../game/position-tools.js";
 import { createEvaluationBar } from "../ui/evaluation-bar.js";
@@ -25,7 +26,9 @@ export default function profile(content) {
     panel.innerHTML = `
       <h1>Profile</h1>
       <dl class="profile-stats">
-        <div><dt>Chess Elo</dt><dd>${data.chessElo}</dd></div>
+        <div><dt>Bullet Elo</dt><dd>${data.ranked?.bullet?.rating ?? 1000}</dd></div>
+        <div><dt>Blitz Elo</dt><dd>${data.ranked?.blitz?.rating ?? 1000}</dd></div>
+        <div><dt>Rapid Elo</dt><dd>${data.ranked?.rapid?.rating ?? 1000}</dd></div>
         <div><dt>4-Player Elo</dt><dd>${data.fourElo}</dd></div>
         <div><dt>League points</dt><dd>${data.leaguePoints}</dd></div>
         <div><dt>All-time pieces captured</dt><dd>${Number(data.allTimeCaptures ?? 0).toLocaleString()}</dd></div>
@@ -36,6 +39,7 @@ export default function profile(content) {
       </div>
       <p class="help history-notice" role="status"></p>
       <div class="game-history"></div>`;
+    addAccountControls(panel);
     const list = panel.querySelector(".game-history");
     const clear = panel.querySelector("[data-clear-bot-history]");
     clear?.addEventListener("click", () => {

@@ -1,6 +1,6 @@
 import { previousLevels, previousMixedLevels } from "./puzzle-legacy-levels.js";
 import { levelOf, levelProgress, puzzleCategories } from "./puzzle-library.js";
-import { readSetting, writeSetting } from "./session.js";
+import { accountStorageKey, readSetting, writeSetting } from "./session.js";
 
 // This key is also the reset marker. Never replace an existing season record
 // with legacy ratings or completion data.
@@ -14,7 +14,7 @@ function validActive(active) {
 
 export function loadPractice() {
   try {
-    const saved = JSON.parse(readSetting(puzzleProgressKey));
+    const saved = JSON.parse(readSetting(accountStorageKey(puzzleProgressKey)));
     const hasSplitRatings = Number.isFinite(saved?.ratings?.checkmate) && Number.isFinite(saved?.ratings?.material);
     if ((hasSplitRatings || Number.isFinite(saved?.rating)) && Array.isArray(saved.rated) && saved.libraryProgress) {
       if (!validActive(saved.active)) saved.active = null;
@@ -48,7 +48,7 @@ export function loadPractice() {
 }
 
 export function savePractice(practice) {
-  writeSetting(puzzleProgressKey, JSON.stringify(practice));
+  writeSetting(accountStorageKey(puzzleProgressKey), JSON.stringify(practice));
 }
 
 export function migrateLibraryProgress(entries, practice) {

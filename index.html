@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="styles/site.css">
   <script type="module" src="ui/site-navigation.js"></script>
 </head>
-<body>
+<body class="signed-out">
   <a class="skip-link" href="#content">Skip to game content</a>
   <header class="topbar">
     <a class="brand" href="#chess"><span aria-hidden="true"><img src="assets/favicon.svg" alt=""></span> Exalted Chess</a>
@@ -18,12 +18,13 @@
       <a href="#chess">Chess</a>
       <a href="#4-player-chess">4-Player Chess</a>
       <a href="#inventory">Inventory</a>
+      <a href="#rankings">Rankings</a>
       <a href="#profile">Profile</a>
       <a href="#learn">Learn</a>
       <a href="#puzzles">Puzzles</a>
     </nav>
-    <button id="audio" type="button" aria-pressed="true">Sound</button>
+    <div class="header-actions"><button id="audio" type="button" aria-pressed="true">Sound</button><button id="logout" type="button">Log out</button></div>
   </header>
-  <main id="content" tabindex="-1"></main>
+  <main id="content" tabindex="-1"><section class="panel account-gate"><h1>Exalted Chess</h1><p role="status">Checking sign-in…</p></section></main>
 </body>
 </html>

@@ -1,6 +1,6 @@
 import { bindBoardDrag } from "../game/board-drag.js";
 import { createPositionTools } from "../game/position-tools.js";
-import { playPositionMove, playSound, readSetting, subscribe, writeSetting } from "../game/session.js";
+import { accountStorageKey, playPositionMove, playSound, readSetting, subscribe, writeSetting } from "../game/session.js";
 import { getTheme } from "../ui/board-themes.js";
 import { board } from "../ui/chessboard.js";
 import { course } from "./learn-lessons.js";
@@ -12,7 +12,7 @@ const points = { P: 1, N: 3, B: 3, R: 5, Q: 9 };
 
 export default function learn(content) {
   let saved;
-  try { saved = JSON.parse(readSetting(progressKey)); } catch { saved = null; }
+  try { saved = JSON.parse(readSetting(accountStorageKey(progressKey))); } catch { saved = null; }
   const completed = new Set(Array.isArray(saved?.completed) ? saved.completed : []);
   const last = Array.isArray(saved?.last) ? saved.last.slice(0, 2) : [0, 0];
   const panel = document.createElement("article");
@@ -70,7 +70,7 @@ export default function learn(content) {
     const lesson = module.lessons[lessonIndex];
     const key = `${moduleIndex}:${lessonIndex}`;
     last.splice(0, last.length, moduleIndex, lessonIndex);
-    const save = () => writeSetting(progressKey, JSON.stringify({ completed: [...completed], last }));
+    const save = () => writeSetting(accountStorageKey(progressKey), JSON.stringify({ completed: [...completed], last }));
     save();
     panel.innerHTML = `
       <div class="learn-workspace">

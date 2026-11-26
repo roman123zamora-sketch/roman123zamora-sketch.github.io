@@ -1,14 +1,16 @@
+import { checkName, checkPassword, hashPassword, nameKey, newToken, passwordMatches, publicProfile, rankings, sessionKey } from "./accounts.mjs";
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
+import { openProfileStore } from "./profile-store.mjs";
 import { createServer } from "node:http";
 import { homedir } from "node:os";
-import { dirname, extname, resolve } from "node:path";
+import { extname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRuntime } from "../game/luau-runtime.js";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const dataFile = resolve(process.env.EXALTED_DATA ?? resolve(homedir(), ".exalted-chess", "profiles.json"));
-const publicOrigin = process.env.EXALTED_SITE_ORIGIN;
+const publicOrigins = new Set((process.env.EXALTED_SITE_ORIGIN ?? "").split(",").map(origin => origin.trim()).filter(Boolean));
 const files = /^(?:index\.html|assets\/(?:[a-z0-9-]+\.svg|puzzles\/(?:index|archive|(?:checkmate|material)\/[0-9]+)\.json)|styles\/[a-z0-9-]+\.css|(?:ui|tabs)\/[a-z0-9-]+\.js|game\/(?:[a-z0-9-]+\.(?:js|luau)|(?:rules|engine)\/[a-z0-9-]+\.luau|vendor\/(?:luau-web\.js|lib\/[a-z0-9-]+\.js)))$/;
 const actions = new Set([
   "profile", "clearBotHistory", "deleteHistoryMatch", "equipBoard", "bot", "fourBot", "queue", "queueFour", "challenge",
@@ -19,14 +21,51 @@ const types = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=
 const runtime = await createRuntime(path => readFile(resolve(root, "game", path), "utf8"));
 const catalog = await runtime("catalog");
 
-let saved = {};
-try { saved = JSON.parse(await readFile(dataFile, "utf8")); } catch (error) {
-  if (error.code !== "ENOENT") throw error;
-}
-await mkdir(dirname(dataFile), { recursive: true });
+const store = await openProfileStore(dataFile, process.env.EXALTED_DATABASE_URL);
+const saved = store.data;
 let nextId = Math.max(0, ...Object.values(saved).map(entry => entry.id));
 const live = new Map();
-const tokens = new Map();
+const accountByName = new Map(Object.values(saved).filter(entry => entry.username).map(entry => [nameKey(entry.username), entry]));
+const accountsById = new Map(Object.values(saved).filter(entry => entry.username).map(entry => [entry.id, entry]));
+const sessions = new Map();
+for (const entry of accountsById.values()) {
+  for (const [hash, expires] of Object.entries(entry.sessions ?? {})) if (expires > Date.now()) sessions.set(hash, entry);
+}
+const attempts = new Map();
+const sessionDuration = 30 * 86400_000;
+
+function allowedAttempt(request) {
+  const key = process.env.RENDER === "true" ? String(request.headers["x-forwarded-for"] ?? "").split(",").at(-1).trim()
+    : request.socket.remoteAddress;
+  const now = Date.now();
+  for (const [address, attempt] of attempts) if (attempt.until <= now) attempts.delete(address);
+  const attempt = attempts.get(key) ?? { until: now + 60000, count: 0 };
+  attempts.set(key, attempt);
+  return ++attempt.count <= 15;
+}
+
+function authorized(token) {
+  const hash = sessionKey(token);
+  const entry = sessions.get(hash);
+  if (entry?.sessions[hash] > Date.now()) return entry;
+  const guest = typeof token === "string" && Object.hasOwn(saved, token) ? saved[token] : null;
+  return guest && !guest.username ? guest : null;
+}
+
+function issueSession(entry) {
+  const token = newToken();
+  const hash = sessionKey(token);
+  entry.sessions ??= {};
+  for (const [old, expiry] of Object.entries(entry.sessions)) {
+    if (expiry <= Date.now() || Object.keys(entry.sessions).length >= 12) {
+      delete entry.sessions[old];
+      sessions.delete(old);
+    }
+  }
+  entry.sessions[hash] = Date.now() + sessionDuration;
+  sessions.set(hash, entry);
+  return token;
+}
 let transactions = Promise.resolve();
 let writes = Promise.resolve();
 
@@ -42,10 +81,7 @@ function transact(callback) {
 
 function persist() {
   const snapshot = JSON.stringify(saved);
-  writes = writes.catch(() => {}).then(async () => {
-    await writeFile(dataFile + ".tmp", snapshot, { mode: 0o600 });
-    await rename(dataFile + ".tmp", dataFile);
-  });
+  writes = writes.catch(() => {}).then(() => store.write(snapshot));
   return writes;
 }
 
@@ -57,7 +93,7 @@ async function dispatch(op, id, first, second) {
     const user = live.get(event.user);
     if (!user) continue;
     if (event.kind === "save") {
-      saved[user.token].profile = event.data;
+      user.account.profile = event.data;
       changed = true;
     } else {
       user.events.push({ id: ++user.cursor, kind: event.kind, data: event.data });
@@ -66,6 +102,19 @@ async function dispatch(op, id, first, second) {
     }
   }
   if (changed) await persist();
+}
+
+async function attachPlayer(account) {
+  let user = live.get(account.id);
+  if (!user) {
+    user = { id: account.id, account, seen: Date.now(), cursor: 0, events: [], polls: new Set(), name: account.username ?? `Player ${account.id}` };
+    live.set(user.id, user);
+    await dispatch("join", user.id, user.name, account.profile);
+  } else {
+    user.seen = Date.now();
+    await dispatch("action", user.id, "resume");
+  }
+  return { catalog, account: account.username ? { id: account.id, username: account.username } : null };
 }
 
 async function jsonBody(request) {
@@ -122,8 +171,8 @@ function selectData(kind, data) {
 async function serve(request, response) {
   const url = new URL(request.url, "http://localhost");
   if (url.pathname.startsWith("/api/")) response.setHeader("Vary", "Origin");
-  if (publicOrigin && request.headers.origin === publicOrigin) {
-    response.setHeader("Access-Control-Allow-Origin", publicOrigin);
+  if (publicOrigins.has(request.headers.origin)) {
+    response.setHeader("Access-Control-Allow-Origin", request.headers.origin);
     response.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
     response.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   }
@@ -132,39 +181,133 @@ async function serve(request, response) {
     response.writeHead(204).end();
     return;
   }
-  if (url.pathname === "/api/join" && request.method === "POST") {
-    const input = await jsonBody(request);
-    const result = await transact(async () => {
-      const previous = typeof input?.token === "string" && Object.hasOwn(saved, input.token) ? input.token : null;
-      const token = previous ?? randomUUID();
-      const entry = saved[token] ??= { id: ++nextId };
-      if (!tokens.has(token)) {
-        const user = { id: entry.id, token, seen: Date.now(), cursor: 0, events: [], polls: new Set(), name: `Player ${entry.id}` };
-        live.set(user.id, user);
-        tokens.set(token, user);
-        await dispatch("join", user.id, user.name, entry.profile);
-      } else {
-        const user = tokens.get(token);
-        user.seen = Date.now();
-        await dispatch("action", user.id, "resume");
+  if (url.pathname === "/api/account-status" && request.method === "GET") {
+    return respond(response, 200, { accountsEnabled: store.accountsEnabled });
+  }
+  if (["/api/signup", "/api/login"].includes(url.pathname) && request.method === "POST") {
+    if (!allowedAttempt(request)) return respond(response, 429, { error: "Too many attempts. Try again in a minute." });
+    const { username, password, previousToken } = await jsonBody(request) ?? {};
+    const signup = url.pathname === "/api/signup";
+    if (signup && !store.accountsEnabled) {
+      return respond(response, 503, { error: "Signup is waiting for persistent account storage. You can play as a guest." });
+    }
+    if (signup) {
+      const error = checkName(username) ?? checkPassword(password);
+      if (error) return respond(response, 400, { error });
+    }
+    const key = typeof username === "string" ? nameKey(username) : "";
+    const existing = accountByName.get(key);
+    const existingHash = existing?.passwordHash;
+    if (!signup && !await passwordMatches(password, existingHash)) {
+      return respond(response, 401, { error: "Username or password is incorrect." });
+    }
+    const passwordHash = signup ? await hashPassword(password) : null;
+    return await transact(async () => {
+      let entry = existing;
+      if (signup) {
+        if (accountByName.has(key)) return respond(response, 409, { error: "That username is taken." });
+        const legacy = typeof previousToken === "string" && Object.hasOwn(saved, previousToken) && saved[previousToken];
+        entry = { id: ++nextId, username, passwordHash, sessions: {}, profile: legacy?.username ? undefined : legacy?.profile };
+        if (legacy && !legacy.username) delete saved[previousToken];
+        saved["account:" + entry.id] = entry;
+        accountsById.set(entry.id, entry);
+        accountByName.set(key, entry);
+      } else if (!entry || entry.passwordHash !== existingHash) {
+        return respond(response, 401, { error: "Please try signing in again." });
       }
-      if (!previous) await persist();
-      return { token, catalog };
+      const token = issueSession(entry);
+      await persist();
+      return respond(response, 200, { token, ...await attachPlayer(entry) });
     });
-    return respond(response, 200, result);
+  }
+  const bearer = /^Bearer (\S+)$/i.exec(request.headers.authorization ?? "")?.[1];
+  const account = authorized(bearer);
+  if (url.pathname === "/api/join" && request.method === "POST") {
+    const input = bearer ? null : await jsonBody(request);
+    const result = await transact(async () => {
+      if (account) return attachPlayer(account);
+      if (bearer) return null;
+      const previous = typeof input?.token === "string" && authorized(input.token);
+      const guestToken = previous && !previous.username ? input.token : randomUUID();
+      const guest = saved[guestToken] ??= { id: ++nextId };
+      const attached = await attachPlayer(guest);
+      if (!previous) await persist();
+      return { ...attached, token: guestToken };
+    });
+    return result ? respond(response, 200, result) : respond(response, 401, { error: "Please log in." });
+  }
+  if (url.pathname === "/api/account" && request.method === "POST") {
+    if (!account?.username) return respond(response, 401, { error: "Please log in." });
+    if (!allowedAttempt(request)) return respond(response, 429, { error: "Too many attempts. Try again in a minute." });
+    const input = await jsonBody(request) ?? {};
+    if (input.kind === "logout") {
+      await transact(async () => {
+        const hash = sessionKey(bearer);
+        delete account.sessions[hash];
+        sessions.delete(hash);
+        const user = live.get(account.id);
+        if (user) { await dispatch("leave", user.id); wakePolls(user); live.delete(user.id); }
+        await persist();
+      });
+      return respond(response, 200, {});
+    }
+    if (input.kind === "username") {
+      const error = checkName(input.username);
+      if (error) return respond(response, 400, { error });
+      return await transact(async () => {
+        const key = nameKey(input.username);
+        if (accountByName.has(key) && accountByName.get(key) !== account) {
+          return respond(response, 409, { error: "That username is taken." });
+        }
+        accountByName.delete(nameKey(account.username));
+        account.username = input.username;
+        accountByName.set(key, account);
+        const user = live.get(account.id);
+        if (user) { user.name = account.username; await dispatch("action", user.id, "rename", account.username); }
+        await persist();
+        return respond(response, 200, { id: account.id, username: account.username });
+      });
+    }
+    if (input.kind === "password") {
+      const error = checkPassword(input.password);
+      if (error) return respond(response, 400, { error });
+      const oldHash = account.passwordHash;
+      if (!await passwordMatches(input.current, oldHash)) return respond(response, 400, { error: "Current password is incorrect." });
+      const passwordHash = await hashPassword(input.password);
+      return await transact(async () => {
+        if (account.passwordHash !== oldHash) return respond(response, 409, { error: "Password changed. Try again." });
+        account.passwordHash = passwordHash;
+        for (const hash of Object.keys(account.sessions)) if (hash !== sessionKey(bearer)) {
+          delete account.sessions[hash];
+          sessions.delete(hash);
+        }
+        await persist();
+        return respond(response, 200, {});
+      });
+    }
+    return respond(response, 400, { error: "Unknown account change." });
+  }
+  if (url.pathname === "/api/rankings" && request.method === "GET") {
+    const category = url.searchParams.get("category");
+    if (!["bullet","blitz","rapid"].includes(category)) return respond(response, 400, { error: "Unknown time control." });
+    return respond(response, 200, rankings([...accountsById.values()], category, url.searchParams.get("page"), (url.searchParams.get("q") ?? "").slice(0,24)));
+  }
+  if (/^\/api\/players\/\d+$/.test(url.pathname) && request.method === "GET") {
+    const entry = accountsById.get(Number(url.pathname.split("/").at(-1)));
+    return entry ? respond(response, 200, publicProfile(entry)) : respond(response, 404, { error: "Player not found." });
   }
   if (url.pathname === "/api/page-leave" && request.method === "POST") {
     const input = await jsonBody(request);
-    const user = typeof input?.token === "string" && tokens.get(input.token);
+    const owner = authorized(input?.token);
+    const user = owner && live.get(owner.id);
     if (!user || typeof input.matchId !== "string" || input.matchId.length > 64) return respond(response, 400, {});
     await transact(() => {
-      if (tokens.get(user.token) === user) return dispatch("action", user.id, "pageLeave", { matchId: input.matchId });
+      if (live.get(user.id) === user) return dispatch("action", user.id, "pageLeave", { matchId: input.matchId });
     });
     return respond(response, 200, {});
   }
   if (url.pathname.startsWith("/api/")) {
-    const bearer = /^Bearer (\S+)$/i.exec(request.headers.authorization ?? "")?.[1];
-    const user = tokens.get(bearer);
+    const user = account && live.get(account.id);
     if (!user) return respond(response, 401, "Session expired. Reload to reconnect.");
     user.seen = Date.now();
     if (url.pathname === "/api/events" && request.method === "GET") {
@@ -194,7 +337,7 @@ async function serve(request, response) {
       const { kind, data } = await jsonBody(request) ?? {};
       if (!actions.has(kind)) return respond(response, 400, "Unknown action.");
       const accepted = await transact(async () => {
-        if (tokens.get(bearer) !== user) return false;
+        if (live.get(user.id) !== user || authorized(bearer) !== account) return false;
         await dispatch("action", user.id, kind, selectData(kind, data));
         if (kind === "leave") {
           user.events.push({ id: ++user.cursor, kind: "left" });
@@ -250,7 +393,7 @@ setInterval(async () => {
         await dispatch("leave", user.id);
         wakePolls(user);
         live.delete(user.id);
-        tokens.delete(user.token);
+
       }
     });
   } catch (error) {

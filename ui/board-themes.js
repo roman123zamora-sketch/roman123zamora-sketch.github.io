@@ -42,6 +42,8 @@ function interfaceColors({ ui, light }) {
     "press-ring": blend(ui.blue, "transparent", 42),
     selected: ui.blueDark,
     legal: blend(ui.blueDark, "#081426", 55),
+    "move-cue-ink": blend(ui.blueDark, "#10131d", 60),
+    "move-cue-rim": blend(light, ui.blue, 58),
     "last-move": blend(ui.blue, "transparent", 50),
     "square-focus": blend(ui.blueDark, "#081426", 48),
     "square-hover": blend(ui.blueDark, "transparent", 65),

@@ -1,5 +1,8 @@
 import { applyEquippedTheme } from "./board-themes.js";
 import { action, connect, soundEnabled, toggleSound, unlockSound, playSound, session, subscribe } from "../game/session.js";
+import { showWelcome } from "./account-view.js";
+import rankings from "../tabs/rankings.js";
+import { changeAccount, returnToWelcome } from "../game/session.js";
 import chess from "../tabs/chess.js";
 import fourPlayerChess from "../tabs/four-player-chess.js";
 import inventory from "../tabs/inventory.js";
@@ -12,6 +15,7 @@ const pages = new Map([
   ["4-player-chess", fourPlayerChess],
   ["inventory", inventory],
   ["profile", profile],
+  ["rankings", rankings],
   ["learn", learn],
   ["puzzles", puzzles]
 ]);
@@ -34,10 +38,11 @@ for (const link of links) {
 }
 
 function navigate() {
+  if (document.body.classList.contains("signed-out")) return;
   const previousBoard = content.querySelector(".aligned-board-area .board-and-eval")?.getBoundingClientRect();
   cleanup?.();
   const hash = ["#boards", "#shop"].includes(location.hash) ? "inventory" : location.hash.slice(1);
-  const page = pages.has(hash) ? hash : "chess";
+  const page = hash.startsWith("rankings/") ? "rankings" : pages.has(hash) ? hash : "chess";
   for (const link of links) {
     if (link.hash === "#" + page) {
       link.setAttribute("aria-current", "page");
@@ -110,19 +115,26 @@ subscribe((kind, match) => {
   const page = match.variant === "four" ? "#4-player-chess" : "#chess";
   if ((location.hash || "#chess") !== page) location.hash = page;
 });
-const inviteUrl = new URL(location.href);
-const inviteCode = inviteUrl.searchParams.get("invite");
-await connect();
-if (inviteCode !== null && session.network) {
-  action("joinInvite", { code: inviteCode });
-  const stopWatching = subscribe(kind => {
-    if (!["inviteRoom", "state", "reject"].includes(kind)) return;
-    stopWatching();
-    const current = new URL(location.href);
-    current.searchParams.delete("invite");
-    history.replaceState(history.state, "", current);
-  });
-} else if (inviteCode !== null) {
-  const notice = content.querySelector(".match-notice");
-  if (notice) notice.textContent = "The match server is unavailable. Refresh to try this challenge link again.";
+function enterGame() {
+  document.body.classList.remove("signed-out");
+  document.querySelector("#logout").textContent = session.account ? "Log out" : "Log In";
+  navigate();
+  const url = new URL(location.href);
+  const invite = url.searchParams.get("invite");
+  if (invite !== null) {
+    action("joinInvite", { code: invite });
+    url.searchParams.delete("invite");
+    history.replaceState(history.state, "", url);
+  }
 }
+
+document.querySelector("#logout").addEventListener("click", async event => {
+  const button = event.currentTarget;
+  if (!session.account) return returnToWelcome();
+  button.disabled = true;
+  try { await changeAccount({ kind: "logout" }); }
+  catch (error) { button.disabled = false; button.textContent = "Retry logout"; }
+});
+
+if (await connect()) enterGame();
+else showWelcome(content, enterGame, session.notice);

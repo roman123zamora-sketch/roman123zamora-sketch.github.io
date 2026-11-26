@@ -113,14 +113,39 @@ document root, and place the service behind HTTPS for public access.
 To keep using GitHub Pages with a separately hosted service, set the
 `exalted-server` meta tag in `index.html` to the service's HTTPS URL ending in
 `/api`. Set `EXALTED_SITE_ORIGIN` on the service to the Pages origin without a
-trailing slash.
+trailing slash. Multiple frontend origins can be listed with commas.
+
+Render deployments support two ways to keep accounts through restarts:
+
+- Set `EXALTED_DATABASE_URL` in Render to a Neon PostgreSQL connection string.
+  The server creates its storage table at startup. The existing local profile
+  file is imported only when the database has no saved snapshot.
+- Mount a persistent disk and set `EXALTED_DATA` to a file on it, such as
+  `/var/data/profiles.json`.
+
+Keep the connection string in Render’s environment settings and run one match
+server instance against the profile store. On Render without either setting,
+guest play and Rankings stay available and public signup shows a storage
+message. Local development can use its normal profile file.
+
+Signup creates a session immediately. Passwords use salted scrypt hashes and
+the store keeps digests of session tokens. Sessions expire after 30 days.
+Changing a password revokes the other sessions on the account. Existing guest
+server records can be claimed during signup using the previous browser session.
+Bot history and practice progress remain browser-local and are separated by
+account. Public records use results recorded by the match server.
+
+Rankings count completed standard online matches by selected time control.
+Each category starts at 1,000 Elo and ranks players after their first result.
+Legacy matches had no per-category rating history, so they do not affect these
+leaderboards. Four-Player Elo is displayed on profiles.
 
 The browser uses authenticated HTTP long polling at `/api/events`. Online
 matches leave when the page unloads or reloads. If the browser cannot notify
 the server, inactivity ends the connection after 30 seconds. Live matches
 are held in memory and end if the service restarts. Bot games run in a browser
 worker, so their turns keep working through a connection interruption.
-The persistent file stores player profiles and results.
+The persistent file stores accounts, sessions, server profiles and results.
 
 **Challenge** creates a private link using the host’s selected time control.
 Open the link in a separate browser session to join. Standard chess needs two

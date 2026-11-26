@@ -64,7 +64,7 @@ local function saveProfile(p)
  local profile=profileCache[tostring(p.UserId)]; if profile and Profiles then pcall(function() Profiles:SetAsync(tostring(p.UserId),profile) end) end
 end
 local function profileView(p)
- local v=getProfile(p); return {chessElo=v.chessElo,fourElo=v.fourElo,leaguePoints=v.leaguePoints,league=league(v.leaguePoints),allTimeCaptures=v.allTimeCaptures,history=v.history or {},equippedBoard=v.equippedBoard}
+ local v=getProfile(p); return {ranked=v.ranked,chessElo=v.chessElo,fourElo=v.fourElo,leaguePoints=v.leaguePoints,league=league(v.leaguePoints),allTimeCaptures=v.allTimeCaptures,history=v.history or {},equippedBoard=v.equippedBoard}
 end
 local function fourMode(m) return m.mode=="fourBot" or m.mode=="fourOnline" end
 local function engineFor(m) return fourMode(m) and Four or Chess end
@@ -132,11 +132,32 @@ local function pair(m,recipient,terminal)
  return state
 end
 local function expected(a,b) return 1/(1+10^((b-a)/400)) end
+local function rankedCategory(m)
+ if m.mode~="online" then return nil end
+ local base=m.rematchControl and m.rematchControl.baseSeconds or 180
+ return base<180 and "bullet" or base<600 and "blitz" or "rapid"
+end
 local function updateOnlineRatings(m,winner,placements)
  if m.mode=="online" then
   local p1,p2=m.players[1],m.players[2]; if not p1 or not p2 then return end
   local r1=getProfile(p1); local r2=getProfile(p2); local a,b=r1.chessElo,r2.chessElo
   local s1=winner==nil and .5 or (m.sides[p1.UserId]==winner and 1 or 0)
+  local category=rankedCategory(m)
+  local function record(profile)
+   profile.ranked=profile.ranked or {}
+   local row=profile.ranked[category] or {rating=1000,wins=0,draws=0,losses=0}
+   profile.ranked[category]=row
+   return row
+  end
+  local first,second=record(r1),record(r2)
+  local ar,br=first.rating,second.rating
+  local results={{first,s1,ar,br},{second,1-s1,br,ar}}
+  for _,entry in ipairs(results) do
+   local row,score,rating,opponent=table.unpack(entry)
+   row.rating=math.max(100,math.floor(rating+32*(score-expected(rating,opponent))+.5))
+   local field=score==1 and "wins" or score==0 and "losses" or "draws"
+   row[field]+=1
+  end
   local k=32; r1.chessElo=math.max(100,math.floor(a+k*(s1-expected(a,b))+.5)); r2.chessElo=math.max(100,math.floor(b+k*((1-s1)-expected(b,a))+.5))
   for _,p in ipairs({p1,p2}) do
    local prof=getProfile(p); local tier=league(prof.leaguePoints); local reward=POINTS[tier][winner==nil and 2 or (m.sides[p.UserId]==winner and 1 or 3)]
@@ -167,7 +188,7 @@ local function recordHistory(m,p,side,result,reason,place)
  else for _,o in ipairs(m.players) do if o~=p then table.insert(opp,o.DisplayName or o.Name) end end end
  local fourStates=fourReplayStates(m)
  prof.history=prof.history or {}
- table.insert(prof.history,1,{id=historyId(prof.history),v=fourMode(m) and "four" or "chess",mode=m.mode,result=result,reason=reason,ts=os.time(),side=side,place=place,opp=table.concat(opp,", "),moves=moves,fourStates=fourStates})
+ table.insert(prof.history,1,{id=historyId(prof.history),v=fourMode(m) and "four" or "chess",mode=m.mode,category=rankedCategory(m),result=result,reason=reason,ts=os.time(),side=side,place=place,opp=table.concat(opp,", "),moves=moves,fourStates=fourStates})
  while #prof.history>20 do table.remove(prof.history,#prof.history) end
  saveProfile(p); send(p,"profile",profileView(p))
 end
@@ -538,7 +559,8 @@ Action.OnServerEvent:Connect(function(p,kind,data)
   or kind=="challenge" or kind=="challengeRespond" or kind=="rematch" or kind=="rematchRespond") then
   send(p,"reject",{reason="Leave your challenge before starting another match."}); return
  end
- if kind=="profile" then send(p,"profile",profileView(p))
+ if kind=="rename" then p.DisplayName=data
+ elseif kind=="profile" then send(p,"profile",profileView(p))
  elseif kind=="deleteHistoryMatch" then
   local profile=getProfile(p)
   local id=type(data)=="table" and data.id
