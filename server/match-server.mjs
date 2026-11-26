@@ -24,7 +24,13 @@ const catalog = await runtime("catalog");
 const store = await openProfileStore(dataFile, process.env.EXALTED_DATABASE_URL);
 const saved = store.data;
 let nextId = Math.max(0, ...Object.values(saved).map(entry => entry.id));
+// Only registered profiles belong in the persistent store.
+const legacyGuests = Object.keys(saved).filter(key => !saved[key]?.username);
+for (const key of legacyGuests) delete saved[key];
+if (legacyGuests.length) await store.write(JSON.stringify(saved));
+
 const live = new Map();
+const guests = new Map();
 const accountByName = new Map(Object.values(saved).filter(entry => entry.username).map(entry => [nameKey(entry.username), entry]));
 const accountsById = new Map(Object.values(saved).filter(entry => entry.username).map(entry => [entry.id, entry]));
 const sessions = new Map();
@@ -48,8 +54,7 @@ function authorized(token) {
   const hash = sessionKey(token);
   const entry = sessions.get(hash);
   if (entry?.sessions[hash] > Date.now()) return entry;
-  const guest = typeof token === "string" && Object.hasOwn(saved, token) ? saved[token] : null;
-  return guest && !guest.username ? guest : null;
+  return guests.get(token) ?? null;
 }
 
 function issueSession(entry) {
@@ -94,7 +99,7 @@ async function dispatch(op, id, first, second) {
     if (!user) continue;
     if (event.kind === "save") {
       user.account.profile = event.data;
-      changed = true;
+      if (user.account.username) changed = true;
     } else {
       user.events.push({ id: ++user.cursor, kind: event.kind, data: event.data });
       if (user.events.length > 500) user.events.shift();
@@ -102,6 +107,15 @@ async function dispatch(op, id, first, second) {
     }
   }
   if (changed) await persist();
+}
+
+async function dropPlayer(user) {
+  try { await dispatch("leave", user.id); }
+  finally {
+    if (user.account.guestToken) guests.delete(user.account.guestToken);
+    live.delete(user.id);
+    wakePolls(user);
+  }
 }
 
 async function attachPlayer(account) {
@@ -186,10 +200,10 @@ async function serve(request, response) {
   }
   if (["/api/signup", "/api/login"].includes(url.pathname) && request.method === "POST") {
     if (!allowedAttempt(request)) return respond(response, 429, { error: "Too many attempts. Try again in a minute." });
-    const { username, password, previousToken } = await jsonBody(request) ?? {};
+    const { username, password } = await jsonBody(request) ?? {};
     const signup = url.pathname === "/api/signup";
     if (signup && !store.accountsEnabled) {
-      return respond(response, 503, { error: "Signup is waiting for persistent account storage. You can play as a guest." });
+      return respond(response, 503, { error: "Sign Up is unavailable until the server can save accounts permanently. You can still play as a guest." });
     }
     if (signup) {
       const error = checkName(username) ?? checkPassword(password);
@@ -206,9 +220,7 @@ async function serve(request, response) {
       let entry = existing;
       if (signup) {
         if (accountByName.has(key)) return respond(response, 409, { error: "That username is taken." });
-        const legacy = typeof previousToken === "string" && Object.hasOwn(saved, previousToken) && saved[previousToken];
-        entry = { id: ++nextId, username, passwordHash, sessions: {}, profile: legacy?.username ? undefined : legacy?.profile };
-        if (legacy && !legacy.username) delete saved[previousToken];
+        entry = { id: ++nextId, username, passwordHash, sessions: {} };
         saved["account:" + entry.id] = entry;
         accountsById.set(entry.id, entry);
         accountByName.set(key, entry);
@@ -223,15 +235,13 @@ async function serve(request, response) {
   const bearer = /^Bearer (\S+)$/i.exec(request.headers.authorization ?? "")?.[1];
   const account = authorized(bearer);
   if (url.pathname === "/api/join" && request.method === "POST") {
-    const input = bearer ? null : await jsonBody(request);
     const result = await transact(async () => {
       if (account) return attachPlayer(account);
       if (bearer) return null;
-      const previous = typeof input?.token === "string" && authorized(input.token);
-      const guestToken = previous && !previous.username ? input.token : randomUUID();
-      const guest = saved[guestToken] ??= { id: ++nextId };
+      const guestToken = randomUUID();
+      const guest = { id: ++nextId, guestToken };
       const attached = await attachPlayer(guest);
-      if (!previous) await persist();
+      guests.set(guestToken, guest);
       return { ...attached, token: guestToken };
     });
     return result ? respond(response, 200, result) : respond(response, 401, { error: "Please log in." });
@@ -246,7 +256,7 @@ async function serve(request, response) {
         delete account.sessions[hash];
         sessions.delete(hash);
         const user = live.get(account.id);
-        if (user) { await dispatch("leave", user.id); wakePolls(user); live.delete(user.id); }
+        if (user) await dropPlayer(user);
         await persist();
       });
       return respond(response, 200, {});
@@ -295,6 +305,15 @@ async function serve(request, response) {
   if (/^\/api\/players\/\d+$/.test(url.pathname) && request.method === "GET") {
     const entry = accountsById.get(Number(url.pathname.split("/").at(-1)));
     return entry ? respond(response, 200, publicProfile(entry)) : respond(response, 404, { error: "Player not found." });
+  }
+  if (url.pathname === "/api/guest-end" && request.method === "POST") {
+    const input = await jsonBody(request);
+    await transact(async () => {
+      const guest = guests.get(input?.token);
+      const user = guest && live.get(guest.id);
+      if (user) await dropPlayer(user);
+    });
+    return respond(response, 200, {});
   }
   if (url.pathname === "/api/page-leave" && request.method === "POST") {
     const input = await jsonBody(request);
@@ -390,10 +409,7 @@ setInterval(async () => {
       await dispatch("tick");
       for (const user of live.values()) {
         if (Date.now() - user.seen < 30_000) continue;
-        await dispatch("leave", user.id);
-        wakePolls(user);
-        live.delete(user.id);
-
+        await dropPlayer(user);
       }
     });
   } catch (error) {

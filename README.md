@@ -130,8 +130,8 @@ message. Local development can use its normal profile file.
 
 Signup creates a session immediately. Passwords use salted scrypt hashes and
 the store keeps digests of session tokens. Sessions expire after 30 days.
-Changing a password revokes the other sessions on the account. Existing guest
-server records can be claimed during signup using the previous browser session.
+Changing a password revokes the other sessions on the account. Guest progress
+is temporary and resets when the player reloads or leaves the page.
 Bot history and practice progress remain browser-local and are separated by
 account. Public records use results recorded by the match server.
 

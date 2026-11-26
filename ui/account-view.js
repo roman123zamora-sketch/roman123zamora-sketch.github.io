@@ -2,9 +2,9 @@ import { accountRequest, changeAccount, enterAsGuest, session, signIn } from "..
 
 export function showWelcome(content, enter, notice) {
   content.innerHTML = `<section class="panel account-gate">
-    <img src="assets/favicon.svg" width="64" height="64" alt="">
+    <img class="welcome-logo" src="assets/favicon.svg" width="104" height="104" alt="">
     <h1>Exalted Chess</h1>
-    <div class="action-row"><button type="button" data-mode="signup" class="primary">Sign Up</button><button type="button" data-mode="login">Log In</button></div>
+    <div class="welcome-actions"><button type="button" data-mode="signup" class="primary">Sign Up</button><button type="button" data-mode="login">Log In</button></div>
     <p role="status"></p><form hidden></form><button type="button" data-guest>Continue as guest</button></section>`;
   const form = content.querySelector("form");
   const status = content.querySelector('[role="status"]');
@@ -17,7 +17,7 @@ export function showWelcome(content, enter, notice) {
   };
   accountRequest("/account-status").then(({ accountsEnabled }) => {
     if (!accountsEnabled && !status.textContent) {
-      status.textContent = "Signup is waiting for persistent account storage. You can still play as a guest.";
+      status.textContent = "Sign Up is unavailable until the server can save accounts permanently. You can still play as a guest.";
     }
   }).catch(() => {});
   for (const button of content.querySelectorAll("[data-mode]")) button.addEventListener("click", () => {

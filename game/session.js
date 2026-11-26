@@ -2,8 +2,12 @@ import { createImpactSample, impactSampleUrl, materialForBoard } from "./plastic
 
 const legacyProfileKey = "exalted-chess-profile-v1";
 const tokenKey = "exalted-account-session";
-const guestTokenKey = "exalted-server-token";
-const guestModeKey = "exalted-guest-mode";
+const legacyGuestKeys = [
+  legacyProfileKey, "exalted-chess-puzzle-progression-v2", "exalted-chess-learn-v1",
+  "exalted-chess-puzzle-attempts-v1", "exalted-chess-puzzles-v1",
+  "exalted-server-token", "exalted-guest-mode"
+];
+const guestProgress = new Map();
 let guestMode = false;
 export const accountStorageKey = name => name + (session.account ? ":" + session.account.id : "");
 const profileKey = () => accountStorageKey(legacyProfileKey);
@@ -31,11 +35,16 @@ let localProfile;
 const localHistoryPrefix = "browser:";
 
 export function readSetting(name) {
+  if (guestMode && legacyGuestKeys.includes(name)) return guestProgress.get(name) ?? null;
   try { return localStorage.getItem(name); }
   catch { return null; }
 }
 
 export function writeSetting(name, value) {
+  if (guestMode && legacyGuestKeys.includes(name)) {
+    guestProgress.set(name, value);
+    return;
+  }
   try { localStorage.setItem(name, value); }
   catch {
     // Storage restrictions should not interrupt gameplay.
@@ -224,21 +233,13 @@ function applySession(data) {
 
 async function joinServer() {
   const options = { method: "POST" };
-  if (guestMode) {
-    token = undefined;
-    options.body = JSON.stringify({ token: readSetting(guestTokenKey) });
-  }
   const data = await request("/join", options);
-  if (guestMode) {
-    token = data.token;
-    writeSetting(guestTokenKey, token);
-  }
+  if (guestMode && data.token) token = data.token;
   applySession(data);
 }
 
 export async function enterAsGuest() {
   guestMode = true;
-  writeSetting(guestModeKey, "on");
   try {
     await joinServer();
     poll();
@@ -248,7 +249,6 @@ export async function enterAsGuest() {
 }
 
 export function returnToWelcome() {
-  writeSetting(guestModeKey, "");
   location.reload();
 }
 
@@ -306,12 +306,13 @@ async function poll() {
 
 export async function connect() {
   server = document.querySelector('meta[name="exalted-server"]')?.content || "";
-  token = readSetting(tokenKey) || undefined;
-  if (!token) {
-    if (readSetting(guestModeKey) !== "on") return false;
-    await enterAsGuest();
-    return true;
+  try {
+    for (const key of legacyGuestKeys) localStorage.removeItem(key);
+  } catch {
+    // Storage restrictions should not prevent the site from opening.
   }
+  token = readSetting(tokenKey) || undefined;
+  if (!token) return false;
   try {
     await joinServer();
     poll();
@@ -325,22 +326,9 @@ export async function connect() {
 }
 
 export async function signIn(mode, credentials) {
-  const body = { ...credentials };
-  if (mode === "signup") body.previousToken = readSetting(guestTokenKey);
-  const result = await request("/" + mode, { method:"POST", body:JSON.stringify(body) });
+  const result = await request("/" + mode, { method:"POST", body:JSON.stringify(credentials) });
   writeSetting(tokenKey, result.token);
-  writeSetting(guestModeKey, "");
   token = result.token;
-  session.account = result.account;
-  if (mode === "signup") {
-    for (const key of [legacyProfileKey, "exalted-chess-puzzle-progression-v2", "exalted-chess-learn-v1"]) {
-      const existing = readSetting(key);
-      if (existing) {
-        writeSetting(accountStorageKey(key), existing);
-        writeSetting(key, "");
-      }
-    }
-  }
   applySession(result);
   poll();
 }
@@ -467,14 +455,20 @@ export async function replay(game) {
 }
 
 // A beacon survives document teardown and avoids a cross-origin preflight.
-if (typeof window !== "undefined") window.addEventListener("pagehide", () => {
-  if (!server || !token || localGame || !session.match || session.result) return;
-  const body = JSON.stringify({ token, matchId: session.match.matchId });
-  const endpoint = server + "/page-leave";
-  if (!navigator.sendBeacon?.(endpoint, body)) {
-    fetch(endpoint, { method: "POST", body, keepalive: true }).catch(() => {});
-  }
-});
+if (typeof window !== "undefined") {
+  window.addEventListener("pagehide", () => {
+    if (!server || !token) return;
+    if (!guestMode && (localGame || !session.match || session.result)) return;
+    const endpoint = server + (guestMode ? "/guest-end" : "/page-leave");
+    const body = JSON.stringify({ token, matchId: session.match?.matchId });
+    if (!navigator.sendBeacon?.(endpoint, body)) {
+      fetch(endpoint, { method: "POST", body, keepalive: true }).catch(() => {});
+    }
+  });
+  window.addEventListener("pageshow", event => {
+    if (event.persisted && guestMode) location.reload();
+  });
+}
 
 const fallbackSounds = new Map();
 const audioBuffers = new WeakMap();

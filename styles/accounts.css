@@ -1,7 +1,16 @@
 .signed-out .topbar, .signed-out .skip-link { display: none; }
 .signed-out #content { min-height: 100svh; display: grid; align-items: center; }
 .header-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .35rem; }
-.account-gate { width: min(100%, 27rem); margin: 2rem auto; padding: clamp(1.25rem, 5vw, 2rem); }
+.account-gate {
+  width: min(100%, 31rem);
+  margin: 2rem auto;
+  padding: clamp(1.25rem, 5vw, 2.25rem);
+  text-align: center;
+}
+.welcome-logo { display: block; margin: 0 auto; max-inline-size: 100%; height: auto; }
+.welcome-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; }
+.welcome-actions button { min-block-size: 3rem; }
+.account-gate form { text-align: start; }
 .account-gate h1 { margin-block: .65rem 1rem; }
 .account-gate form, .account-controls form { display: grid; gap: .75rem; margin-block: .85rem; }
 .account-gate form[hidden], .account-controls form[hidden] { display: none; }
