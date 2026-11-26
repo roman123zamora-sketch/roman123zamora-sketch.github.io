@@ -19,7 +19,7 @@
   --metal-green-face: #6cac8b;
   --metal-green-shadow: #224638;
   --steel-brush: repeating-linear-gradient(0deg, #1019230c 0 1px, transparent 1px 3px, #ffffff13 3px 4px);
-  --steel-reflection: linear-gradient(145deg, #ffffff3b, transparent 38%, #10192324 69%, #ffffff15);
+  --steel-reflection: linear-gradient(145deg, #ffffff2e, transparent 38%, #10192317 69%, #ffffff10);
 }
 :is([data-metal], [data-metal-board]) .metal-rivets { display: inline; }
 [data-metal] {

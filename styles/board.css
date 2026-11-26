@@ -41,6 +41,10 @@
 }
 .square { display: grid; place-items: center; position: relative; min-inline-size: 0; min-block-size: 0; background: var(--light); }
 .square.dark { background: var(--dark); }
+html:not([data-edition], [data-nature], [data-metal]) .board:not(.sample) .square:not(.cutout, .marked),
+.board.sample:not([data-edition-preview], [data-nature-board], [data-metal-board]) .square {
+  background-image: linear-gradient(145deg, #ffffff17, transparent 54%, #11283e0a);
+}
 .square.cutout { background: transparent; }
 .square[data-rank]::before, .square[data-file]::after {
   position: absolute;

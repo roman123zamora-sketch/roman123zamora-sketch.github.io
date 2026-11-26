@@ -7,14 +7,18 @@
     </linearGradient>
     <radialGradient id="contact"><stop stop-color="#0d1019" stop-opacity=".81"/><stop offset="1" stop-color="#0d1019" stop-opacity="0"/></radialGradient>
     <style>.lit {fill:none;stroke:#e2c398;stroke-linecap:round;stroke-linejoin:round}</style>
+    <linearGradient id="specimen-face" x2=".5" y2="1">
+      <stop stop-color="#ba9d80"/><stop offset="1" stop-color="#8a7363"/>
+    </linearGradient>
   </defs>
   <path fill="url(#sky)" d="M0 0h1200v840H0z"/>
   <path d="M0 277q194-48 381 16t372 13q251 5 447-52v52q-196 57-447 49t-372-16Q194 285 0 319z" fill="#827063"/><path d="M0 332q194-48 381 16t372 13q251 5 447-52v52q-196 57-447 49t-372-16Q194 340 0 374z" fill="#685b57"/><path d="M0 387q194-48 381 16t372 13q251 5 447-52v52q-196 57-447 49t-372-16Q194 395 0 429z" fill="#a18768"/><path d="M0 464q194-48 381 16t372 13q251 5 447-52v52q-196 57-447 49t-372-16Q194 472 0 506z" fill="#786459"/><path d="M0 523q194-48 381 16t372 13q251 5 447-52v52q-196 57-447 49t-372-16Q194 531 0 565z" fill="#5c524f"/><path d="M0 581q194-48 381 16t372 13q251 5 447-52v52q-196 57-447 49t-372-16Q194 589 0 623z" fill="#a28569"/><ellipse cx="93" cy="460" rx="100" ry="83" fill="#655455"/><path d="M121 435q-45-39-84 2-26 35 14 62 50 23 74-14 16-34-20-46-32-8-38 15-4 20 14 23 14 1 18-12-3-14-15-6" fill="#0000" stroke="#d1ad86" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/><path d="M29 432l17 12m-11 46 21-9m16 22 4-17m27 9-4-13m25-8-16-5" fill="#0000" stroke="#ad876a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="M0 701l201 6 79 133H0zm1200-66-130 30-98 175h228z" fill="#554643"/><rect x="1032" y="752" width="142" height="60" rx="5" fill="#947755"/><rect x="1038" y="756" width="131" height="48" rx="4" fill="#594e49"/><path d="M1060 784q25-20 66-10m-48 4 7 16m7-22 9 17m7-20 7 14" fill="#0000" stroke="#d6bd95" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
   <g transform="translate(20 700)">
     <ellipse cx="83" cy="102" rx="107" ry="24" fill="url(#contact)"/>
     <path d="M0 65 41 35 140 51 166 75 131 111 24 105Z" fill="url(#prop)"/>
-<path d="M0 65 41 35l99 16 26 24-69 13-68-5Z" fill="#a38d78"/>
+<path d="M0 65 41 35l99 16 26 24-69 13-68-5Z" fill="url(#specimen-face)"/>
 <path d="M25 94l65 9 58-14m-125-3 65 9 62-16" class="lit"/>
+<path d="M13 64L43 43l25 6m42 9 25 2 17 13-30 7m-89-9 10 5" fill="none" stroke="#dac09b" stroke-opacity=".43" stroke-width="1.4"/>
 <path d="M99 69c-20 16-60-5-44-17 15-11 52-3 47 9-4 10-34 6-33-2 2-5 19-4 20 1" fill="none" stroke="#574c49" stroke-width="6"/>
 <path d="M99 67c-20 16-60-5-44-17 15-11 52-3 47 9-4 10-34 6-33-2 2-5 19-4 20 1m-34-8 12 4m-14 4 13 1m-7 6 10-3" class="lit" stroke-width="2"/>
   </g>

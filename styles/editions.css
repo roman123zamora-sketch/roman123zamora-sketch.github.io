@@ -24,7 +24,7 @@
 }
 html[data-edition] .board:not(.sample) .square:not(.cutout, .marked),
 .board[data-edition-preview] .square:not(.cutout, .marked) {
-  background-image: var(--material-grain);
+  background-image: var(--tile-face, none);
 }
 .edition-detail { display: none; }
 html[data-edition] .chess-piece:not(.sample .chess-piece) .edition-detail,
@@ -40,6 +40,7 @@ html[data-edition] .chess-piece:not(.sample .chess-piece) .piece-finish,
 .edition-grain { d: var(--edition-grain); opacity: .58; }
 
 html[data-edition="volcanic"], [data-edition-preview="volcanic"] {
+  --tile-face: linear-gradient(145deg, #ffb1800a, transparent 54%, #150e180c);
   --edition-plane: path("M23 19 40 25 39 47 55 61 28 62 30 49Z");
   --edition-plane-color: #34202e44;
   --edition-relief: path("M0 0l6 6-3 7 10 5-2 8 8 9M6 6l10 1 7-5M13 18l8 3");
@@ -54,6 +55,7 @@ html[data-edition="volcanic"], [data-edition-preview="volcanic"] {
   --edition-light-shadow: #77615b;
 }
 html[data-edition="ocean-reef"], [data-edition-preview="ocean-reef"] {
+  --tile-face: radial-gradient(ellipse at 29% 21%, #d2ffef17, transparent 68%), linear-gradient(142deg, transparent 56%, #14385110);
   --edition-plane: path("M22 20Q38 14 56 31L50 51 41 37 27 55Z");
   --edition-plane-color: #bfece33d;
   --edition-relief: path("M3 24C17 9 2 8 10 0m-3 15Q-2 11 0 7m8 8q12-5 12-12M5 24l-7 9m7-10q8 0 12 8");
@@ -68,6 +70,7 @@ html[data-edition="ocean-reef"], [data-edition-preview="ocean-reef"] {
   --edition-light-shadow: #bd8d91;
 }
 html[data-edition="haunted"], [data-edition-preview="haunted"] {
+  --tile-face: linear-gradient(145deg, #fbe6b80c, transparent 47%, #201b310e);
   --edition-plane: path("M23 14 38 13Q28 31 35 54L47 60 24 61Z");
   --edition-plane-color: #e9d3ab3b;
   --edition-relief: path("M2-2c5 4-1 12 2 17s6 1 5-3q-1-4 3-8m3-2q-2 10 2 19");
@@ -82,6 +85,7 @@ html[data-edition="haunted"], [data-edition-preview="haunted"] {
   --edition-light-shadow: #9f886b;
 }
 html[data-edition="ancient-ruins"], [data-edition-preview="ancient-ruins"] {
+  --tile-face: repeating-linear-gradient(13deg, transparent 0 9px, #50392708 10px, transparent 12px 18px), linear-gradient(155deg, #ffe9bc11, #291c1508);
   --edition-plane: path("M22 18 39 12 44 32 33 42 29 61 21 60Z");
   --edition-plane-color: #e0c18e41;
   --edition-relief: path("M-5 11h27m-25 4h24M3 11v4m8-4v4m8-4v4m-18 8 2 2m4 0 2 2");
@@ -96,6 +100,7 @@ html[data-edition="ancient-ruins"], [data-edition-preview="ancient-ruins"] {
   --edition-light-shadow: #a48b60;
 }
 html[data-edition="steampunk"], [data-edition-preview="steampunk"] {
+  --tile-face: repeating-linear-gradient(0deg, #ffdc8e0b 0 1px, transparent 1px 5px), linear-gradient(150deg, #fff1ba14, #200f090b);
   --edition-plane: path("M23 16 36 13 46 31 41 50 58 62 44 63 34 49Z");
   --edition-plane-color: #ffe2a34f;
   --edition-relief: path("M-1 14h8v9h14v8M-3 16h8v9h14m-10-17h8m-5-4v8");
@@ -110,6 +115,7 @@ html[data-edition="steampunk"], [data-edition-preview="steampunk"] {
   --edition-light-shadow: #9c653d;
 }
 html[data-edition="neon-circuit"], [data-edition-preview="neon-circuit"] {
+  --tile-face: linear-gradient(145deg, #a7fff314 0 1px, transparent 2px 87%, #10172715);
   --edition-plane: path("M23 17 44 15 47 40 57 50 55 61 47 53 30 47Z");
   --edition-plane-color: #77ffe537;
   --edition-relief: path("M0 0v6l8 6v12l6 5h8M18 2v11l-5 5m-10 2-5 5v6m10-20 7-2");
@@ -124,6 +130,7 @@ html[data-edition="neon-circuit"], [data-edition-preview="neon-circuit"] {
   --edition-light-shadow: #6ba9b6;
 }
 html[data-edition="stained-glass"], [data-edition-preview="stained-glass"] {
+  --tile-face: linear-gradient(142deg, #f5fbff1a, transparent 42%, #6d516b15);
   --edition-plane: path("M22 13 42 35 34 59 22 49Z M46 35 62 21 58 63 46 54Z");
   --edition-plane-color: #e694d65a;
   --edition-relief: path("M-8 5l16 7 8-14m-8 14 3 13 15-6m-15 6-12-3m12 3 5 13m-17-16-7 10");
@@ -138,6 +145,7 @@ html[data-edition="stained-glass"], [data-edition-preview="stained-glass"] {
   --edition-light-shadow: #c2797d;
 }
 html[data-edition="origami"], [data-edition-preview="origami"] {
+  --tile-face: linear-gradient(145deg, #fffdf113 0 36%, transparent 37% 74%, #1b0f240c 75%);
   --edition-plane: path("M20 11 46 33 26 54 19 40Z M46 33 62 24 63 64 26 54Z");
   --edition-plane-color: #fcdfaf42;
   --edition-relief: path("M-8-4l22 17-11 22m11-22 11-12m-11 12 13 17m-20-4-13-4");
@@ -152,6 +160,7 @@ html[data-edition="origami"], [data-edition-preview="origami"] {
   --edition-light-shadow: #b6a28c;
 }
 html[data-edition="candy"], [data-edition-preview="candy"] {
+  --tile-face: radial-gradient(ellipse at 38% 20%, #fff1de25, transparent 68%), linear-gradient(155deg, transparent 51%, #3a162513);
   --edition-plane: path("M18 9Q46 21 60 39l2 6Q37 24 19 19Z");
   --edition-plane-color: #fc9cb247;
   --edition-relief: path("M-9 0q18 1 31 14M-9 9q18 1 34 13m-28 0q12 0 29 13");
@@ -159,13 +168,16 @@ html[data-edition="candy"], [data-edition-preview="candy"] {
   --edition-scene: url("../assets/edition-candy.svg");
   --material-accent: #ffa7be;
   --material-glint: #ffa7be35;
-  --material-grain: repeating-linear-gradient(135deg, #f0a3b221 0 5px, transparent 5px 15px);
+  --material-grain: repeating-linear-gradient(135deg, #f0a3b229 0 4px, transparent 4px 14px);
+  --panel-material: linear-gradient(150deg, #ffc0cb20, transparent 8rem);
+  --header-material: linear-gradient(0deg, #f0a3b223, transparent 4px);
   --edition-dark-face: #795063;
   --edition-dark-shadow: #331d3e;
   --edition-light-face: #fff0d9;
   --edition-light-shadow: #e7a6a5;
 }
 html[data-edition="cosmic"], [data-edition-preview="cosmic"] {
+  --tile-face: radial-gradient(ellipse at 24% 16%, #d9e4fe1d, transparent 72%), linear-gradient(155deg, transparent 58%, #16132c12);
   --edition-plane: path("M22 16Q42 12 57 28L59 41Q40 28 23 40Z");
   --edition-plane-color: #c3caff36;
   --edition-relief: path("M-8 16q8 6 31-6M-9 18q6 6 31 1M7 4v7m-3-3h6m9 17v6m-3-3h6");
@@ -180,6 +192,7 @@ html[data-edition="cosmic"], [data-edition-preview="cosmic"] {
   --edition-light-shadow: #8799be;
 }
 html[data-edition="toy"], [data-edition-preview="toy"] {
+  --tile-face: repeating-linear-gradient(7deg, transparent 0 6px, #59371c0b 7px, transparent 9px 13px), linear-gradient(145deg, #f9dda018, #3120110c);
   --edition-plane: path("M22 16Q47 9 54 30L52 39Q37 29 25 43Z");
   --edition-plane-color: #f4ce9060;
   --edition-relief: path("M-7 21q13 4 31 0m-29 3q11 6 29 0m-26 8h20");
@@ -194,6 +207,7 @@ html[data-edition="toy"], [data-edition-preview="toy"] {
   --edition-light-shadow: #c19869;
 }
 html[data-edition="fossil"], [data-edition-preview="fossil"] {
+  --tile-face: repeating-linear-gradient(10deg, #f5e3bf0b 0 4px, transparent 4px 10px, #43362c09 11px 12px), linear-gradient(145deg, #ffe4b411, #1b17120d);
   --edition-plane: path("M22 16 43 13 56 30 46 40 32 33 20 39Z");
   --edition-plane-color: #efd0a040;
   --edition-relief: path("M3 7c10-9 18 4 11 10-5 5-13 0-9-5 2-3 7 0 4 2M10 22v11m0-10-7 2m7 1 7 1m-7 2-6 2");

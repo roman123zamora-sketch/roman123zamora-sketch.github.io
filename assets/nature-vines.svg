@@ -9,9 +9,9 @@
   </defs>
   <path d="M0 116C23 94 4 69 20 47S59 33 81 20 101 4 123 0" fill="none" stroke="#110e08" stroke-opacity=".64" stroke-width="13" transform="translate(2 3)"/>
   <path d="M0 119C17 97 3 72 16 49c12-22 41-20 61-31C97 7 102 2 124 0c-19 6-23 7-42 21-22 15-48 11-60 31C8 74 25 96 0 119Z" fill="url(#bark)"/>
-  <path d="M4 105C14 88 6 65 20 49s34-16 49-23M18 61c6-17 16-21 34-25" fill="none" stroke="#c5a36d" stroke-opacity=".63" stroke-linecap="round"/>
+  <path d="M4 105C14 88 6 65 20 49s34-16 49-23M18 61c6-17 16-21 34-25" fill="none" stroke="#c5a36d" stroke-opacity=".48" stroke-linecap="round"/>
   <path d="M1 84C32 70 13 41 42 29c15-6 35 2 32 14-2 8-13 9-15 2-1-4 3-6 6-4" fill="none" stroke="#1c2415" stroke-width="5" transform="translate(1 2)"/>
   <path d="M0 83C32 70 13 41 42 29c15-6 35 2 32 14-2 8-13 9-15 2-1-4 3-6 6-4M25 54q11-5 15-16M68 30q15 1 25-8" fill="none" stroke="#668454" stroke-width="2.8" stroke-linecap="round"/>
   <path d="M26 54q9-16 17-14-2 11-17 14m11-23q-7-11-3-17 9 5 3 17m7-4q4-14 12-14 0 10-12 14m37 2q6-12 16-9-4 9-16 9m-53 39q11-7 17-1-6 7-17 1" fill="url(#leaf)" stroke="#33472c" stroke-width=".8"/>
-  <path d="m16 67-8 1 7-6m15-23 1-8 4 5m15-8 6-7-1 8" fill="#a89565"/>
+  <path d="m16 67-8 1 7-6m15-23 1-8 4 5m15-8 6-7-1 8" fill="#96855b"/>
 </svg>
