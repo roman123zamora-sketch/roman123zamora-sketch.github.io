@@ -1,5 +1,15 @@
 import { createPositionTools } from "../game/position-tools.js";
 
+function terminalScore(state, outcome) {
+  if (state?.status === "checkmate") {
+    return { kind: "mate", side: state.turn === "w" ? "b" : "w", terminal: true };
+  }
+  if (state?.status === "stalemate" || state?.status === "draw" || outcome === "draw") {
+    return { kind: "draw", terminal: true };
+  }
+  if (outcome || state?.terminal) return { kind: "ended", terminal: true };
+}
+
 export function createEvaluationBar(element) {
   const meter = element.querySelector(".eval-meter");
   const white = element.querySelector(".eval-white");
@@ -8,79 +18,128 @@ export function createEvaluationBar(element) {
   const whiteScore = caption.querySelector('[data-side="w"]');
   const blackScore = caption.querySelector('[data-side="b"]');
   let tools;
-  let matchId;
-  let revision;
   let generation = 0;
+  let context;
+  let frame;
+  let terminal;
+  let preview = false;
+  let busy = false;
   let scores = new WeakMap();
 
-  function analyze(state) {
-    const { board, turn, halfmove, fullmove, analysis } = state;
-    return (tools ??= createPositionTools()).run("analysis", { board, turn, halfmove, fullmove, ...analysis });
+  function cancel() {
+    generation++;
+    if (busy) {
+      tools?.close();
+      tools = undefined;
+      busy = false;
+    }
   }
 
-  function display(score) {
-    const share = score?.kind === "mate" ? (score.side === "w" ? 100 : 0) :
-      50 + 48 * Math.tanh((score?.value ?? 0) / 480);
-    white.style.blockSize = share + "%";
-    const format = value => value === 0 ? "0.00" : (value > 0 ? "+" : "−") + (Math.abs(value) / 100).toFixed(2);
+  function analyze(state, refine = false) {
+    const { board, turn, halfmove, fullmove, analysis } = state;
+    return (tools ??= createPositionTools()).run(refine ? "analysisDeep" : "analysis",
+      { board, turn, halfmove, fullmove, ...analysis });
+  }
+
+  function display(score, pendingLabel = "Analyzing position") {
     const mate = score?.kind === "mate";
-    const winning = mate ? `M${score.moves}` : null;
-    whiteScore.textContent = !score ? "…" : mate ? (score.side === "w" ? winning : "−" + winning) : format(score.value);
-    blackScore.textContent = !score ? "…" : mate ? (score.side === "b" ? winning : "−" + winning) : format(-score.value);
-    for (const [side, label] of [["White", whiteScore], ["Black", blackScore]]) {
-      label.title = `${side} evaluation: ${label.textContent}`;
+    const share = mate ? (score.side === "w" ? 100 : 0) :
+      50 + 48 * Math.tanh((score?.value ?? 0) / 410);
+    white.style.blockSize = share + "%";
+    element.toggleAttribute("data-pending", !score);
+    element.setAttribute("aria-busy", String(!score && pendingLabel === "Analyzing position"));
+    const format = value => Math.abs(value) < .5 ? "0.00" :
+      (value > 0 ? "+" : "−") + (Math.abs(value) / 100).toFixed(2);
+    for (const [side, name, label] of [["w", "White", whiteScore], ["b", "Black", blackScore]]) {
+      if (!score) {
+        label.textContent = pendingLabel === "Analyzing position" ? "…" : "—";
+        label.title = pendingLabel;
+      } else if (mate) {
+        const wins = score.side === side;
+        label.textContent = score.terminal ? (wins ? "Win" : "Lost") : (wins ? "" : "−") + `M${score.moves}`;
+        label.title = score.terminal ? `Checkmate. ${wins ? name + " wins" : name + " loses"}.` :
+          `${name} evaluation: ${label.textContent}`;
+      } else if (score.kind !== "cp") {
+        label.textContent = score.kind === "draw" ? "Draw" : "—";
+        label.title = score.kind === "draw" ? "Game drawn" : "Game ended";
+      } else {
+        label.textContent = format(side === "w" ? score.value : -score.value);
+        label.title = `${name} evaluation: ${label.textContent} pawns`;
+      }
       label.setAttribute("aria-label", label.title);
     }
   }
 
   return {
-    update(match, review, onChange, history = null) {
+    update(match, review, onChange, history = null, { outcome, projected = false } = {}) {
       const state = history ? history.state : review?.positions[review.ply] ?? match?.state;
-      const eligible = Boolean(state?.analysis && match.variant === "chess" && (review || match.mode === "bot"));
+      const eligible = Boolean(match?.variant === "chess" && (review || match.mode === "bot"));
       element.hidden = !eligible;
       if (!eligible) {
-        matchId = undefined;
-        revision = undefined;
-        generation++;
+        cancel();
         tools?.close();
         tools = undefined;
+        context = frame = undefined;
         scores = new WeakMap();
         return;
       }
-      const key = history ? state : review ? `review:${review.ply}` : match.revision;
-      if (match.matchId === matchId && key === revision) return;
-      if (match.matchId !== matchId) scores = new WeakMap();
-      if (history || review || typeof revision === "object" || match.matchId !== matchId) display(null);
-      matchId = match.matchId;
-      revision = key;
+
+      // Orientation is presentation state and can change without a new analysis.
       element.toggleAttribute("data-flipped", match.side === "b");
       meter.classList.toggle("white-on-top", match.side === "b");
-      const current = ++generation;
-      async function getScore(frame) {
-        if (scores.has(frame.board)) return scores.get(frame.board);
-        const score = await analyze(frame);
-        if (generation === current) scores.set(frame.board, score);
-        return score;
-      }
-      getScore(state).then(async score => {
-        if (generation !== current) return;
-        display(score);
-        if (!onChange || !review?.ply) return;
-        const previous = await getScore(review.positions[review.ply - 1]);
-        if (generation === current) onChange(score, previous);
-      }).catch(() => {
-        if (generation !== current) return;
-        display(null);
-        for (const label of [whiteScore, blackScore]) {
-          label.textContent = "—";
-          label.title = "Evaluation unavailable";
-          label.setAttribute("aria-label", label.title);
+      const nextContext = match.matchId ?? match;
+      if (nextContext !== context) scores = new WeakMap();
+      const end = terminalScore(state, outcome);
+      const endKey = end ? end.kind + (end.side ?? "") : undefined;
+      if (context === nextContext && frame === state && terminal === endKey && preview === projected) return;
+      context = nextContext;
+      frame = state;
+      terminal = endKey;
+      preview = projected;
+      cancel();
+      const current = generation;
+      if (projected) { display(null, "Waiting for confirmed move"); return; }
+      if (end) { display(end); return; }
+      if (!state?.analysis) { display(null, "Waiting for position"); return; }
+
+      let score = scores.get(state);
+      display(score);
+      busy = true;
+      async function run() {
+        if (!score) {
+          score = await analyze(state);
+          if (generation !== current) return;
+          if (score) { scores.set(state, score); display(score); }
         }
+        if (!score?.refined && !score?.terminal) {
+          const deeper = await analyze(state, true);
+          if (generation !== current) return;
+          if (deeper && (!score || deeper.depth > score.depth)) score = deeper;
+          if (score) {
+            score = { ...score, refined: true };
+            scores.set(state, score);
+            display(score);
+          }
+        }
+        if (!score) display(null, "Evaluation unavailable");
+        if (!score || !onChange || !review?.ply) return;
+        const previousState = review.positions[review.ply - 1];
+        const previous = scores.get(previousState) ?? await analyze(previousState, true);
+        if (generation !== current || !previous) return;
+        scores.set(previousState, { ...previous, refined: true });
+        onChange(score, previous);
+      }
+      run().catch(() => {
+        if (generation === current && !score) display(null, "Evaluation unavailable");
+      }).finally(() => {
+        if (generation === current) busy = false;
       });
     },
     close() {
-      generation++;
+      cancel();
       tools?.close();
+      tools = undefined;
+      context = frame = undefined;
     }
   };
 }

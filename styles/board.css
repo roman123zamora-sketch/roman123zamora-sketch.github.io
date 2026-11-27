@@ -285,3 +285,6 @@ button.square.premove-trail:focus-visible {
   .aligned-board-area .bot-eval { inline-size: 1.35rem; }
   .aligned-board-area .eval-score { font-size: .61rem; }
 }
+
+.eval-white { transition: block-size 140ms ease-out; }
+.bot-eval[data-pending] .eval-white { opacity: .34; transition: none; }

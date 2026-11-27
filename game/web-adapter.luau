@@ -101,7 +101,7 @@ end
 return function(op, time, id, first, second)
  if op == "catalog" then return boardCatalog end
  if op == "puzzle" then return modules.PuzzleSearch.generate(modules.ChessEngine,modules.BotEngine,first) end
- if op == "analysis" then return modules.BotEngine.analyze(modules.ChessEngine,first) end
+ if op == "analysis" or op == "analysisDeep" then return modules.BotEngine.analyze(modules.ChessEngine,first,op=="analysisDeep") end
  if op == "bestMove" then
   local state=first.state
   local engine=first.variant=="four" and modules.FourPlayerEngine or modules.ChessEngine

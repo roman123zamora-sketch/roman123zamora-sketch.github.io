@@ -184,7 +184,15 @@ local function standardVisit(engine,state,depth,alpha,beta,search,ply,qPly,key)
   local child=engine.searchApply(state,move)
   local childKey=engine.positionKey(child)
   search.path[childKey]=(search.path[childKey] or 0)+1
-  local reply=standardVisit(engine,child,depth-1,-beta,-alpha,search,ply+1,depth<=0 and qPly+1 or 0,childKey)
+  local reply
+  if bestMove and depth>=3 and alpha+1<beta then
+   reply=standardVisit(engine,child,depth-1,-alpha-1,-alpha,search,ply+1,0,childKey)
+   if reply~=nil and -reply>alpha and -reply<beta then
+    reply=standardVisit(engine,child,depth-1,-beta,-alpha,search,ply+1,0,childKey)
+   end
+  else
+   reply=standardVisit(engine,child,depth-1,-beta,-alpha,search,ply+1,depth<=0 and qPly+1 or 0,childKey)
+  end
   local prospectiveClaim=repetitions(search,childKey)>=3 or child.halfmove>=100
   local children=search.path[childKey]-1
   search.path[childKey]=children>0 and children or nil
@@ -272,25 +280,25 @@ local function fourVisit(engine,state,depth,alpha,beta,search,ply)
 end
 
 -- Gameplay budgets grow independently of the fixed analysis and puzzle callers.
--- The last three columns control immediate perception, choice spread, and the
--- largest allowed material/positional concession in the completed search.
+-- Sight weights the immediate impression, spread controls variation, loss caps
+-- concessions, and localFocus favors salient recaptures and nearby action.
 local profiles={
- [200]={depth=1,timeMs=55,nodes=1400,sight=.94,spread=115,loss=1800},
- [400]={depth=1,timeMs=75,nodes=2300,sight=.72,spread=85,loss=1350},
- [600]={depth=2,timeMs=105,nodes=3500,sight=.45,spread=65,loss=850},
- [800]={depth=2,timeMs=135,nodes=5000,sight=.28,spread=50,loss=520},
- [1000]={depth=3,timeMs=155,nodes=6500,sight=.16,spread=38,loss=360},
- [1200]={depth=3,timeMs=185,nodes=8500,sight=.09,spread=29,loss=250},
- [1400]={depth=4,timeMs=215,nodes=11500,sight=.05,spread=22,loss=155},
- [1600]={depth=4,timeMs=260,nodes=15500,sight=.02,spread=15,loss=90},
+ [200]={depth=1,timeMs=55,nodes=1400,sight=.94,spread=115,loss=1800,localFocus=90},
+ [400]={depth=1,timeMs=75,nodes=2300,sight=.72,spread=85,loss=1350,localFocus=65},
+ [600]={depth=2,timeMs=105,nodes=3500,sight=.45,spread=65,loss=850,localFocus=47},
+ [800]={depth=2,timeMs=135,nodes=5000,sight=.28,spread=50,loss=520,localFocus=33},
+ [1000]={depth=3,timeMs=155,nodes=6500,sight=.16,spread=38,loss=360,localFocus=24},
+ [1200]={depth=3,timeMs=185,nodes=8500,sight=.09,spread=29,loss=250,localFocus=17},
+ [1400]={depth=4,timeMs=215,nodes=11500,sight=.05,spread=22,loss=155,localFocus=10},
+ [1600]={depth=4,timeMs=260,nodes=15500,sight=.02,spread=15,loss=90,localFocus=6},
  [1800]={depth=5,timeMs=300,nodes=21000},
  [2000]={depth=5,timeMs=350,nodes=26000},
  [2200]={depth=6,timeMs=420,nodes=34000},
  [2400]={depth=7,timeMs=500,nodes=44000},
- [2600]={depth=8,timeMs=620,nodes=56000},
- [2800]={depth=9,timeMs=750,nodes=71000},
- [3000]={depth=10,timeMs=900,nodes=90000},
- Max={depth=12,timeMs=1650,nodes=180000,tableLimit=16384}
+ [2600]={depth=8,timeMs=670,nodes=66000,quietTolerance=12},
+ [2800]={depth=9,timeMs=860,nodes=85000,quietTolerance=8},
+ [3000]={depth=10,timeMs=1080,nodes=110000,quietTolerance=5},
+ Max={depth=12,timeMs=1850,nodes=220000,tableLimit=16384}
 }
 
 function Bot.clampRating(rating)
@@ -298,19 +306,32 @@ function Bot.clampRating(rating)
  return math.clamp(tonumber(rating) or 1000,200,3000)
 end
 
-local function perceivedMove(engine,state,move,score,standard,sight,givesCheck,threatened)
+local function perceivedMove(engine,state,move,score,standard,profile,givesCheck,threatened)
  if not standard then
   return fourEvaluation(advanceFour(engine,state,move),state.turn)
  end
  local child=engine.searchApply(state,move)
  local victim=state.board[move.to]
  local capture=victim and values[string.sub(victim,2,2)] or (move.special=="enpassant" and 100 or 0)
+ local kind=string.sub(state.board[move.from],2,2)
  local perception=-evaluate(child)+capture*.22
- if threatened[move.from] then perception+=24 end
- if givesCheck(move) then perception+=38 end
- if string.sub(state.board[move.from],2,2)=="P" then perception+=10 end
+ local focus=profile.localFocus or 0
+ if state.lastMove and move.to==state.lastMove.to and capture>0 then perception+=focus end
+ local danger=threatened[move.from]
+ if danger then perception+=math.min(55,danger*.1)*(1-profile.sight*.55) end
+ if givesCheck(move) then perception+=24+focus*.3 end
+ if state.fullmove<=10 then
+  if kind=="P" then perception+=focus*.32
+  elseif kind=="Q" then perception+=focus*.12
+  elseif move.special and string.sub(move.special,1,6)=="castle" then perception+=30*(1-profile.sight)
+  elseif (kind=="N" or kind=="B") and string.sub(move.from,2,2)==(state.turn=="w" and "1" or "8") then
+   perception+=27*(1-profile.sight)
+  end
+ elseif kind=="P" and (state.turn=="w" and move.to:sub(2)=="7" or state.turn=="b" and move.to:sub(2)=="2") then
+  perception+=16+focus*.2
+ end
  -- A visible checkmate can stand out without giving a beginner perfect sight.
- if score>=MATE-1 then perception+=25+650*(1-sight)^2 end
+ if score>=MATE-1 then perception+=25+650*(1-profile.sight)^2 end
  return perception
 end
 
@@ -320,7 +341,8 @@ local function chooseGameplayCandidate(engine,state,candidates,bestScore,profile
  local threatened={}
  if standard then
   for _,reply in ipairs(engine.allLegal(state,state.turn=="w" and "b" or "w")) do
-   if state.board[reply.to] then threatened[reply.to]=true end
+   local victim=state.board[reply.to]
+   if victim then threatened[reply.to]=values[string.sub(victim,2,2)] end
   end
  end
  local strongest=math.clamp(bestScore,-1800,1800)
@@ -330,7 +352,7 @@ local function chooseGameplayCandidate(engine,state,candidates,bestScore,profile
   local score=math.clamp(candidate.score,-1800,1800)
   local loss=math.abs(bestScore)<MATE-1000 and math.abs(candidate.score)<MATE-1000 and bestScore-candidate.score or strongest-score
   if loss<=profile.loss and (profile.sight>=.28 or bestScore<MATE-1000 or candidate.score==bestScore) then
-   local visible=perceivedMove(engine,state,candidate.move,candidate.score,standard,profile.sight,givesCheck,threatened)
+   local visible=perceivedMove(engine,state,candidate.move,candidate.score,standard,profile,givesCheck,threatened)
    local idea=score*(1-profile.sight)+visible*profile.sight
    local factor=loss<=35 and 1 or loss<=170 and (.45+profile.sight*.55) or math.max(.05,profile.sight)
    table.insert(choices,{candidate=candidate,idea=idea,factor=factor})
@@ -379,6 +401,13 @@ function Bot.choose(engine,state,rating,options)
  local completed,completedScore=0,nil
  local candidates, tiedMoves
  local varyTies=profile and not profile.sight and rating~="Max"
+ -- A narrow, exact score window permits small stylistic differences only in
+ -- balanced positions with quiet alternatives and enough completed search.
+ local tolerance=standard and profile and profile.quietTolerance or 0
+ if tolerance>0 and engine.inCheck(state,state.turn) then tolerance=0 end
+ local function quiet(move)
+  return not (state.board[move.to] or move.promotion or move.special=="enpassant")
+ end
  for depth=1,maxDepth do
   orderMoves(state,moves,best.searchId,search,0)
   local iterationBest, iterationTies
@@ -387,7 +416,9 @@ function Bot.choose(engine,state,rating,options)
   for _,move in ipairs(moves) do
    local score
    -- Search one point below alpha so an equal score is exact, rather than an upper bound.
-   local lower=collect and -MATE or (varyTies and math.max(-MATE,alpha-1) or alpha)
+   local margin=varyTies and 1 or 0
+   if depth>=3 and iterationBest and quiet(iterationBest) and quiet(move) and math.abs(alpha)<100 then margin+=tolerance end
+   local lower=collect and -MATE or math.max(-MATE,alpha-margin)
    if standard then
     local child=engine.searchApply(state,move)
     local key=engine.positionKey(child)
@@ -398,14 +429,18 @@ function Bot.choose(engine,state,rating,options)
    else
     score=fourVisit(engine,advanceFour(engine,state,move),depth-1,lower,MATE,search,1)
    end
-   if score==nil then iterationBest=nil; break end
+   if score==nil then
+    if completed==0 and iterationBest then best=iterationBest end
+    iterationBest=nil
+    break
+   end
    if collect then table.insert(collect,{move=move,score=score}) end
    if not iterationBest or score>alpha then
     alpha=score
     iterationBest=move
-    if varyTies then iterationTies={move} end
-   elseif varyTies and score==alpha then
-    table.insert(iterationTies,move)
+    if varyTies then iterationTies={{move=move,score=score}} end
+   elseif varyTies and (score==alpha or (margin>1 and score>lower)) then
+    table.insert(iterationTies,{move=move,score=score})
    end
   end
   if not iterationBest then break end
@@ -421,7 +456,8 @@ function Bot.choose(engine,state,rating,options)
   if picked then best,completedScore=picked.move,picked.score end
  elseif tiedMoves and #tiedMoves>1 then
   local roll=(options.random or math.random)()
-  best=tiedMoves[math.min(#tiedMoves,math.floor(roll*#tiedMoves)+1)]
+  local picked=tiedMoves[math.min(#tiedMoves,math.floor(roll*#tiedMoves)+1)]
+  best,completedScore=picked.move,picked.score
  end
  -- The order key is private; preserve the move contract for all callers.
  return {from=best.from,to=best.to,promotion=best.promotion,special=best.special,rookFrom=best.rookFrom,rookTo=best.rookTo},
@@ -430,18 +466,20 @@ end
 -- Position analysis is read-only and uses the same scoring as bot play.
 Bot.evaluatePosition=evaluate
 
-function Bot.analyze(engine,state)
+function Bot.analyze(engine,state,refine)
  local sign=state.turn=="w" and 1 or -1
  local status=engine.status(state)
  if status=="checkmate" then
-  return {kind="mate",side=sign==1 and "b" or "w",moves=0}
+  return {kind="mate",side=sign==1 and "b" or "w",moves=0,terminal=true}
  end
- if status=="stalemate" or status=="draw" then return {kind="cp",value=0} end
- local _,details=Bot.choose(engine,state,1000,{timeMs=90,depth=3,nodes=5000})
- local score=details and details.score or evaluate(state)
+ if status=="stalemate" or status=="draw" then return {kind="draw",terminal=true} end
+ local budget=refine and {timeMs=700,depth=9,nodes=65000} or {timeMs=115,depth=4,nodes=8000}
+ local _,details=Bot.choose(engine,state,1000,budget)
+ if not details or not details.score then return nil end
+ local score=details.score
  if math.abs(score)>MATE-1000 then
-  return {kind="mate",side=score*sign>0 and "w" or "b",moves=math.ceil((MATE-math.abs(score))/2)}
+  return {kind="mate",side=score*sign>0 and "w" or "b",moves=math.ceil((MATE-math.abs(score))/2),depth=details.depth}
  end
- return {kind="cp",value=score*sign}
+ return {kind="cp",value=score*sign,depth=details.depth}
 end
 return Bot

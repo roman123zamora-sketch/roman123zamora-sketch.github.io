@@ -401,11 +401,14 @@ export function renderMatch(content, { title, fourPlayer }) {
     hint.update(!review && boardAcceptsInput() && /bot/i.test(data?.mode) && data.state.turn === data.side
       ? data.state : undefined, variant);
     evaluation.update(data, review, (score, previous) => {
-      if (score.kind !== "cp" || previous.kind !== "cp") return;
+      if (score.kind !== "cp" || previous.kind !== "cp" || score.depth !== previous.depth) return;
       const change = (score.value - previous.value) / 100;
       reviewAnalysis.textContent = Math.abs(change) < .05 ? "Little change in the engine estimate." :
         `${change > 0 ? "White" : "Black"} gained about ${Math.abs(change).toFixed(1)} pawns of advantage on this move.`;
-    }, historyPly === null ? null : { state: historical });
+    }, historyPly === null ? null : { state: historical }, {
+      outcome: !browsing || review?.ply === review?.positions.length - 1 ? result()?.result : undefined,
+      projected: Boolean(!browsing && preview.board && preview.board !== data?.state.board)
+    });
     const canDrag = !review && boardAcceptsInput();
     const nextFrame = board(getTheme(), fourPlayer, false, {
       frame: slot.firstElementChild,

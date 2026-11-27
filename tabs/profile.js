@@ -170,7 +170,7 @@ export default function profile(content) {
       turn.hidden = !names[side];
       turn.dataset.side = side ?? "";
       turn.textContent = names[side] ? `${names[side]} to move` : "";
-      evaluation.update(match, { positions, ply });
+      evaluation.update(match, { positions, ply }, undefined, null, { outcome: ply === positions.length - 1 ? record.result : undefined });
       bestMove.update(positions[ply].turn ? positions[ply] : undefined, record.v);
       const frame = board(getTheme(), record.v === "four", false, {
         frame: holder.firstElementChild,
