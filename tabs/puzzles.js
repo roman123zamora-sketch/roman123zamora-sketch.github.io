@@ -4,6 +4,7 @@ import { loadPractice, migrateLibraryProgress, resolvePuzzle, savePractice } fro
 import { playPositionMove, playPickUpSound, playSound, subscribe } from "../game/session.js";
 import { bindBoardDrag } from "../game/board-drag.js";
 import { getTheme } from "../ui/board-themes.js";
+import { showPromotionChoices } from "../ui/chess-pieces.js";
 import { board } from "../ui/chessboard.js";
 
 const categories = { checkmate: "Checkmate", material: "Material" };
@@ -536,8 +537,7 @@ export default function puzzles(content) {
     if (moves.some(move => move.promotion)) {
       promotion = moves;
       playSound(currentPosition(playable()).board[to] ? "capture" : "move");
-      dialog.returnValue = "";
-      dialog.showModal();
+      showPromotionChoices(dialog, currentPosition(playable()).turn);
     } else attempt(moves[0]);
     return true;
   }

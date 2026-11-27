@@ -109,7 +109,7 @@ export function board(theme, fourPlayer = false, sample = false, options = {}) {
       const draggable = !corner && options.select && options.canDrag?.(address);
       const dragging = options.dragSource === address;
       const wrong = options.wrong === address;
-      const visual = [art, eliminated, checked, steps?.join("·"), Boolean(legalTarget),
+      const visual = [art, theme.id, eliminated, checked, steps?.join("·"), Boolean(legalTarget),
         Boolean(legalTarget?.capture), isSelected, isMarked, isPlanned, isLast, suggestion, draggable, dragging, wrong].join("|");
       if (reuse && squareVisuals.get(square) === visual) continue;
       squareVisuals.set(square, visual);
@@ -134,13 +134,13 @@ export function board(theme, fourPlayer = false, sample = false, options = {}) {
         if (column === leftEdge) square.dataset.rank = ranks[row];
         if (row === bottomEdge) square.dataset.file = files[column];
       }
-      if (image && (!piece || image.dataset.art !== art)) {
+      if (image && (!piece || image.dataset.art !== art || image.dataset.artTheme !== theme.id)) {
         image.remove();
         image = undefined;
       }
       if (piece) {
         if (!image) {
-          image = createChessPiece(piece.type, piece.side);
+          image = createChessPiece(piece.type, piece.side, theme.id);
           square.append(image);
         }
         image.classList.toggle("eliminated", eliminated);

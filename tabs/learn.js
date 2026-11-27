@@ -2,6 +2,7 @@ import { bindBoardDrag } from "../game/board-drag.js";
 import { createPositionTools } from "../game/position-tools.js";
 import { accountStorageKey, playPositionMove, playPickUpSound, playSound, readSetting, subscribe, writeSetting } from "../game/session.js";
 import { getTheme } from "../ui/board-themes.js";
+import { showPromotionChoices } from "../ui/chess-pieces.js";
 import { board } from "../ui/chessboard.js";
 import { course } from "./learn-lessons.js";
 
@@ -259,8 +260,7 @@ export default function learn(content) {
       if (lesson.promotion && from === lesson.setup.promotion.from && to === lesson.setup.promotion.to) {
         promotion = true;
         playSound(frame.state.board[to] ? "capture" : "move");
-        dialog.returnValue = "";
-        dialog.showModal();
+        showPromotionChoices(dialog, frame.state.turn);
         return true;
       }
       const expected = frames[ply + 1]?.move;

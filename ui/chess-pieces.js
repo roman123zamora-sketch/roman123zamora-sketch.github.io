@@ -1,4 +1,5 @@
 import { editionDetail } from "./edition-pieces.js";
+import { redesignedArtwork } from "./piece-designs.js";
 import { natureGrowth } from "./nature-pieces.js";
 
 const names = { p: "pawn", n: "knight", b: "bishop", r: "rook", q: "queen", k: "king" };
@@ -160,14 +161,27 @@ function artwork(piece, side, id) {
   </svg>`;
 }
 
-export function createChessPiece(type, side) {
+export function createChessPiece(type, side, theme = document.documentElement.dataset.edition ?? "classic") {
   const piece = type.toLowerCase();
   const wrapper = document.createElement("span");
   wrapper.className = "chess-piece";
   wrapper.dataset.pieceSide = side;
   wrapper.dataset.art = `${piece}-${side}`;
-  wrapper.innerHTML = artwork(piece, side, `piece-${++nextId}`);
+  wrapper.dataset.artTheme = theme;
+  const id = `piece-${++nextId}`;
+  wrapper.innerHTML = redesignedArtwork(theme, piece, side, id, profiles[piece]) ?? artwork(piece, side, id);
   return wrapper;
+}
+
+const sideNames = { w: "white", b: "black", R: "red", B: "blue", Y: "yellow", G: "green" };
+
+export function showPromotionChoices(dialog, side) {
+  for (const button of dialog.querySelectorAll("button[value]:not([value=''])")) {
+    button.querySelector(".chess-piece")?.remove();
+    button.prepend(createChessPiece(button.value, sideNames[side]));
+  }
+  dialog.returnValue = "";
+  dialog.showModal();
 }
 
 export function pieceName(type) {

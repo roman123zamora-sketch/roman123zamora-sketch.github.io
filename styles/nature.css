@@ -8,7 +8,6 @@
   --root-grain: #322417;
   --root-ridge: #bd9167;
   --root-shoot: #88b56d;
-  --root-vine: #54734a;
 }
 :is([data-nature], [data-nature-board]) [data-piece-side="white"] {
   --root-light: #fff0c9;
@@ -18,7 +17,6 @@
   --root-grain: #99683d;
   --root-ridge: #fff0c9;
   --root-shoot: #638a47;
-  --root-vine: #567a44;
 }
 :is([data-nature], [data-nature-board]) [data-piece-side="red"] { --root-shoot: #ef8e78; --root-mid: #733d2b; }
 :is([data-nature], [data-nature-board]) [data-piece-side="blue"] { --root-shoot: #85b8ed; --root-mid: #404c58; }
@@ -30,7 +28,6 @@
 [data-nature] .sample:not([data-nature-board]) .piece-finish { display: inline; }
 .bark-furrow { stroke: var(--root-grain); }
 .bark-ridge { stroke: var(--root-ridge); }
-.growing-vine { stroke: var(--root-vine); }
 .new-growth { fill: var(--root-shoot); }
 [data-nature] .board-frame:has(> .board:not(.sample)) {
   background: linear-gradient(142deg, #355f45, #1b3928 44%, #163023 76%, #527652);
@@ -45,16 +42,12 @@
 }
 .bark-body { stroke: var(--root-mid); }
 .bark-grain { stroke: var(--root-grain); opacity: .76; }
-.vine-light { stroke: var(--root-shoot); opacity: .8; }
 
 [data-nature] {
   --material-edge: #c5d9a64a;
   --control-face: linear-gradient(160deg, #b4c69229, #2a442624 55%, #101e1740);
-  --panel-material: url("../assets/nature-vines.svg"), linear-gradient(155deg, #80996818, transparent 10rem);
-  --panel-material-position: right top, left top;
-  --panel-material-size: clamp(2.8rem, 6vw, 4.6rem), auto;
   --panel-material-repeat: no-repeat;
+  --panel-material: linear-gradient(155deg, #80996818, transparent 10rem);
   --header-material: var(--panel-material);
-  --header-material-size: 2rem, auto;
   --header-material-repeat: no-repeat;
 }

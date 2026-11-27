@@ -271,3 +271,10 @@ button.square.premove-trail:focus-visible {
 }
 .replay-turn { margin-block-start: .8rem; }
 .replay-turn:not([hidden]) + .replay-board { margin-block-start: .4rem; }
+
+.promotion-dialog button:has(> .chess-piece) {
+  display: inline-grid;
+  justify-items: center;
+  gap: .15rem;
+}
+.promotion-dialog button > .chess-piece { inline-size: 2rem; }

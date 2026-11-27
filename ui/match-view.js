@@ -5,7 +5,7 @@ import { createEvaluationBar } from "./evaluation-bar.js";
 import { bindBoardDrag } from "../game/board-drag.js";
 import { board } from "./chessboard.js";
 import { getTheme } from "./board-themes.js";
-import { createChessPiece, pieceName } from "./chess-pieces.js";
+import { createChessPiece, pieceName, showPromotionChoices } from "./chess-pieces.js";
 import { premoveIntent, projectPremoves } from "../game/premove-preview.js";
 import { action, playManualStepSound, playPickUpSound, playSound, serverNow, session, subscribe, unlockSound } from "../game/session.js";
 
@@ -224,8 +224,7 @@ export function renderMatch(content, { title, fourPlayer }) {
     if (target.promotion) {
       promotion = { move, matchId: match().matchId, revision: match().revision, dragged };
       playSound(target.capture ? "capture" : "move");
-      dialog.returnValue = "";
-      dialog.showModal();
+      showPromotionChoices(dialog, match().side);
       return true;
     }
     submit(move, false, dragged);
@@ -243,8 +242,7 @@ export function renderMatch(content, { title, fourPlayer }) {
       }
       if (move.needsPromotion) {
         promotion = { preview: move, matchId: data.matchId };
-        dialog.returnValue = "";
-        dialog.showModal();
+        showPromotionChoices(dialog, data.side);
       } else queuePremove(move);
       return true;
     }
