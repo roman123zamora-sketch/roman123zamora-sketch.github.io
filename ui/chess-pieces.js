@@ -2,7 +2,7 @@ const names = { p: "pawn", n: "knight", b: "bishop", r: "rook", q: "queen", k: "
 
 const palettes = {
   white: ["#ffffff", "#f1f0ed", "#aeadaa", "#545452", "#ffffff"],
-  black: ["#686868", "#303030", "#111111", "#131313", "#c7c7c7"],
+  black: ["#737373", "#353535", "#151515", "#111111", "#d0d0d0"],
   red: ["#ffd0c5", "#e17469", "#922c36", "#5b222a", "#ffdfd0"],
   blue: ["#c2e6ff", "#5c96dd", "#284f86", "#163454", "#dbf2ff"],
   yellow: ["#fff6c4", "#eabd55", "#a46c20", "#684418", "#fff6cd"],
@@ -72,62 +72,60 @@ const pedestal = `<path d="M28 62h24c2 0 3 1.2 3 3v3H25v-3c0-1.8 1-3 3-3Z" fill=
       <path d="M26 67h28c2.3 0 3.8 1.6 3.8 3.7v1.1c0 1.7-1.3 2.7-3 2.7H25.2
         c-1.7 0-3-1-3-2.7v-1.1c0-2.1 1.5-3.7 3.8-3.7Z" fill="BEVEL"/>`;
 
-// Original Staunton-inspired silhouettes with a shared, low plinth.
+// Monochrome silhouettes share a 74-unit baseline and a shallow turned foot.
 const classicProfiles = {
   p: {
-    foot: 18,
-    body: `<path d="M22 65C23.5 60.5 26 56.5 29.5 53.5C26.5 50 28 44 35 42V39H45V42C52 44 53.5 50 50.5 53.5C54 56.5 56.5 60.5 58 65Z"/>
-      <circle cx="40" cy="33" r="8.4"/>`,
-    light: "M35 32Q36 27 41 27 M31 49Q33 45 37 45 M30 56Q26 60 25 63",
-    inset: "M30 53.5Q40 57 50 53.5",
-    engraving: "M30 58Q40 61 50 58"
+    foot: 17,
+    body: `<path d="M23 65C30 60 35 54 36 47L36.5 42H43.5L44 47C45 54 50 60 57 65Z"/>
+      <circle cx="40" cy="34" r="10"/>`,
+    light: "M33 33Q34 27 40 27 M33 58Q36 54 37 50",
+    inset: "M35.8 47Q40 49 44.2 47",
+    engraving: "M28 63Q40 65 52 63"
   },
   r: {
-    foot: 21,
-    body: `<path d="M20 65L25 59L29 53V35L23 30V20H30V24H36V20H44V24H50V20H57V30L51 35V53L55 59L60 65Z"/>
-      <path d="M24 28H56L51 34H29Z M28 54H52L56 60H24Z" fill="BEVEL" stroke="none"/>`,
-    light: "M25 22H28 M38 22H42 M52 22H55 M27 29H51 M32.5 36V51 M29 56H46",
-    inset: "M29 35H51 M27 54H53",
-    engraving: "M35 38V50 M45 38V50 M27 60H53"
+    foot: 24,
+    body: `<path d="M17 65L22 59L26 55V37L20 32V19H29V26H35V19H45V26H51V19H60V32L54 37V55L58 59L63 65Z"/>
+      <path d="M21 31H59L54 36H26Z M24 58H56L61 64H19Z M49 38H53V55H49Z" fill="BEVEL" stroke="none"/>`,
+    light: "M22 21H27 M37 21H43 M53 21H58 M25 32H53 M29 39V53",
+    inset: "M27 37H53 M24 58H56",
+    engraving: "M32 39V52 M22 62H57"
   },
   n: {
-    foot: 24,
-    body: `<path d="M17 65Q20 58 28 53Q40 46 42 33Q38 37 31 39L23 44Q18 48 14 44L10 40Q8 37 12 34L22 25Q25 17 35 16L36 9Q36 6 40 8L46 13Q58 17 63 27Q69 40 63 53L58 65Z"/>
-      <path d="M46 16Q58 22 60 35Q63 49 54 64H48Q57 49 55 35Q54 25 46 16Z" fill="BEVEL" stroke="none"/>
-      <path d="M28 25Q31 22.3 34 24.8Q31.8 28 28 25Z M14 38Q16 35.7 18.7 36.7Q17.7 39.5 14 38Z" fill="EYE" stroke="none"/>`,
-    light: "M12.5 35.5L23 26Q26 19 34 18 M38.5 10L42 14",
-    inset: "M15 42Q19 44 23 41 M37 51Q44 45 46 36",
-    engraving: "M49 23C58 31 59 45 51 58 M45 56Q42 59 39 61"
+    foot: 22,
+    body: `<path d="M18 65C23 58 34 55 40 47C44 42 45 37 45 33C41 38 35 40 30 41L23 47Q19 50 15 47L11 44Q8 41 12 37L23 27C27 19 32 17 37 16L39 8Q40 6 42 8L48 15C59 19 65 28 65 39C65 49 60 57 57 65Z"/>
+      <path d="M47 17C57 22 61 31 60 40C59 49 55 57 52 64H46C53 54 56 45 55 37C55 28 51 22 47 17Z" fill="BEVEL" stroke="none"/>
+      <path d="M29 26Q32 23 36 26Q33 29.5 29 26Z M14.5 41Q16 38.5 19.5 39.7Q18 42.4 14.5 41Z" fill="EYE" stroke="none"/>`,
+    light: "M15 36L25 28Q29 21 36 19 M40.5 10L44 15",
+    inset: "M16 45Q20 47 24 43 M39 53Q48 46 49 37",
+    engraving: "M50 25C57 35 57 46 50 57"
   },
   b: {
-    foot: 24,
-    body: `<path d="M24 65C31 62 34 57 35.5 48H44.5C46 57 49 62 56 65Z"/>
-      <path d="M34 22Q37 19 40 13Q44 19 48 22L40 30L51 26Q56 33 53 40Q50 46 40 49Q30 46 27 40Q24 33 34 22Z"/>
-      <path d="M28 40Q40 45 52 40L48 46Q40 50 32 46Z" fill="BEVEL" stroke="none"/>
-      <circle cx="40" cy="12" r="2.7"/>`,
-    light: "M29 36Q30 28 36 23 M31 42Q40 46 49 42",
-    inset: "M34 47Q40 49 46 47",
-    engraving: "M39 30L49 26",
+    foot: 19,
+    body: `<path d="M21 65C30 62 34 55 35 45H45C46 55 50 62 59 65Z"/>
+      <path d="M40 11C43 16 46 19 48.5 23L37 34L51.75 29C57 39 51 47 40 48C30 48 24 42 26 34C28 26 35 20 40 11Z"/>
+      <path d="M28 41Q40 47 52 41Q49 48 40 49Q31 48 28 41Z" fill="BEVEL"/>`,
+    light: "M30 36Q32 26 39 18 M32 44Q40 47 48 44 M38 34L49 30",
+    inset: "M35 49Q40 51 45 49",
     ornament: `<path d="M40 61C33 61 28 57 21 57C17 57 13 59 10 62L16 63L13 68C17 66 20 65 23 65C29 65 35 69 40 68C45 69 51 65 57 65C60 65 63 66 67 68L64 63L70 62C67 59 63 57 59 57C52 57 47 61 40 61Z" fill="BEVEL"/>
       <path d="M16 63C23 59 29 63 34 64M64 63C57 59 51 63 46 64" fill="none" stroke-opacity=".58" stroke-width=".85"/>
       <path d="M35 62Q40 60.5 45 62L44 67Q40 69 36 67Z" fill="BEVEL"/>`
   },
   q: {
-    foot: 23,
-    body: `<path d="M18 65Q29 59 29 43L16 22Q15 19 18 19Q20 19 21 22L30 33L27 17Q27 14 30 14Q32 14 33 17L38 31L38 13Q38 10 40 10Q42 10 42 13L43 31L48 17Q49 14 51 14Q54 15 53 18L50 33L59 22Q60 19 62 19Q65 20 64 23L51 43Q51 59 62 65Z"/>
-      <path d="M29 43Q40 39 51 43L51 49Q40 45 29 49Z M26 57Q40 54 54 57L57 62Q40 58 23 62Z" fill="BEVEL" stroke="none"/>`,
-    light: "M18 21L27 34 M30 17L34 30 M40 13V28 M31 45Q40 42 49 45 M29 58Q40 56 51 58",
-    inset: "M30 49Q40 46 50 49 M26 60Q40 57 54 60",
-    engraving: "M32 52Q40 50 48 52"
+    foot: 22,
+    body: `<path d="M18 65C26 61 30 54 31 44L17 24Q14 20 17 18Q20 16 23 20L31 31L27 17Q26 13 29 12Q32 11 34 16L38 30L37 13Q37 8 40 8Q43 8 43 13L42 30L46 16Q48 11 51 12Q54 13 53 17L49 31L57 20Q60 16 63 18Q66 20 63 24L49 44C50 54 54 61 62 65Z"/>
+      <path d="M28 39Q40 34 52 39L49 45Q40 41 31 45Z" fill="BEVEL" stroke="none"/>`,
+    light: "M19 20L27 32 M30 15L34 26 M40 11V26 M31 40Q40 37 49 40",
+    inset: "M31 45Q40 42 49 45",
+    engraving: "M28 59Q40 55 52 59"
   },
   k: {
-    foot: 25,
-    body: `<path d="M36.5 25V17H30Q28 17 28 15V12Q28 10 30 10H36.5V5Q36.5 3 38.5 3H41.5Q43.5 3 43.5 5V10H50Q52 10 52 12V15Q52 17 50 17H43.5V25Z"/>
-      <path d="M16 65Q23 59 24 50Q16 42 16 34Q16 24 25 23Q32 22 40 29Q48 22 55 23Q64 24 64 34Q64 42 56 50Q57 59 64 65Z"/>
-      <path d="M40 47Q35 39 35 32L40 25L45 32Q45 39 40 47Z M24 49Q40 44 56 49L57 56Q40 51 23 56Z" fill="BEVEL" stroke="none"/>`,
-    light: "M31 12H38.5V6 M20 35Q19 27 27 26 M38 33L40 29 M27 51Q40 47 53 51",
-    inset: "M25 56Q40 52 55 56",
-    engraving: "M23 36Q24 30 29 29 M57 36Q56 30 51 29 M26 60Q40 57 54 60"
+    foot: 24,
+    body: `<path d="M36.5 27V17H29Q27 17 27 15V12Q27 10 29 10H36.5V4Q36.5 2 38.5 2H41.5Q43.5 2 43.5 4V10H51Q53 10 53 12V15Q53 17 51 17H43.5V27Z"/>
+      <path d="M16 65C24 61 29 54 30 47C24 43 21 38 22 33C23 25 32 23 40 27C48 23 57 25 58 33C59 38 56 43 50 47C51 54 56 61 64 65Z"/>
+      <path d="M24 39Q32 35 40 40Q48 35 56 39Q54 44 50 47Q40 44 30 47Q26 44 24 39Z" fill="BEVEL" stroke="none"/>`,
+    light: "M30 12H38.5V5 M26 35Q27 29 33 29 M29 40Q35 39 40 42",
+    inset: "M30 47Q40 44 50 47",
+    engraving: "M29 58Q40 54 51 58"
   }
 };
 
