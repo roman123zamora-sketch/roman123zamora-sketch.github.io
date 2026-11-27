@@ -1,17 +1,50 @@
-:root { --edition-scene: url("../assets/edition-blue.svg"); }
-[data-nature] { --edition-scene: url("../assets/edition-nature.svg"); }
-[data-metal] { --edition-scene: url("../assets/edition-metal.svg"); }
+/* Every theme supplies colors to the same SVG instance. */
+html:is([data-nature], [data-metal], [data-edition]) {
+  --scene-deep: color-mix(in srgb, var(--navy) 65%, black);
+  --scene-base: var(--navy);
+  --scene-shadow: color-mix(in srgb, var(--navy) 80%, var(--surface));
+  --scene-floor: color-mix(in srgb, var(--navy) 39%, var(--surface));
+  --scene-mid: color-mix(in srgb, var(--surface) 72%, var(--ice));
+  --scene-satin: color-mix(in srgb, var(--surface) 48%, var(--ice));
+  --scene-glass: color-mix(in srgb, var(--surface) 32%, var(--ice));
+  --scene-edge: color-mix(in srgb, var(--ice) 73%, var(--text));
+}
 
-html body {
-  background: radial-gradient(ellipse at 51% 35%, var(--navy) 17%, transparent 78%),
-    linear-gradient(180deg, var(--navy), transparent 55%),
-    var(--edition-scene) center bottom / cover fixed no-repeat, var(--navy);
+body {
+  isolation: isolate;
+  background: var(--navy);
+}
+.theme-scene {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+.theme-scene svg {
+  position: absolute;
+  inset: auto auto 0 50%;
+  inline-size: max(100%, calc(100lvh * 10 / 7));
+  block-size: auto;
+  aspect-ratio: 10 / 7;
+  transform: translateX(-50%);
+}
+.theme-scene::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: radial-gradient(ellipse at 50% 35%, var(--navy) 17%, transparent 78%),
+    linear-gradient(180deg, var(--navy), transparent 55%);
 }
 
 @media (max-width: 42rem) {
-  html body {
-    /* Bring the foreground into view before the stacked panels cover it. */
-    background: linear-gradient(var(--navy) 1%, transparent 31%, #0002 58%, var(--navy) 77%) fixed,
-      var(--edition-scene) left top / auto 77svh fixed no-repeat, var(--navy);
+  .theme-scene svg {
+    inset: 0 auto auto 0;
+    inline-size: auto;
+    block-size: 77svh;
+    transform: none;
+  }
+  .theme-scene::after {
+    background: linear-gradient(var(--navy) 1%, transparent 31%, #0002 58%, var(--navy) 77%);
   }
 }

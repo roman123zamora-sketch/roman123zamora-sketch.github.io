@@ -11,6 +11,47 @@
   <script type="module" src="ui/site-navigation.js"></script>
 </head>
 <body class="signed-out">
+  <div class="theme-scene" aria-hidden="true">
+    <svg viewBox="0 0 1200 840" focusable="false">
+      <g id="chess-room">
+        <defs>
+          <linearGradient id="scene-room" x2="0" y2="1">
+            <stop style="stop-color:var(--scene-base, #101f36)"/><stop offset="1" style="stop-color:var(--scene-mid, #294668)"/>
+          </linearGradient>
+          <linearGradient id="scene-floor" x2="0" y2="1">
+            <stop style="stop-color:var(--scene-floor, #1f3656)"/><stop offset="1" style="stop-color:var(--scene-shadow, #10203a)"/>
+          </linearGradient>
+          <linearGradient id="scene-window" x2="0" y2="1">
+            <stop style="stop-color:var(--scene-glass, #709fbc)"/><stop offset="1" style="stop-color:var(--scene-floor, #233955)"/>
+          </linearGradient>
+          <linearGradient id="scene-counter" x2=".4" y2="1">
+            <stop style="stop-color:var(--scene-satin, #527391)"/><stop offset="1" style="stop-color:var(--scene-mid, #213b57)"/>
+          </linearGradient>
+          <radialGradient id="scene-contact">
+            <stop style="stop-color:var(--scene-deep, #0b172c)" stop-opacity=".75"/>
+            <stop offset="1" style="stop-color:var(--scene-deep, #0b172c)" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+        <path fill="url(#scene-room)" d="M0 0h1200v840H0z"/>
+        <path style="fill:var(--scene-shadow, #0e1d33)" d="M0 448 226 330h731l243 115v122H0z"/>
+        <path fill="url(#scene-window)" style="stroke:var(--scene-shadow, #1b314e)" stroke-width="12" d="M9 144h166v312H9zM1025 144h166v312h-166z"/>
+        <path style="fill:var(--scene-mid, #35526d)" opacity=".84" d="M16 420l53-61 30 32 66-39v95H16Zm1017 1 41-52 27 21 42-61 40 55v63h-150Z"/>
+        <path style="stroke:var(--scene-mid, #294662)" stroke-width="7" d="M91 149v308m-76-172h153m939-136v308m-76-172h153"/>
+        <path fill="url(#scene-floor)" d="M0 508 322 452h553l325 56v332H0Z"/>
+        <path style="fill:var(--scene-glass, #7193be)" opacity=".16" d="M20 490 159 469 427 840H38zM1041 469l139 21-18 350H773z"/>
+        <path fill="none" style="stroke:var(--scene-satin, #4f6d8a)" opacity=".48" d="M0 642h1200M0 724h1200M0 811h1200M157 840l282-372m598 372L787 468"/>
+        <g fill="none" stroke-linejoin="round">
+          <path d="M0 628 117 605 196 661 196 698M1200 632l-141-29-71 55v41" style="stroke:var(--scene-deep, #0a172a)" stroke-width="8"/>
+          <path d="M0 622 117 600 201 659v35M1200 625l-141-27-76 57v40" style="stroke:var(--scene-satin, #789cb8)" stroke-opacity=".4" stroke-width="2"/>
+          <path d="M7 602l108-20 70 44m1000-39-124-16-65 44" style="stroke:var(--scene-edge, #a3c7dc)" stroke-opacity=".13" stroke-width="5"/>
+        </g>
+        <ellipse cx="101" cy="782" rx="170" ry="34" fill="url(#scene-contact)"/>
+        <path fill="url(#scene-counter)" d="M0 703 146 677l83 39-92 51L0 758Z"/>
+        <path style="fill:var(--scene-floor, #233f59)" d="M0 758l137 9 92-51v35l-89 49L0 784Z"/>
+        <path fill="none" style="stroke:var(--scene-edge, #9bbcce)" opacity=".76" d="m0 704 144-24 78 36-88 47"/>
+      </g>
+    </svg>
+  </div>
   <a class="skip-link" href="#content">Skip to game content</a>
   <header class="topbar">
     <a class="brand" href="#chess"><span aria-hidden="true"><img src="assets/favicon.svg" alt=""></span> Exalted Chess</a>
