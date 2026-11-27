@@ -1,4 +1,4 @@
-import { woodenSample, woodenSampleUrl } from "./wooden-sounds.js";
+import { plasticSample, plasticSampleUrl } from "./plastic-sounds.js";
 
 const legacyProfileKey = "exalted-chess-profile-v1";
 const tokenKey = "exalted-account-session";
@@ -30,7 +30,6 @@ let clockOffset = 0;
 let reconnecting = false;
 let commands = Promise.resolve();
 let localGame = false;
-let soundedMove;
 let lastManualStep = -Infinity;
 let resultSoundMatch;
 let onlineProfile;
@@ -146,12 +145,7 @@ function receive({ kind, data, requestId }, fromWorker = false) {
     if (prior?.matchId === data.matchId && moves.length > Object.values(prior.state.history).length) {
       const move = moves.at(-1);
 
-      const alreadyPlayed = soundedMove?.matchId === data.matchId && soundedMove.revision === prior.revision &&
-        soundedMove.from === move.from && soundedMove.to === move.to && soundedMove.promotion === move.promotion;
-      const landing = alreadyPlayed
-        ? (soundedMove.endsAt - performance.now()) / 1000
-        : playMoveSound(move);
-      soundedMove = undefined;
+      const landing = playMoveSound(move);
       const fourMate = Object.entries(data.state.eliminationReason ?? {}).some(([side, reason]) =>
         reason === "Checkmate" && prior.state.eliminationReason?.[side] !== reason);
       const terminal = data.state.terminal || ["checkmate", "stalemate", "draw"].includes(data.state.status);
@@ -200,13 +194,11 @@ function receive({ kind, data, requestId }, fromWorker = false) {
   if (kind === "reject") {
     session.movePending = false;
     session.submittedMove = null;
-    soundedMove = undefined;
     session.notice = data.reason;
   }
   if (kind === "error") {
     session.movePending = false;
     session.submittedMove = null;
-    soundedMove = undefined;
     session.notice = typeof data === "string" ? data : "The game service could not complete that action.";
   }
   if (kind === "challengeDeclined" || kind === "rematchDeclined") session.notice = "The invitation is no longer available.";
@@ -235,7 +227,6 @@ function clearMatch() {
   session.match = null;
   session.movePending = false;
   session.submittedMove = null;
-  soundedMove = undefined;
   session.result = null;
   session.legal = null;
   notify("leave");
@@ -402,7 +393,7 @@ function failLocalWorker() {
   receive({ kind: "error", data: error.message });
 }
 
-export function action(first, second, interaction = {}) {
+export function action(first, second) {
   if (!session.account && !guestMode) return;
   if ((first === "bot" || first === "fourBot") && !session.invite &&
       (!session.match || session.result)) {
@@ -427,10 +418,6 @@ export function action(first, second, interaction = {}) {
       const target = Object.values(choices).find(move => move.to === second.to && move.promotion === second.promotion);
       if (target) {
         session.submittedMove = { ...second, ...target };
-        const landing = interaction.promotionPreview && target.promotion
-          ? playSound("promote")
-          : playMoveSound({ ...target, captured: target.capture });
-        soundedMove = { ...second, matchId: match.matchId, revision: match.revision, endsAt: performance.now() + landing * 1000 };
       }
     }
   }
@@ -490,6 +477,7 @@ if (typeof window !== "undefined") {
   });
 }
 
+let placementVariation = 0;
 const fallbackSounds = new Map();
 const audioBuffers = new WeakMap();
 const pendingSounds = new Set();
@@ -504,7 +492,7 @@ function playFallback(sample) {
       URL.revokeObjectURL(clip.src);
       fallbackSounds.delete(evicted);
     }
-    player = new Audio(woodenSampleUrl(sample));
+    player = new Audio(plasticSampleUrl(sample));
     fallbackSounds.set(sample, player);
   }
   player.currentTime = 0;
@@ -512,7 +500,7 @@ function playFallback(sample) {
 }
 
 export function playSound(name, delay = 0) {
-  const sample = woodenSample(name);
+  const sample = plasticSample(name, name === "move" ? placementVariation++ : 0);
   if (!sound) return sample.duration;
   if (audio?.state !== "running") {
     if (!delay) playFallback(sample).catch(() => {});
@@ -542,12 +530,13 @@ export function playSound(name, delay = 0) {
 
 function placementCue(move) {
   if (move.special?.startsWith("castle")) return "castle";
-  return move.captured || move.special === "enpassant" ? "capture" : "move";
+  const capture = move.captured || move.special === "enpassant";
+  if (move.promotion) return capture ? "capturePromote" : "promote";
+  return capture ? "capture" : "move";
 }
 
 function playMoveSound(move) {
-  const landing = playSound(placementCue(move));
-  return move.promotion ? landing + playSound("promote", landing) : landing;
+  return playSound(placementCue(move));
 }
 
 export function playManualStepSound(move, backwards) {
@@ -561,8 +550,7 @@ export function playPickUpSound() {
   return playSound("lift");
 }
 
-export function playPositionMove(move, position, promotionPreview = false) {
-  if (promotionPreview && move?.promotion) return playSound("promote");
+export function playPositionMove(move, position) {
   if (!move || !position?.board) return playSound("move");
   return playMoveSound({ ...move, captured: position.board[move.to] });
 }
@@ -601,7 +589,7 @@ export function unlockSound(cue) {
   }
   const resumed = audio?.resume().catch(() => {});
   if (cue) {
-    playFallback(woodenSample(cue)).catch(async () => {
+    playFallback(plasticSample(cue)).catch(async () => {
       await resumed;
       if (audio?.state === "running") playSound(cue);
     });

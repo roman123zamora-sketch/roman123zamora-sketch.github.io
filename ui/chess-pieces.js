@@ -76,24 +76,24 @@ const pedestal = `<path d="M28 62h24c2 0 3 1.2 3 3v3H25v-3c0-1.8 1-3 3-3Z" fill=
 const classicProfiles = {
   p: {
     foot: 17,
-    body: `<path d="M23 65C30 60 35 54 36 47L36.5 42H43.5L44 47C45 54 50 60 57 65Z"/>
+    body: `<path d="M25 65C30 60 35 54 36 47L36.5 42H43.5L44 47C45 54 50 60 55 65Z"/>
       <circle cx="40" cy="34" r="10"/>`,
     light: "M33 33Q34 27 40 27 M33 58Q36 54 37 50",
-    inset: "M35.8 47Q40 49 44.2 47",
-    engraving: "M28 63Q40 65 52 63"
+    inset: "M37.1 47Q40 48.8 42.9 47",
+    engraving: "M29 62.5Q40 64.5 51 62.5"
   },
   r: {
     foot: 24,
-    body: `<path d="M17 65L22 59L26 55V37L20 32V19H29V26H35V19H45V26H51V19H60V32L54 37V55L58 59L63 65Z"/>
-      <path d="M21 31H59L54 36H26Z M24 58H56L61 64H19Z M49 38H53V55H49Z" fill="BEVEL" stroke="none"/>`,
+    body: `<path d="M19 65L22 59L26 55V37L20 32V19H29V26H35V19H45V26H51V19H60V32L54 37V55L58 59L61 65Z"/>`,
+    surface: `<path d="M21 31H59L54 36H26Z M24 58H56L61 64H19Z M49 38H53V55H49Z" fill="BEVEL" stroke="none"/>`,
     light: "M22 21H27 M37 21H43 M53 21H58 M25 32H53 M29 39V53",
     inset: "M27 37H53 M24 58H56",
     engraving: "M32 39V52 M22 62H57"
   },
   n: {
     foot: 22,
-    body: `<path d="M18 65C23 58 34 55 40 47C44 42 45 37 45 33C41 38 35 40 30 41L23 47Q19 50 15 47L11 44Q8 41 12 37L23 27C27 19 32 17 37 16L39 8Q40 6 42 8L48 15C59 19 65 28 65 39C65 49 60 57 57 65Z"/>
-      <path d="M47 17C57 22 61 31 60 40C59 49 55 57 52 64H46C53 54 56 45 55 37C55 28 51 22 47 17Z" fill="BEVEL" stroke="none"/>
+    body: `<path d="M21 65C24 58 34 55 40 47C44 42 45 37 45 33C41 38 35 40 30 41L23 47Q19 50 15 47L11 44Q8 41 12 37L23 27C27 19 32 17 37 16L39 8Q40 6 42 8L48 15C59 19 65 28 65 39C65 49 60 57 57 65Z"/>`,
+    surface: `<path d="M47 17C57 22 61 31 60 40C59 49 55 57 52 64H46C53 54 56 45 55 37C55 28 51 22 47 17Z" fill="BEVEL" stroke="none"/>
       <path d="M29 26Q32 23 36 26Q33 29.5 29 26Z M14.5 41Q16 38.5 19.5 39.7Q18 42.4 14.5 41Z" fill="EYE" stroke="none"/>`,
     light: "M15 36L25 28Q29 21 36 19 M40.5 10L44 15",
     inset: "M16 45Q20 47 24 43 M39 53Q48 46 49 37",
@@ -101,19 +101,19 @@ const classicProfiles = {
   },
   b: {
     foot: 19,
-    body: `<path d="M21 65C30 62 34 55 35 45H45C46 55 50 62 59 65Z"/>
-      <path d="M40 11C43 16 46 19 48.5 23L37 34L51.75 29C57 39 51 47 40 48C30 48 24 42 26 34C28 26 35 20 40 11Z"/>
-      <path d="M28 41Q40 47 52 41Q49 48 40 49Q31 48 28 41Z" fill="BEVEL"/>`,
+    body: `<path d="M23 65C30 62 34 55 35 45H45C46 55 50 62 57 65Z"/>
+      <path d="M40 11C43 16 46 19 48.5 23L37 34L51.75 29C57 39 51 47 40 48C30 48 24 42 26 34C28 26 35 20 40 11Z"/>`,
+    surface: `<path d="M28 41Q40 47 52 41Q49 48 40 49Q31 48 28 41Z" fill="BEVEL"/>`,
     light: "M30 36Q32 26 39 18 M32 44Q40 47 48 44 M38 34L49 30",
     inset: "M35 49Q40 51 45 49",
-    ornament: `<path d="M40 61C33 61 28 57 21 57C17 57 13 59 10 62L16 63L13 68C17 66 20 65 23 65C29 65 35 69 40 68C45 69 51 65 57 65C60 65 63 66 67 68L64 63L70 62C67 59 63 57 59 57C52 57 47 61 40 61Z" fill="BEVEL"/>
-      <path d="M16 63C23 59 29 63 34 64M64 63C57 59 51 63 46 64" fill="none" stroke-opacity=".58" stroke-width=".85"/>
+    ornament: `<path d="M40 61C33 61 28 57 21 57C17 57 13 59 10 62L16 63L13 68C17 66 20 65 23 65C29 65 35 69 40 68C45 69 51 65 57 65C60 65 63 66 67 68L64 63L70 62C67 59 63 57 59 57C52 57 47 61 40 61Z" fill="BEVEL"/>`,
+    folds: `<path d="M16 63C23 59 29 63 34 64M64 63C57 59 51 63 46 64" fill="none" stroke-opacity=".58" stroke-width=".85"/>
       <path d="M35 62Q40 60.5 45 62L44 67Q40 69 36 67Z" fill="BEVEL"/>`
   },
   q: {
     foot: 22,
-    body: `<path d="M18 65C26 61 30 54 31 44L17 24Q14 20 17 18Q20 16 23 20L31 31L27 17Q26 13 29 12Q32 11 34 16L38 30L37 13Q37 8 40 8Q43 8 43 13L42 30L46 16Q48 11 51 12Q54 13 53 17L49 31L57 20Q60 16 63 18Q66 20 63 24L49 44C50 54 54 61 62 65Z"/>
-      <path d="M28 39Q40 34 52 39L49 45Q40 41 31 45Z" fill="BEVEL" stroke="none"/>`,
+    body: `<path d="M21 65C27 61 30 54 31 44L17 24Q14 20 17 18Q20 16 23 20L31 31L27 17Q26 13 29 12Q32 11 34 16L38 30L37 13Q37 8 40 8Q43 8 43 13L42 30L46 16Q48 11 51 12Q54 13 53 17L49 31L57 20Q60 16 63 18Q66 20 63 24L49 44C50 54 53 61 59 65Z"/>`,
+    surface: `<path d="M28 39Q40 34 52 39L49 45Q40 41 31 45Z" fill="BEVEL" stroke="none"/>`,
     light: "M19 20L27 32 M30 15L34 26 M40 11V26 M31 40Q40 37 49 40",
     inset: "M31 45Q40 42 49 45",
     engraving: "M28 59Q40 55 52 59"
@@ -121,8 +121,8 @@ const classicProfiles = {
   k: {
     foot: 24,
     body: `<path d="M36.5 27V17H29Q27 17 27 15V12Q27 10 29 10H36.5V4Q36.5 2 38.5 2H41.5Q43.5 2 43.5 4V10H51Q53 10 53 12V15Q53 17 51 17H43.5V27Z"/>
-      <path d="M16 65C24 61 29 54 30 47C24 43 21 38 22 33C23 25 32 23 40 27C48 23 57 25 58 33C59 38 56 43 50 47C51 54 56 61 64 65Z"/>
-      <path d="M24 39Q32 35 40 40Q48 35 56 39Q54 44 50 47Q40 44 30 47Q26 44 24 39Z" fill="BEVEL" stroke="none"/>`,
+      <path d="M19 65C25 61 29 54 30 47C24 43 21 38 22 33C23 25 32 23 40 27C48 23 57 25 58 33C59 38 56 43 50 47C51 54 55 61 61 65Z"/>`,
+    surface: `<path d="M24 39Q32 35 40 40Q48 35 56 39Q54 44 50 47Q40 44 30 47Q26 44 24 39Z" fill="BEVEL" stroke="none"/>`,
     light: "M30 12H38.5V5 M26 35Q27 29 33 29 M29 40Q35 39 40 42",
     inset: "M30 47Q40 44 50 47",
     engraving: "M29 58Q40 54 51 58"
@@ -132,10 +132,10 @@ const classicProfiles = {
 function classicPedestal(halfWidth) {
   const left = 40 - halfWidth;
   const right = 40 + halfWidth;
-  return `<path d="M${left + 4} 64H${right - 4}Q${right - 1} 64 ${right - 1} 67
+  return { outline: `<path d="M${left + 4} 64H${right - 4}Q${right - 1} 64 ${right - 1} 67
     L${right} 69V71Q${right} 74 ${right - 3} 74H${left + 3}Q${left} 74 ${left} 71V69
-    L${left + 1} 67Q${left + 1} 64 ${left + 4} 64Z" fill="BEVEL"/>
-    <path d="M${left + 2} 69Q40 70.5 ${right - 2} 69" fill="none" stroke-opacity=".4"/>`;
+    L${left + 1} 67Q${left + 1} 64 ${left + 4} 64Z" fill="BEVEL"/>`,
+    rim: `<path d="M${left + 2} 69Q40 70.5 ${right - 2} 69" fill="none" stroke-opacity=".4"/>` };
 }
 
 function artwork(piece, side, id) {
@@ -145,14 +145,19 @@ function artwork(piece, side, id) {
   const shadow = id + "-shadow";
   const classic = side === "white" || side === "black";
   const profile = (classic ? classicProfiles : teamProfiles)[piece];
-  const foot = classic ? classicPedestal(profile.foot) : pedestal;
-  const base = foot.replaceAll("BEVEL", `url(#${bevel})`);
+  const foot = classic ? classicPedestal(profile.foot) : { outline: pedestal, rim: "" };
+  const base = foot.outline.replaceAll("BEVEL", `url(#${bevel})`);
   const rim = classic ? `M${46 - profile.foot} 66.4H40` : "M26 69.5h16";
   const ornament = profile.ornament?.replaceAll("BEVEL", `url(#${bevel})`) ?? "";
+  const clip = id + "-contour";
+  const surface = profile.surface?.replaceAll("BEVEL", `url(#${bevel})`)
+    .replaceAll("EYE", side === "white" ? edge : detail) ?? "";
+  const folds = profile.folds?.replaceAll("BEVEL", `url(#${bevel})`) ?? "";
   const contours = profile.body.replaceAll("BEVEL", `url(#${bevel})`).replaceAll("EYE", side === "white" || side === "yellow" ? edge : detail);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 80 80"
        preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">
     <defs>
+      ${classic ? `<clipPath id="${clip}">${profile.body}${base}${ornament}</clipPath>` : ""}
       <radialGradient id="${body}" cx="27%" cy="17%" r="86%">
         <stop stop-color="${light}"/>
         <stop offset=".55" stop-color="${fill}"/>
@@ -171,11 +176,16 @@ function artwork(piece, side, id) {
     <ellipse cx="40" cy="74.5" rx="${profile.foot ?? 20}" ry="3" fill="url(#${shadow})"/>
     <g class="piece-finish" fill="url(#${body})" stroke="${edge}" stroke-width="${classic ? 1.15 : 1.25}" stroke-linecap="round" stroke-linejoin="round">
       ${contours}
+      ${surface ? `<g clip-path="url(#${clip})">${surface}</g>` : ""}
       ${base}
       ${ornament}
-      <path d="${profile.light} ${rim}" fill="none" stroke="${detail}" stroke-opacity=".44" stroke-width="1.45"/>
-      <path d="${profile.inset}" fill="none" stroke="${edge}" stroke-width="${classic ? 1.05 : 1.65}" stroke-opacity=".62"/>
-      ${profile.engraving ? `<path d="${profile.engraving}" fill="none" stroke="${detail}" stroke-width=".9" stroke-opacity=".52"/>` : ""}
+      <g ${classic ? `clip-path="url(#${clip})"` : ""}>
+        ${foot.rim}
+        ${folds}
+        <path d="${profile.light} ${rim}" fill="none" stroke="${detail}" stroke-opacity=".44" stroke-width="1.45"/>
+        <path d="${profile.inset}" fill="none" stroke="${edge}" stroke-width="${classic ? 1.05 : 1.65}" stroke-opacity=".62"/>
+        ${profile.engraving ? `<path d="${profile.engraving}" fill="none" stroke="${detail}" stroke-width=".9" stroke-opacity=".52"/>` : ""}
+      </g>
     </g>
   </svg>`;
 }

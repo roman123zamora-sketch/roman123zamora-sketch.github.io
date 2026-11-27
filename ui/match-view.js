@@ -189,7 +189,7 @@ export function renderMatch(content, { title, fourPlayer }) {
     dropped = null;
   }
 
-  function submit(move, queuedMove = false, dragged = false, promotionPreview = false) {
+  function submit(move, queuedMove = false, dragged = false) {
     const data = match();
     if (!boardAcceptsInput(queuedMove) || data.state.turn !== data.side) return;
     if (!queuedMove) clearPremoves();
@@ -198,7 +198,7 @@ export function renderMatch(content, { title, fourPlayer }) {
       action("claimDraw", move);
       drawControls();
     } else {
-      action("move", move, { promotionPreview });
+      action("move", move);
     }
     dragMove = dragged || session.submittedMove ? move : undefined;
     clearSelection();
@@ -224,7 +224,6 @@ export function renderMatch(content, { title, fourPlayer }) {
     const move = { from, to };
     if (target.promotion) {
       promotion = { move, matchId: match().matchId, revision: match().revision, dragged };
-      playSound(target.capture ? "capture" : "move");
       showPromotionChoices(dialog, match().side);
       return true;
     }
@@ -304,7 +303,7 @@ export function renderMatch(content, { title, fourPlayer }) {
       return;
     }
     if (dialog.returnValue && choice.revision === match().revision) {
-      submit({ ...choice.move, promotion: dialog.returnValue }, false, choice.dragged, true);
+      submit({ ...choice.move, promotion: dialog.returnValue }, false, choice.dragged);
     }
   });
 

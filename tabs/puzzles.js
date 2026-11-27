@@ -455,7 +455,7 @@ export default function puzzles(content) {
     render();
   }
 
-  function attempt(move, promotionPreview = false) {
+  function attempt(move) {
     const active = playable();
     if (!active) return;
     let step = active.puzzle.steps[active.step];
@@ -499,7 +499,7 @@ export default function puzzles(content) {
     }
     clearTimeout(wrongTimer);
     wrong = null;
-    const landing = playPositionMove(move, currentPosition(active), promotionPreview);
+    const landing = playPositionMove(move, currentPosition(active));
     active.step++;
     active.hint = 0;
     if (active.step === active.puzzle.steps.length) {
@@ -536,7 +536,6 @@ export default function puzzles(content) {
     }
     if (moves.some(move => move.promotion)) {
       promotion = moves;
-      playSound(currentPosition(playable()).board[to] ? "capture" : "move");
       showPromotionChoices(dialog, currentPosition(playable()).turn);
     } else attempt(moves[0]);
     return true;
@@ -556,7 +555,7 @@ export default function puzzles(content) {
   dialog.addEventListener("close", () => {
     const move = promotion?.find(choice => choice.promotion === dialog.returnValue);
     promotion = null;
-    if (move) attempt(move, true);
+    if (move) attempt(move);
   }, listeners);
   const drag = bindBoardDrag(slot, {
     begin(from) {

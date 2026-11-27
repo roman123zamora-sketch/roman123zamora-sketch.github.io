@@ -189,12 +189,12 @@ export default function learn(content) {
       next.focus({ preventScroll: true });
     }
 
-    function show(nextFrame, promoted = false) {
+    function show(nextFrame) {
       const from = nextFrame.move.from;
       const to = nextFrame.move.to;
-      const cell = square => slot.querySelector(`[data-square="${square}"]`);
+      const cell = square => slot.querySelector(`.square[aria-label^="${square},"]`);
       const origin = cell(from)?.getBoundingClientRect();
-      const timing = playPositionMove(nextFrame.move, frame.state, promoted);
+      const timing = playPositionMove(nextFrame.move, frame.state);
       if (nextFrame.state.status === "checkmate") playSound("mate", timing + .13);
       else if (nextFrame.state.status === "check") playSound("check", timing + .036);
       frame = nextFrame;
@@ -264,7 +264,6 @@ export default function learn(content) {
       if (from !== instruction?.from || to !== instruction?.to) return wrong("That move is legal, but it doesn’t meet the goal yet.");
       if (step.setup.promotion) {
         promotion = true;
-        playSound(frame.state.board[to] ? "capture" : "move");
         showPromotionChoices(dialog, frame.state.turn);
         render();
       } else {
@@ -338,7 +337,7 @@ export default function learn(content) {
     dialog.addEventListener("close", () => {
       promotion = false;
       if (promotions?.[dialog.returnValue]) {
-        show(promotions[dialog.returnValue], true);
+        show(promotions[dialog.returnValue]);
         success();
       } else render();
     }, { signal: events.signal });
