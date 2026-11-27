@@ -2,8 +2,9 @@ import { woodenSample, woodenSampleUrl } from "./wooden-sounds.js";
 
 const legacyProfileKey = "exalted-chess-profile-v1";
 const tokenKey = "exalted-account-session";
+const learnProgressKey = "exalted-chess-learn-v2";
 const legacyGuestKeys = [
-  legacyProfileKey, "exalted-chess-puzzle-progression-v2", "exalted-chess-learn-v1", "exalted-chess-learn-v2",
+  legacyProfileKey, "exalted-chess-puzzle-progression-v2", "exalted-chess-learn-v1", learnProgressKey,
   "exalted-chess-puzzle-attempts-v1", "exalted-chess-puzzles-v1",
   "exalted-server-token", "exalted-guest-mode"
 ];
@@ -37,13 +38,21 @@ let localProfile;
 const localHistoryPrefix = "browser:";
 
 export function readSetting(name) {
-  if (guestMode && legacyGuestKeys.includes(name)) return guestProgress.get(name) ?? null;
+  if (guestMode && legacyGuestKeys.includes(name)) {
+    if (name === learnProgressKey) {
+      try { return sessionStorage.getItem(name); } catch { /* Use the in-memory guest store. */ }
+    }
+    return guestProgress.get(name) ?? null;
+  }
   try { return localStorage.getItem(name); }
   catch { return null; }
 }
 
 export function writeSetting(name, value) {
   if (guestMode && legacyGuestKeys.includes(name)) {
+    if (name === learnProgressKey) {
+      try { sessionStorage.setItem(name, value); } catch { /* Use the in-memory guest store. */ }
+    }
     guestProgress.set(name, value);
     return;
   }
@@ -257,6 +266,7 @@ export async function enterAsGuest() {
 }
 
 export function returnToWelcome() {
+  try { sessionStorage.removeItem(learnProgressKey); } catch { /* Storage may be disabled. */ }
   location.reload();
 }
 
