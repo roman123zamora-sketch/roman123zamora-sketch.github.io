@@ -1,13 +1,25 @@
 // Original 80 × 80 profiles, in pawn, knight, bishop, rook, queen, king order.
 // Each pair describes the outer contour and the principal material detail.
 const ghosts = [
-  ["M20 68Q28 59 29 44C28 25 52 24 52 43Q51 55 60 68Q56 74 47 71Q38 76 31 71Q24 75 20 68Z","M45 47Q43 61 51 70Q46 71 43 69Q39 60 45 47Z"],
-  ["M18 42Q17 39 22 34L30 24Q33 17 39 15L42 8Q47 10 48 16Q61 22 59 38Q57 54 63 69Q55 75 46 71Q37 76 27 71Q24 73 20 70Q28 60 34 46L37 34Q26 49 18 42Z","M48 23Q54 38 44 56Q41 65 47 71Q41 73 36 70Q33 63 41 51Q48 38 48 23Z"],
-  ["M20 68Q30 55 31 40Q29 30 39 10Q51 23 51 38Q48 52 60 69Q54 74 47 71Q35 76 29 71Q24 73 20 68Z","M47 22Q41 31 34 33Q42 34 49 28Z M45 44Q42 59 52 71L44 71Q38 60 45 44Z"],
-  ["M19 70Q24 54 23 45L23 24Q24 17 30 18Q34 18 35 22Q39 28 44 22Q47 17 53 18Q58 18 57 25L56 43L61 69Q53 75 46 71Q37 76 29 71Q23 74 19 70Z","M51 24L49 43L56 69L49 71Q43 51 48 40Z"],
-  ["M19 70Q29 56 28 41L22 23Q23 19 26 21Q32 29 36 21L40 13Q43 13 46 21Q50 29 55 21Q58 19 59 23L53 41Q50 55 61 68Q57 74 47 71Q37 76 28 71Q24 74 19 70Z","M39 22Q37 34 33 42Q36 48 34 62L31 70Q37 73 39 68Q44 54 39 44Q44 34 39 22Z"],
-  ["M19 69Q27 57 29 39L27 29Q26 25 23 23Q22 19 27 17L35 16L37 7Q40 3 44 7L46 16L53 16Q59 17 58 22Q54 24 53 30L52 39Q53 57 61 69Q56 74 47 71Q38 76 28 71Q22 74 19 69Z","M45 19Q46 26 50 26L47 39Q44 57 54 70L47 71Q39 61 42 43Z"]
+  ["M22 69Q30 60 33 48Q28 43 29 38Q30 28 40 28Q50 28 51 38Q52 44 47 48Q50 61 58 69Q56 73 48 71Q40 75 32 71Q25 75 22 69Z", "M43 46Q46 47 47 49Q47 61 54 70L48 71Q40 63 43 46Z"],
+  ["M17 41Q17 38 23 33L29 25Q31 19 37 16L40 8Q45 8 47 15Q57 20 59 31Q62 44 53 56L56 64Q61 66 61 70Q55 74 48 71Q37 75 29 71Q23 74 20 70Q23 63 30 60Q38 49 41 35L32 39Q27 48 21 46Z", "M44 17Q57 24 55 38Q54 51 45 57L48 65Q56 66 56 71L49 71Q42 64 40 58Q50 41 44 17Z"],
+  ["M21 69Q29 62 33 49L33 44Q26 40 28 34Q31 22 39 10Q43 12 47 21L40 29Q45 28 50 25Q55 34 52 39Q50 42 47 44L47 50Q49 61 59 69Q54 74 47 71Q39 75 31 71Q25 73 21 69Z", "M33 43Q40 47 47 42L47 46Q40 49 33 46Z M45 47Q45 63 53 70L47 71Q39 65 45 47Z"],
+  ["M19 69Q22 64 27 62L28 42Q23 40 22 35V22Q23 18 29 18L33 19V25Q36 27 38 24V19Q40 16 45 19V24Q48 27 51 25V19Q58 17 58 23V35Q57 39 52 43L54 62Q59 64 61 69Q58 74 49 71Q39 75 30 71Q24 74 19 69Z", "M28 39Q40 44 52 39L52 44Q40 47 28 43Z M49 44Q51 49 53 63L58 69L51 71Q46 62 49 44Z"],
+  ["M19 69Q26 62 32 50L33 44Q27 42 25 35L20 24Q20 20 24 21L33 29L37 18Q39 12 42 13L48 29L56 21Q61 20 60 25L54 37Q52 42 47 44L48 51Q52 62 61 69Q55 74 48 71Q39 75 31 71Q24 74 19 69Z", "M28 36Q40 40 52 35Q51 43 46 44Q39 48 33 44Z M44 48Q45 64 55 70L48 71Q39 64 44 48Z"],
+  ["M19 69Q28 63 32 51L33 45Q26 41 27 33L28 25L23 23Q21 18 27 16L35 16L36 8Q39 2 44 7L46 16L54 16Q59 17 58 22L52 25L54 33Q56 42 47 45L48 52Q53 63 61 69Q56 74 48 71Q39 75 30 71Q24 74 19 69Z", "M44 19Q49 23 49 30Q52 41 44 46Q43 61 53 70L47 71Q39 64 40 55Q39 48 43 42Q48 33 44 19Z"]
 ];
+
+const ghostEyes = [
+  [40, 41, 3.6, 1.55, 2.4], [34, 28, 3.6, 1.45, 2.35], [40, 36, 4.2, 1.55, 2.45],
+  [40, 33, 4.7, 1.65, 2.2], [40, 34, 4.5, 1.55, 2.45], [40, 32, 4.0, 1.55, 2.45]
+];
+
+function eyes([x, y, spread, rx, ry]) {
+  return `<g class="ghost-eyes" fill="#342639" stroke="#faf1f4" stroke-opacity=".65" stroke-width=".65">
+    <ellipse cx="${x - spread}" cy="${y}" rx="${rx}" ry="${ry}"/>
+    <ellipse cx="${x + spread}" cy="${y}" rx="${rx}" ry="${ry}"/>
+  </g>`;
+}
 
 const reef = [
   ["M23 64Q33 58 34 44C25 41 27 26 38 25Q50 23 52 34Q53 42 46 45Q47 56 57 64Z","M40 32Q36 25 32 32Q34 36 40 36Q47 35 47 29Q43 28 40 32Z"],
@@ -94,7 +106,13 @@ const designs = {
 };
 
 const pieceIndex = { p: 0, n: 1, b: 2, r: 3, q: 4, k: 5 };
-const teamPaint = { red: "#ff918a", blue: "#92ceff", yellow: "#ffe180", green: "#a3eab0" };
+// Team hue covers the body, rim and base. Material-specific highlights still shape the piece.
+const teamColors = {
+  red: ["#ffbfad", "#df574d", "#832b38", "#541a28", "#ff9d85", "#fff0db"],
+  blue: ["#c3edff", "#478fd9", "#254b97", "#172d5b", "#7bd9ff", "#e3faff"],
+  yellow: ["#ffedac", "#e6b343", "#93631a", "#533712", "#ffe082", "#fff6d0"],
+  green: ["#c8f9a9", "#59b85b", "#287044", "#19452d", "#a0f27a", "#e9ffdb"]
+};
 const toyPaint = ["#c65042", "#326b8d", "#b55944", "#376c78", "#b84847", "#386684"];
 const reefColors = ["#f2906b", "#f3a3bd", "#ac9bea", "#f7ac73", "#ed7a78", "#72d2bd"];
 const base = "M26 63H54Q58 64 58 68L61 70V73Q60 75 57 75H23Q20 75 19 73V70L22 68Q22 64 26 63Z";
@@ -102,11 +120,11 @@ const witchHats = [
   "M28 28Q33 24 35 19Q38 13 44 15L47 19Q42 17 42 21L47 26Q56 28 50 31Q38 33 28 31Q25 30 28 28Z",
   "M39 16L42 10Q45 3 51 6L54 10Q49 8 49 12L52 17Q58 20 54 22Q45 22 39 18Z",
   "M27 37Q35 34 36 24L38 14Q40 8 46 11L49 14Q43 13 44 17L47 22L41 30L49 26L53 35Q58 40 49 41Q36 42 28 40Z",
-  "M26 28H54L57 31V35H23V31Z M35 28L38 23Q40 20 45 21L48 24L44 24L46 28Z",
+  "",
   "M24 29Q34 31 36 22L41 14Q44 10 50 13L53 17Q49 15 47 17L47 23Q50 30 57 29L55 36Q40 41 26 36Z",
   "M27 30Q34 27 35 21L39 8Q42 4 47 8L51 11L46 10L47 20Q48 27 54 30L56 36Q42 41 27 36Z"
 ];
-const hatBands = ["M31 27Q39 29 48 27","M41 15L51 18","M32 36Q41 39 51 36","M25 32H55","M28 33Q41 37 54 32","M32 31Q40 35 51 31"];
+const hatBands = ["M31 27Q39 29 48 27","M41 15L51 18","M32 36Q41 39 51 36","","M28 33Q41 37 54 32","M32 31Q40 35 51 31"];
 
 // Broad lit faces follow the construction of each piece. Pawn through king.
 const litFaces = {
@@ -207,17 +225,87 @@ function path(d, fill, stroke = "none", width = 1) {
   return `<path d="${d}" fill="${fill}" stroke="${stroke}" stroke-width="${width}"/>`;
 }
 
+// Shapes of the cut, folded or molded surfaces, including their joints.
+const reliefEdges = {
+  "ocean-reef": [
+    "M31 42q9 5 18-1 M34 56q5 3 10 1",
+    "M21 39q7-2 12-9 M44 35q-1 16-13 24",
+    "M31 36q7 8 17 4 M34 56q6 3 11 0",
+    "M27 31q12 5 26 0 M34 40l-2 16",
+    "M28 36q12 7 24-1 M34 50q6 4 12 0",
+    "M29 35q11 9 24-1 M34 48q6 4 13 0"
+  ],
+  fossil: [
+    "M31 34q4-8 10-5 M34 46q5 4 11 0",
+    "M21 39l9 1 9-7 M35 46l13-4m-14 13 17-4",
+    "M38 19q-4 9-5 14 M33 44q7 3 14 0",
+    "M29 27v6m8-6v7m9-7v6 M30 40q11 4 21-1",
+    "M26 27l7 11m7-16 1 15m13-10-6 10 M34 47q6 3 11 0",
+    "M39 9v16 M32 39q7 5 15 1"
+  ],
+  "ancient-ruins": [
+    "M32 40l6 3 10-2 M31 57h18",
+    "M26 32l8-9 6-3 M27 57h14l8-12",
+    "M39 16l-5 13 M31 38l5 3h10",
+    "M24 35h31 M28 48h5m14 0h5 M26 57h8m12 0h8",
+    "M28 37l6 7h12l7-7 M33 51h14",
+    "M31 27l9 4 9-4 M32 45l8 3 8-3"
+  ],
+  steampunk: [
+    "M31 35h17 M36 49h8 M35 54h10",
+    "M22 40l10-12 7-4 M42 43l6-8 9-3",
+    "M32 39h16 M34 50h12",
+    "M26 36h28 M32 43h16 M35 49h2m7 0h2",
+    "M29 39q11 6 22 0 M34 50h12",
+    "M34 35h13 M36 46h8 M32 55h16"
+  ],
+  "neon-circuit": [
+    "M30 39h20 M35 48h10",
+    "M23 42h6l12-8 M46 45l6-8v-8",
+    "M30 38h7l12-11 M33 47h14",
+    "M25 35h30 M31 39v15h18",
+    "M28 38l5 6h14l5-6 M35 50h10",
+    "M29 36l5 6h12l5-6 M35 47h10"
+  ],
+  origami: [
+    "M29 37l10 2 11-2 M35 46l4 5",
+    "M18 40l12-7 8-8 M35 48l17-9 5-6 M43 11l4 10",
+    "M29 38l17-7 M33 44l10 1 M37 51l-8 10",
+    "M25 32l15 5 15-3 M40 39v22",
+    "M24 28l10 12 6 2 14-8 M39 44v18",
+    "M30 16l10 1 10-2 M34 39l7 3 8-4"
+  ],
+  toy: [
+    "M29 40q10 6 21 0 M32 56q8 2 16 0",
+    "M22 42l7-3m18-18q10 7 10 17m-18 5q-3 8-10 13",
+    "M31 45q10 4 18 0 M34 55q5 2 11 0",
+    "M24 32q16 4 32 0 M29 43q11 2 22 0",
+    "M29 37q10 6 22 0 M34 49q5 2 12 0",
+    "M30 14h6 M43 14h7 M31 38q9 5 18 0"
+  ]
+};
+
+function relief(theme, index, id) {
+  const contour = reliefEdges[theme]?.[index];
+  if (!contour) return "";
+  return `<g clip-path="url(#${id}-shape)">
+    <g transform="translate(.3 .7)" opacity=".48">${path(contour, "none", `url(#${id}-inset)`, 1.7)}</g>
+    <g opacity=".85">${path(contour, "none", `url(#${id}-edge-light)`, 1.15)}</g>
+  </g>`;
+}
+
 export function redesignedArtwork(theme, piece, side, id, classicProfile) {
   const design = designs[theme];
   if (!design) return undefined;
   const index = pieceIndex[piece];
   const white = side === "white";
-  const team = teamPaint[side];
-  const [light, mid, dark, edge, accent, glint] = (white || side === "yellow" ? design.pale : design.dark);
+  const team = teamColors[side];
+  const [light, mid, dark, edge, accent, glint] = team ?? (white ? design.pale : design.dark);
+  const draped = theme === "haunted" && (white || Boolean(team));
   const [outline, detail] = design.profiles[index];
   const face = `url(#${id}-face)`;
   const bevel = `url(#${id}-base)`;
-  const tinted = team ? `color-mix(in srgb, ${mid} 65%, ${team})` : mid;
+
   let body = path(outline, face, edge, 1.4);
   const lit = `url(#${id}-lit)`;
   const inset = `url(#${id}-inset)`;
@@ -236,23 +324,22 @@ export function redesignedArtwork(theme, piece, side, id, classicProfile) {
 
   switch (theme) {
     case "haunted":
-      if (white) {
+      if (draped) {
         body = path(outline, face, edge, 1.2);
-        decoration = path(detail, inset) + (piece === "p"
-          ? '<ellipse cx="36" cy="43" rx="1.55" ry="2.5" fill="#51485f"/><ellipse cx="43" cy="43" rx="1.55" ry="2.5" fill="#51485f"/>' : "");
+        decoration = path(detail, inset) + eyes(ghostEyes[index]);
       } else {
         body = `<g fill="${face}" stroke="${edge}" stroke-width="1.25">${classicProfile.body.replaceAll("BEVEL", bevel).replaceAll("EYE", glint)}</g>`;
         lighting = "";
-        decoration = path(hatBands[index], "none", edge, 5.6)
+        decoration = piece === "r" ? "" : path(hatBands[index], "none", edge, 5.6)
           + path(witchHats[index], coat, edge, 1.15)
           + path(hatBands[index], "none", glint, 1.35);
         if (piece === "k") decoration += path("M41 13V25 M37 17H45", "none", accent, 2.2);
       }
       break;
     case "ocean-reef":
-      decoration = path(detail, white ? coat : `url(#${id}-coral)`, white ? edge : "#50303b", .8);
+      decoration = path(detail, white || team ? coat : `url(#${id}-coral)`, white ? edge : "#50303b", .8);
       if (white) {
-        decoration += path("M39 55q1-2 2 0m4 3q1-2 2 0", "none", dark, 1.4);
+        decoration += path("M37 54q1-2 2 0m5 4q1-2 2 0m-10 4q1-2 2 0", "none", dark, 1.8);
       }
       if (piece === "n") decoration += path("M32 27Q35 24 38 26Q36 29 32 27Z", white ? edge : "#afced2");
       break;
@@ -270,7 +357,7 @@ export function redesignedArtwork(theme, piece, side, id, classicProfile) {
       if (piece === "k") decoration += path("M36 27H44V31H36Z", bevel, edge, .8);
       break;
     case "neon-circuit":
-      decoration = path(detail, "none", edge, 4.8) + path(detail, "none", team ?? accent, 2.05);
+      decoration = path(detail, "none", edge, 4.8) + path(detail, "none", accent, 2.05);
       if (piece === "n") decoration += path("M31 27H35", "none", glint, 1.8);
       break;
     case "origami":
@@ -280,10 +367,11 @@ export function redesignedArtwork(theme, piece, side, id, classicProfile) {
     case "candy": {
       const stripes = ribbonPaths[index];
       lighting = "";
-      decoration = white
+      decoration = white || team
         ? `<g clip-path="url(#${id}-shape)">${path(stripes, "none", `url(#${id}-ribbon)`, 5.6)}${path(outline, `url(#${id}-glaze)`)}</g>`
         : path("M31 61Q40 64 49 61", "none", accent, 2.4);
-      decoration += path(litFaces[theme][index], lit) + path(detail, "none", glint, 1.1);
+      decoration += path(litFaces[theme][index], lit) + path(detail, "none", glint, 1.25);
+      decoration += path("M25 67q15 4 30 0", "none", white ? "#ffe7d4" : glint, 1.15);
       if (piece === "n") decoration += path("M45 17Q61 25 58 43", "none", white ? "#fff1dc" : accent, 1.6);
       break;
     }
@@ -295,17 +383,22 @@ export function redesignedArtwork(theme, piece, side, id, classicProfile) {
       break;
   }
 
-  const draped = theme === "haunted" && white;
   const curved = ["candy", "toy", "steampunk", "fossil", "ocean-reef", "haunted"].includes(theme);
-  const teamMark = team && path(draped ? "M29 68Q40 71 52 68" : "M25 70H55", "none", team, 3);
+
   return `<svg viewBox="0 0 80 80" aria-hidden="true" focusable="false">
     <defs>
       ${curved ? `<radialGradient id="${id}-face" cx=".34" cy=".32" r=".78">
-        <stop stop-color="${light}"/><stop offset=".46" stop-color="${tinted}"/>
-        <stop offset=".84" stop-color="${dark}"/><stop offset="1" stop-color="${tinted}"/>
+        <stop stop-color="${light}"/><stop offset=".26" stop-color="${light}"/>
+        <stop offset=".51" stop-color="${mid}"/><stop offset=".79" stop-color="${dark}"/>
+        <stop offset="1" stop-color="${mid}"/>
       </radialGradient>` : `<linearGradient id="${id}-face" x2=".9" y2=".66">
-        <stop stop-color="${light}"/><stop offset=".48" stop-color="${tinted}"/><stop offset="1" stop-color="${dark}"/>
+        <stop stop-color="${light}"/><stop offset=".48" stop-color="${mid}"/><stop offset="1" stop-color="${dark}"/>
       </linearGradient>`}
+      <linearGradient id="${id}-edge-light" gradientUnits="userSpaceOnUse" x1="27" y1="18" x2="52" y2="64">
+        <stop stop-color="${glint}" stop-opacity=".9"/>
+        <stop offset=".52" stop-color="${light}" stop-opacity=".34"/>
+        <stop offset="1" stop-color="${glint}" stop-opacity=".58"/>
+      </linearGradient>
       <linearGradient id="${id}-lit" x2=".8" y2=".6">
         <stop stop-color="${glint}" stop-opacity=".9"/><stop offset="1" stop-color="${light}" stop-opacity=".28"/>
       </linearGradient>
@@ -313,9 +406,9 @@ export function redesignedArtwork(theme, piece, side, id, classicProfile) {
         <stop stop-color="${theme === "haunted" && white ? "#b8b4c2" : edge}"/><stop offset="1" stop-color="${dark}"/>
       </linearGradient>
       <linearGradient id="${id}-coat" x2=".6" y2=".86">
-        <stop stop-color="${light}"/><stop offset=".55" stop-color="${theme === "haunted" ? tinted : accent}"/><stop offset="1" stop-color="${dark}"/>
+        <stop stop-color="${light}"/><stop offset=".55" stop-color="${theme === "haunted" ? mid : accent}"/><stop offset="1" stop-color="${dark}"/>
       </linearGradient>
-      ${theme === "ocean-reef" && !white ? `<linearGradient id="${id}-coral" x2=".15" y2="1">
+      ${theme === "ocean-reef" && !white && !team ? `<linearGradient id="${id}-coral" x2=".15" y2="1">
         <stop stop-color="${reefColors[index]}"/><stop offset=".45" stop-color="${reefColors[index]}"/>
         <stop offset="1" stop-color="#68424c"/>
       </linearGradient>` : ""}
@@ -323,8 +416,9 @@ export function redesignedArtwork(theme, piece, side, id, classicProfile) {
         <stop stop-color="${mid}"/><stop offset=".23" stop-color="${light}"/><stop offset="1" stop-color="${dark}"/>
       </linearGradient>
       <clipPath id="${id}-shape">${path(outline, "white")}</clipPath>
-      ${theme === "candy" && white ? `<linearGradient id="${id}-ribbon" x2="1" y2=".17">
-          <stop stop-color="#a22241"/><stop offset=".33" stop-color="#dc4660"/><stop offset=".62" stop-color="#bb203f"/><stop offset="1" stop-color="#731d37"/>
+      ${theme === "candy" && (white || team) ? `<linearGradient id="${id}-ribbon" x2="1" y2=".17">
+          <stop stop-color="${team ? dark : "#a22241"}"/><stop offset=".33" stop-color="${team ? accent : "#dc4660"}"/>
+          <stop offset=".62" stop-color="${team ? dark : "#bb203f"}"/><stop offset="1" stop-color="${team ? edge : "#731d37"}"/>
         </linearGradient>
         <linearGradient id="${id}-glaze" x1="0" y1="0" x2="1" y2=".45">
           <stop stop-color="#fff8eb" stop-opacity=".18"/><stop offset=".39" stop-color="#fff8eb" stop-opacity=".29"/>
@@ -336,7 +430,7 @@ export function redesignedArtwork(theme, piece, side, id, classicProfile) {
       ${lighting}
       ${draped ? "" : footing}
       ${decoration}
-      ${teamMark || ""}
+      ${relief(theme, index, id)}
     </g>
   </svg>`;
 }

@@ -221,8 +221,9 @@ html[data-edition="fossil"], [data-edition-preview="fossil"] {
 [data-piece-side="yellow"] { --piece-accent: #ffda75; }
 [data-piece-side="green"] { --piece-accent: #aff39b; }
 .chess-piece:is([data-piece-side="red"], [data-piece-side="blue"], [data-piece-side="yellow"], [data-piece-side="green"]) {
-  --edition-face: color-mix(in srgb, var(--piece-accent) 55%, var(--edition-dark-face));
-  --edition-shadow: color-mix(in srgb, var(--piece-accent) 30%, var(--edition-dark-shadow));
+  --edition-highlight: color-mix(in srgb, var(--piece-accent) 79%, white);
+  --edition-face: color-mix(in srgb, var(--piece-accent) 77%, #263043);
+  --edition-shadow: color-mix(in srgb, var(--piece-accent) 38%, #111524);
 }
 /* A material's own preview wins over the currently equipped theme. */
 html:is([data-metal], [data-nature]) .sample[data-edition-preview] .piece-finish {

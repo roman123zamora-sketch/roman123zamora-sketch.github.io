@@ -18,10 +18,22 @@
   --root-ridge: #fff0c9;
   --root-shoot: #638a47;
 }
-:is([data-nature], [data-nature-board]) [data-piece-side="red"] { --root-shoot: #ef8e78; --root-mid: #733d2b; }
-:is([data-nature], [data-nature-board]) [data-piece-side="blue"] { --root-shoot: #85b8ed; --root-mid: #404c58; }
-:is([data-nature], [data-nature-board]) [data-piece-side="yellow"] { --root-shoot: #edcf6d; --root-mid: #8a682d; --root-light: #e2b66a; }
-:is([data-nature], [data-nature-board]) [data-piece-side="green"] { --root-shoot: #b3d878; --root-mid: #445539; }
+:is([data-nature], [data-nature-board]) [data-piece-side="red"] {
+  --root-shoot: #ef8e78;
+  --root-light: #f2a28a; --root-mid: #b45143; --root-dark: #652929;
+}
+:is([data-nature], [data-nature-board]) [data-piece-side="blue"] {
+  --root-shoot: #85b8ed;
+  --root-light: #9ed2f2; --root-mid: #4b82b2; --root-dark: #27446d;
+}
+:is([data-nature], [data-nature-board]) [data-piece-side="yellow"] {
+  --root-shoot: #edcf6d;
+  --root-light: #ffe08a; --root-mid: #bf9039; --root-dark: #735018;
+}
+:is([data-nature], [data-nature-board]) [data-piece-side="green"] {
+  --root-shoot: #b3d878;
+  --root-light: #afdb86; --root-mid: #579447; --root-dark: #2b5536;
+}
 [data-nature] .nature-piece, [data-nature-board] .nature-piece { display: inline; }
 [data-nature] .piece-finish, [data-nature-board] .piece-finish { display: none; }
 [data-nature] .sample:not([data-nature-board]) .nature-piece { display: none; }
