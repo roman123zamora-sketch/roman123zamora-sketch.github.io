@@ -6,7 +6,7 @@ export default function inventory(content) {
   content.innerHTML = `
     <section class="panel page">
       <h1>Inventory</h1>
-      <p>Equip any theme to change the board, pieces, interface, and sounds. Unequip it to return to the default Blue look.</p>
+      <p>Equip a theme for the board, pieces, and interface. Unequip it to return to Blue.</p>
       <p class="help collection-notice" role="status"></p>
       <div class="theme-grid"></div>
     </section>`;

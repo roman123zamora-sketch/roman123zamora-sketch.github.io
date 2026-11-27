@@ -221,3 +221,27 @@ main { width: min(100%, 100rem); margin-inline: auto; padding: var(--space); }
 /* Keep controls inside narrow cards and allow long labels to wrap. */
 .action-row > * { min-inline-size: 0; max-inline-size: 100%; }
 .action-row > button { overflow-wrap: anywhere; }
+
+/* One clear selection edge keeps navigation separate from game actions. */
+nav a[aria-current] {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--button-pressed) 72%, transparent);
+  box-shadow: inset 0 -2px var(--active-border);
+}
+:where(button, select, a, input, summary):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.panel { box-shadow: var(--panel-rim), 0 8px 20px #020a1924; }
+@media (max-width: 30rem) {
+  .topbar { gap: .3rem .7rem; padding-block: .45rem; }
+  nav { display: flex; gap: .12rem; }
+  nav a { padding-inline: .5rem; min-block-size: 2.4rem; }
+}
+
+@media (max-width: 23rem) {
+  .brand { gap: .35rem; font-size: .86rem; }
+  .brand span { inline-size: 1.85rem; }
+  .header-actions { gap: .25rem; }
+  .header-actions button { padding-inline: .45rem; font-size: .8rem; }
+}

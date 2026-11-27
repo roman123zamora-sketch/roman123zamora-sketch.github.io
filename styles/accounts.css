@@ -52,3 +52,18 @@
 
 .account-gate [role="status"]:not(:empty) { margin-block: .75rem; }
 .account-gate [data-guest] { margin-top: .65rem; }
+
+.rank-status:not(:empty) {
+  margin-block: .6rem;
+  padding: .7rem .8rem;
+  border: 1px dashed var(--stroke);
+  border-radius: var(--radius);
+  background: var(--recess);
+  color: var(--muted);
+}
+.ranking-table:has(tbody:empty) { display: none; }
+@media (max-width: 35rem) {
+  .rank-pages { display: grid; grid-template-columns: repeat(2, 2.5rem) minmax(0, 1fr) repeat(2, 2.5rem); gap: .25rem; }
+  .rank-pages button { padding-inline: .2rem; }
+  .rank-pages output { min-inline-size: 0; font-size: .76rem; }
+}

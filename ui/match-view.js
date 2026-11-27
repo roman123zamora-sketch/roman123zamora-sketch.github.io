@@ -98,22 +98,23 @@ export function renderMatch(content, { title, fourPlayer }) {
           <button type="button" data-premove-control data-action="clearPremoves">Clear premoves</button>
         </div>
       </section>
-      <aside class="panel match-info">
-        <h2>Match</h2>
-        <ul class="players"></ul>
-        <h2>Move history</h2>
-        <ol class="inset move-list"></ol>
-        <div class="review-controls" hidden>
-          <div class="action-row">
-            <button type="button" data-best-move>Show best move</button>
-            <button type="button" data-action="reviewExit">Exit review</button>
+      <aside class="panel match-info" aria-label="Match details">
+        <ul class="players" aria-label="Players"></ul>
+        <div class="match-record">
+          <h2>Move history</h2>
+          <ol class="inset move-list" aria-label="Move history"></ol>
+          <div class="review-controls" hidden>
+            <div class="action-row">
+              <button type="button" data-best-move>Show best move</button>
+              <button type="button" data-action="reviewExit">Exit review</button>
+            </div>
+            <p class="help best-move-status" role="status"></p>
+            <p class="help review-analysis" aria-live="polite"></p>
           </div>
-          <p class="help best-move-status" role="status"></p>
-          <p class="help review-analysis" aria-live="polite"></p>
+          <div class="match-actions"></div>
+          <button type="button" class="match-hint" hidden>Hint</button>
+          <p class="help best-move-status match-hint-status" role="status"></p>
         </div>
-        <div class="match-actions"></div>
-        <button type="button" class="match-hint" hidden>Hint</button>
-        <p class="help best-move-status match-hint-status" role="status"></p>
       </aside>
     </div>
     <dialog class="promotion-dialog result-dialog" aria-labelledby="match-result-title">
@@ -122,13 +123,13 @@ export function renderMatch(content, { title, fourPlayer }) {
       <p></p>
       <div class="action-row">
         <button type="button" class="primary" data-action="rematch">Rematch</button>
-        <button type="button" data-action="newOpponent">New Game</button>
+        <button type="button" data-action="newOpponent">New game</button>
         <button type="button" data-action="review">Review</button>
       </div>
     </dialog>
-    <dialog class="promotion-dialog">
+    <dialog class="promotion-dialog" aria-labelledby="match-promotion-title">
       <form method="dialog">
-        <h2>Promote pawn</h2>
+        <h2 id="match-promotion-title">Promote pawn</h2>
         <div class="action-row">
           <button value="Q">Queen</button><button value="R">Rook</button>
           <button value="B">Bishop</button><button value="N">Knight</button>
@@ -533,6 +534,7 @@ export function renderMatch(content, { title, fourPlayer }) {
     const [leader, second] = colors.slice().sort((a, b) => totals[b] - totals[a]);
     const lead = totals[leader] - totals[second];
     const value = move => move.captureValue ?? (move.grey ? 0 : captureValue[move.captured[1]] ?? 0);
+    list.closest(".match").toggleAttribute("data-seated", Boolean(data || lobby()));
     list.replaceChildren();
     for (const side of colors) {
       const name = sides[side];
@@ -542,7 +544,10 @@ export function renderMatch(content, { title, fourPlayer }) {
       dot.className = "side-dot " + name.toLowerCase();
       label.className = "player-name";
       const player = data?.players?.[side];
-      label.append(dot, document.createTextNode(timed && player ? `${name} · ${player}` : player ?? name));
+      const playerName = document.createElement("span");
+      playerName.textContent = timed && player ? `${name} · ${player}` : player ?? name;
+      label.title = playerName.textContent;
+      label.append(dot, playerName);
       const clock = document.createElement("span");
       clock.className = timed ? "clock match-clock" : "clock";
       clock.dataset.side = side;
@@ -716,7 +721,7 @@ export function renderMatch(content, { title, fourPlayer }) {
         <h2>Challenge link</h2>
         <div class="invite-link">
           <input type="text" aria-label="Challenge link" readonly>
-          <button type="button" data-action="copyInvite">Copy</button>
+          <button type="button" data-action="copyInvite">Copy link</button>
         </div>
         <p class="help invite-feedback" role="status">Share this link to invite ${waiting.needed - 1 === 1 ? "a friend" : "three friends"}.
           Clocks start when everyone joins.</p>
@@ -737,11 +742,11 @@ export function renderMatch(content, { title, fourPlayer }) {
           ${botMode ? '<p class="help">Bot games are untimed.</p>' : `
             <div class="online-actions">
               <button type="button" data-action="${session.queue || queued ? "cancelQueue" : "queue"}">${session.queue || queued ? "Cancel search" : "Play online"}</button>
-              <button type="button" data-action="createInvite"${creatingInvite ? ' disabled aria-busy="true"' : ""}>${creatingInvite ? "Creating link…" : "Challenge"}</button>
+              <button type="button" data-action="createInvite"${creatingInvite ? ' disabled aria-busy="true"' : ""}>Challenge</button>
             </div>
             <p class="online-status help" role="status">${onlineInfo && !session.network ? offlineNotice : ""}</p>`}
           ${setup ? selector : ""}
-          <button type="button" class="primary" data-action="${setup ? "start" : "setup"}"${starting ? ' disabled aria-busy="true"' : ""}>${starting ? "Starting…" : setup ? "Start match" : "Play bots"}</button>
+          <button type="button" class="primary" data-action="${setup ? "start" : "setup"}"${starting ? ' disabled aria-busy="true"' : ""}>${setup ? "Start match" : "Play bots"}</button>
           ${setup && !starting ? '<button type="button" class="help" data-action="cancelSetup">Back to time controls</button>' : ""}`);
 
     if (session.offer) {
@@ -758,7 +763,7 @@ export function renderMatch(content, { title, fourPlayer }) {
     const abort = !bot && !Object.values(data?.state.history ?? {}).some(move => move.color === data?.side);
     const onlineFinished = ["online", "fourOnline"].includes(data?.mode);
     actions.innerHTML = result() ? `<button data-action="rematch">Rematch</button>
-      ${onlineFinished && !session.queue && !queued ? '<button data-action="newOpponent">New Game</button>' : ""}
+      ${onlineFinished && !session.queue && !queued ? '<button data-action="newOpponent">New game</button>' : ""}
       ${review ? "" : '<button data-action="review">Review</button>'}` :
       active() ? `${bot ? `<button data-action="undo"${Object.values(data.state.history).some(move => move.color === data.side) ? "" : " disabled"}>Undo</button>
         <button data-action="reset"${resetting ? ' disabled aria-busy="true"' : ""}>${resetting ? "Resetting…" : "Reset game"}</button>` : ""}

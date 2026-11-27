@@ -234,11 +234,6 @@ button.square.premove-trail:focus-visible {
   -webkit-text-stroke-width: 1px;
 }
 
-@media (max-width: 22rem) {
-  .aligned-board-area .board-and-eval { --board-gutter: 2rem; gap: .25rem; }
-  .aligned-board-area .bot-eval { inline-size: 2rem; }
-  .aligned-board-area .eval-score { font-size: .61rem; }
-}
 
 .board-turn-label {
   display: flex;
@@ -278,3 +273,15 @@ button.square.premove-trail:focus-visible {
   gap: .15rem;
 }
 .promotion-dialog button > .chess-piece { inline-size: 2rem; }
+
+/* A quiet trail, a definite selection edge, and a distinct check warning. */
+.square.last-move { background-color: color-mix(in srgb, var(--light) 78%, #d9a446); }
+.square.dark.last-move { background-color: color-mix(in srgb, var(--dark) 73%, #d9a446); }
+.square.target > .move-marker:not(.capture-marker) { inset: 39%; }
+.square.checked { outline-width: 3px; }
+
+@media (max-width: 35rem) {
+  .aligned-board-area .board-and-eval { --board-gutter: 1.35rem; gap: .25rem; }
+  .aligned-board-area .bot-eval { inline-size: 1.35rem; }
+  .aligned-board-area .eval-score { font-size: .61rem; }
+}

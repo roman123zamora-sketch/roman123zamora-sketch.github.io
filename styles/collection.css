@@ -89,3 +89,9 @@
 .game-history > .history-entry { padding: .85rem 1rem; }
 .profile-stats dd { font-size: clamp(1.3rem, 1rem + .5vw, 1.65rem); }
 .theme-card[aria-disabled="true"] { cursor: progress; }
+
+.theme-card[data-equipped] {
+  box-shadow: inset 0 -2px var(--active-border);
+}
+.theme-card:not([data-equipped]) { border-color: color-mix(in srgb, var(--stroke) 72%, transparent); }
+.history-entry, .profile-stats div { border-color: color-mix(in srgb, var(--stroke) 72%, transparent); }
