@@ -29,7 +29,6 @@ export default function inventory(content) {
       const button = document.createElement("button");
       button.type = "button";
       button.dataset.board = theme.id;
-      if (!equipped) button.dataset.soundBoard = theme.id;
       button.textContent = equipped ? "Unequip" : "Equip";
       button.setAttribute("aria-label", `${button.textContent} ${theme.name}`);
       button.setAttribute("aria-busy", String(equipping?.theme === theme.id));

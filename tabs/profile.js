@@ -74,6 +74,7 @@ export default function profile(content) {
       const item = document.createElement("button");
       item.type = "button";
       item.textContent = "Review";
+      item.dataset.openReplay = "";
       item.addEventListener("click", async () => {
         if (opening) return;
         opening = true;
@@ -107,6 +108,7 @@ export default function profile(content) {
             item.disabled = false;
             item.removeAttribute("aria-busy");
             item.textContent = "Review";
+      item.dataset.openReplay = "";
             panel.querySelector(".history-notice").textContent = "Replay unavailable. Try again.";
           }
         }
@@ -182,7 +184,7 @@ export default function profile(content) {
     }
     function goToPly(next) {
       const target = Math.max(0, Math.min(positions.length - 1, next));
-      if (target !== ply) playManualStepSound();
+      if (target !== ply) playManualStepSound(moves[target - 1], target < ply);
       ply = target;
       draw();
     }

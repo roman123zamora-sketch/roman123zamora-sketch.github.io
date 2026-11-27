@@ -454,7 +454,7 @@ export default function puzzles(content) {
     render();
   }
 
-  function attempt(move) {
+  function attempt(move, promotionPreview = false) {
     const active = playable();
     if (!active) return;
     let step = active.puzzle.steps[active.step];
@@ -498,7 +498,7 @@ export default function puzzles(content) {
     }
     clearTimeout(wrongTimer);
     wrong = null;
-    const landing = playPositionMove(move, currentPosition(active));
+    const landing = playPositionMove(move, currentPosition(active), promotionPreview);
     active.step++;
     active.hint = 0;
     if (active.step === active.puzzle.steps.length) {
@@ -535,6 +535,7 @@ export default function puzzles(content) {
     }
     if (moves.some(move => move.promotion)) {
       promotion = moves;
+      playSound(currentPosition(playable()).board[to] ? "capture" : "move");
       dialog.returnValue = "";
       dialog.showModal();
     } else attempt(moves[0]);
@@ -546,7 +547,7 @@ export default function puzzles(content) {
     const active = playable();
     const position = currentPosition(active);
     if (position.board[square]?.[0] === active.puzzle.side) {
-      if (selected !== square) playPickUpSound(position.board[square]?.[1]);
+      if (selected !== square) playPickUpSound();
       selected = selected === square ? null : square;
       render();
     } else if (selected) choose(selected, square);
@@ -555,12 +556,12 @@ export default function puzzles(content) {
   dialog.addEventListener("close", () => {
     const move = promotion?.find(choice => choice.promotion === dialog.returnValue);
     promotion = null;
-    if (move) attempt(move);
+    if (move) attempt(move, true);
   }, listeners);
   const drag = bindBoardDrag(slot, {
     begin(from) {
       if (!canMove()) return false;
-      playPickUpSound(currentPosition(playable()).board[from]?.[1]);
+      playPickUpSound();
       selected = from;
       slot.querySelector(`[data-square="${from}"]`)?.classList.add("drag-source");
       return true;

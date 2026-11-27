@@ -181,10 +181,10 @@ export default function learn(content) {
       }
     }
 
-    function show(nextFrame) {
+    function show(nextFrame, promotionPreview = false) {
       const previous = frame.state.board;
       const move = nextFrame.move;
-      const landing = playPositionMove(move, frame.state);
+      const landing = playPositionMove(move, frame.state, promotionPreview);
       if (nextFrame.state.status === "checkmate") playSound("mate", landing + .13);
       else if (nextFrame.state.status === "check") playSound("check", landing + .036);
       const motions = [[move.from, move.to]];
@@ -258,6 +258,7 @@ export default function learn(content) {
       }
       if (lesson.promotion && from === lesson.setup.promotion.from && to === lesson.setup.promotion.to) {
         promotion = true;
+        playSound(frame.state.board[to] ? "capture" : "move");
         dialog.returnValue = "";
         dialog.showModal();
         return true;
@@ -283,11 +284,11 @@ export default function learn(content) {
       }
       if (lesson.options) return;
       if (frame.state.board[square]?.[0] === frame.state.turn && !selected) {
-        playPickUpSound(frame.state.board[square]?.[1]);
+        playPickUpSound();
         selected = square;
         render();
       } else if (selected && !choose(selected, square) && frame.state.board[square]?.[0] === frame.state.turn) {
-        playPickUpSound(frame.state.board[square]?.[1]);
+        playPickUpSound();
         selected = square;
         render();
       }
@@ -329,7 +330,7 @@ export default function learn(content) {
       promotion = false;
       if (promotions?.[dialog.returnValue]) {
         success();
-        show(promotions[dialog.returnValue]);
+        show(promotions[dialog.returnValue], true);
       } else render();
     }, events);
     $("[data-course]").onclick = () => { openHome(); panel.querySelector("h1").focus(); };

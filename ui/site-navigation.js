@@ -82,7 +82,7 @@ function showSoundSetting(enabled) {
 }
 showSoundSetting(soundEnabled());
 audio.addEventListener("click", () => showSoundSetting(toggleSound()));
-const soundControl = 'button:not(:disabled):not([data-square]):not([aria-disabled="true"]), a[href]:not([aria-disabled="true"])';
+const soundControl = 'button:not(:disabled):not([data-square]):not([aria-disabled="true"]), a[href]:not([aria-disabled="true"]), details > summary';
 document.addEventListener("pointerdown", event => {
   if (event.isTrusted && event.pointerType === "mouse" && !audio.contains(event.target)) unlockSound();
 }, { capture: true });
@@ -97,19 +97,33 @@ document.addEventListener("keydown", event => {
   }
   if (event.isTrusted && !audio.contains(event.target)) unlockSound();
 }, { capture: true });
+let lastFocusCue = -Infinity;
+const themeControl = ".theme-card button[data-board]";
 document.addEventListener("pointerover", event => {
   if (event.pointerType !== "mouse") return;
   const control = event.target.closest(soundControl);
-  if (control && !control.contains(event.relatedTarget)) playSound("hover", 0, control.dataset.soundBoard);
+  if (control && !control.matches(themeControl) && !control.contains(event.relatedTarget)) playSound("hover");
 });
 document.addEventListener("focusin", event => {
   const control = event.target.closest(soundControl);
-  if (tabbing && event.isTrusted && control?.matches(":focus-visible")) playSound("focus", 0, control.dataset.soundBoard);
+  const now = performance.now();
+  if (tabbing && event.isTrusted && control?.matches(":focus-visible") && !control.matches(themeControl) &&
+      now - lastFocusCue >= 100) {
+    lastFocusCue = now;
+    playSound("hover");
+  }
 });
 document.addEventListener("click", event => {
   const control = event.target.closest(soundControl);
-  if (control && control !== audio && !control.matches("[data-premove-control], [data-step], .move-history-entry, .board-history-controls button")) unlockSound("button", control.dataset.soundBoard);
-  else if (control !== audio) unlockSound();
+  if (!control || control === audio || control.matches(themeControl)) return;
+  if (control.matches("[data-premove-control], [data-step], .move-history-entry, .board-history-controls button, [data-action='undo'], [data-action='start'], [data-action='rematch'], dialog.promotion-dialog:not(.result-dialog) button[value]:not([value=''])")) {
+    unlockSound();
+    return;
+  }
+  if (control.matches("summary")) unlockSound(control.parentElement.open ? "close" : "open");
+  else if (control.matches("[data-action='setup'], [data-action='review'], [data-mode], [data-open-replay]")) unlockSound("open");
+  else if (control.matches("[data-action='cancelSetup'], [data-action='reviewExit'], [data-action='leaveInvite'], .return-history, dialog button[value='']")) unlockSound("close");
+  else unlockSound("button");
 }, { capture: true });
 let previousMatch;
 subscribe((kind, match) => {

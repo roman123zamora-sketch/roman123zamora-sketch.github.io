@@ -188,7 +188,7 @@ export function renderMatch(content, { title, fourPlayer }) {
     dropped = null;
   }
 
-  function submit(move, queuedMove = false, dragged = false) {
+  function submit(move, queuedMove = false, dragged = false, promotionPreview = false) {
     const data = match();
     if (!boardAcceptsInput(queuedMove) || data.state.turn !== data.side) return;
     if (!queuedMove) clearPremoves();
@@ -197,7 +197,7 @@ export function renderMatch(content, { title, fourPlayer }) {
       action("claimDraw", move);
       drawControls();
     } else {
-      action("move", move);
+      action("move", move, { promotionPreview });
     }
     dragMove = dragged || session.submittedMove ? move : undefined;
     clearSelection();
@@ -223,6 +223,7 @@ export function renderMatch(content, { title, fourPlayer }) {
     const move = { from, to };
     if (target.promotion) {
       promotion = { move, matchId: match().matchId, revision: match().revision, dragged };
+      playSound(target.capture ? "capture" : "move");
       dialog.returnValue = "";
       dialog.showModal();
       return true;
@@ -280,7 +281,7 @@ export function renderMatch(content, { title, fourPlayer }) {
       dropped = null;
       if (selected === address) clearSelection();
       else {
-        playPickUpSound(plannedBoard().board[address]?.[1]);
+        playPickUpSound();
         if (planning) selected = address;
         else requestTargets(address);
       }
@@ -304,7 +305,7 @@ export function renderMatch(content, { title, fourPlayer }) {
       return;
     }
     if (dialog.returnValue && choice.revision === match().revision) {
-      submit({ ...choice.move, promotion: dialog.returnValue }, false, choice.dragged);
+      submit({ ...choice.move, promotion: dialog.returnValue }, false, choice.dragged, true);
     }
   });
 
@@ -640,7 +641,7 @@ export function renderMatch(content, { title, fourPlayer }) {
   async function goToHistory(ply) {
     if (review) {
       const next = Math.max(0, Math.min(review.positions.length - 1, ply));
-      if (review.ply !== next) playManualStepSound();
+      if (review.ply !== next) playManualStepSound(Object.values(match().state.history)[next - 1], next < review.ply);
       review.ply = next;
       drawReview();
     } else {
@@ -649,7 +650,8 @@ export function renderMatch(content, { title, fourPlayer }) {
       const history = Object.values(data.state.history);
       const latest = history.length;
       const next = Math.max(0, Math.min(latest, ply));
-      if ((historyPly ?? latest) !== next) playManualStepSound();
+      const current = historyPly ?? latest;
+      if (current !== next) playManualStepSound(history[next - 1], next < current);
       if (next === latest) returnToLive();
       else {
         historyPly = next;
@@ -923,7 +925,7 @@ export function renderMatch(content, { title, fourPlayer }) {
     begin(from) {
       if (!boardAcceptsInput()) return false;
       dragSource = from;
-      playPickUpSound(plannedBoard().board[from]?.[1]);
+      playPickUpSound();
       dropped = null;
       if (match().state.turn === match().side) {
         clearPremoves();

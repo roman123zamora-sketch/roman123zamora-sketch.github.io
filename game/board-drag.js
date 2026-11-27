@@ -7,7 +7,7 @@ export function bindBoardDrag(board, { begin, end: finish, drop }) {
   const controller = new AbortController();
   const options = { signal: controller.signal };
 
-  function clear() {
+  function clear(reseat = false) {
     returning?.animation.cancel();
     returning?.ghost.remove();
     if (returning) finish();
@@ -17,7 +17,7 @@ export function bindBoardDrag(board, { begin, end: finish, drop }) {
     gesture = null;
     board.classList.remove("piece-dragging");
     ghost?.remove();
-    if (ghost) finish();
+    if (ghost) finish(reseat);
     if (board.hasPointerCapture(id)) board.releasePointerCapture(id);
   }
 
@@ -60,15 +60,16 @@ export function bindBoardDrag(board, { begin, end: finish, drop }) {
     const destination = ghost && event.type === "pointerup"
       ? document.elementFromPoint(event.clientX, event.clientY)?.closest("[data-square]")
       : null;
-    if (!ghost || event.type !== "pointerup") { clear(); return; }
+    if (!ghost || event.type !== "pointerup") { clear(Boolean(ghost)); return; }
 
     gesture = null;
     board.classList.remove("piece-dragging");
     if (board.hasPointerCapture(id)) board.releasePointerCapture(id);
     const accepted = destination && board.contains(destination) && drop(from, destination.dataset.square);
+    const reseat = !destination || !board.contains(destination) || destination.dataset.square === from;
     if (accepted || matchMedia("(prefers-reduced-motion: reduce)").matches) {
       ghost.remove();
-      finish(!accepted);
+      finish(!accepted && reseat);
       return;
     }
     const animation = ghost.animate([
@@ -80,7 +81,7 @@ export function bindBoardDrag(board, { begin, end: finish, drop }) {
       if (returning?.ghost !== ghost) return;
       returning = null;
       ghost.remove();
-      finish(true);
+      finish(reseat);
     };
   }
 
