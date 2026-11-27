@@ -7,7 +7,7 @@ import { board } from "./chessboard.js";
 import { getTheme } from "./board-themes.js";
 import { createChessPiece, pieceName } from "./chess-pieces.js";
 import { premoveIntent, projectPremoves } from "../game/premove-preview.js";
-import { action, playSound, serverNow, session, subscribe, unlockSound } from "../game/session.js";
+import { action, playManualStepSound, playPickUpSound, playSound, serverNow, session, subscribe, unlockSound } from "../game/session.js";
 
 const displayedResults = new WeakSet();
 
@@ -62,6 +62,7 @@ export function renderMatch(content, { title, fourPlayer }) {
   let historyPly = null;
   let historyTools;
   let historyFrames = [];
+  let warnedClock;
   if (session.match?.variant === variant) {
     historyFrames[Object.values(session.match.state.history).length] = boardFrame(session.match.state);
   }
@@ -279,7 +280,7 @@ export function renderMatch(content, { title, fourPlayer }) {
       dropped = null;
       if (selected === address) clearSelection();
       else {
-        playSound("lift");
+        playPickUpSound(plannedBoard().board[address]?.[1]);
         if (planning) selected = address;
         else requestTargets(address);
       }
@@ -598,6 +599,13 @@ export function renderMatch(content, { title, fourPlayer }) {
         const elapsed = side === data?.state.turn && !result() && !data.state.eliminated?.[side]
           ? Math.max(0, serverNow() - data.turnStarted) : 0;
         const remaining = Math.max(0, Math.ceil(seconds - elapsed));
+        if (data?.clocks && side === data.side && !result()) {
+          if (remaining > 15 && warnedClock === data.matchId) warnedClock = undefined;
+          if (remaining > 0 && remaining <= 10 && data.state.turn === side && warnedClock !== data.matchId) {
+            warnedClock = data.matchId;
+            playSound("clock");
+          }
+        }
         const label = Math.floor(remaining / 60) + ":" + String(remaining % 60).padStart(2, "0");
         if (clock.textContent !== label) clock.textContent = label;
       }
@@ -631,7 +639,9 @@ export function renderMatch(content, { title, fourPlayer }) {
 
   async function goToHistory(ply) {
     if (review) {
-      review.ply = Math.max(0, Math.min(review.positions.length - 1, ply));
+      const next = Math.max(0, Math.min(review.positions.length - 1, ply));
+      if (review.ply !== next) playManualStepSound();
+      review.ply = next;
       drawReview();
     } else {
       const data = match();
@@ -639,6 +649,7 @@ export function renderMatch(content, { title, fourPlayer }) {
       const history = Object.values(data.state.history);
       const latest = history.length;
       const next = Math.max(0, Math.min(latest, ply));
+      if ((historyPly ?? latest) !== next) playManualStepSound();
       if (next === latest) returnToLive();
       else {
         historyPly = next;
@@ -912,7 +923,7 @@ export function renderMatch(content, { title, fourPlayer }) {
     begin(from) {
       if (!boardAcceptsInput()) return false;
       dragSource = from;
-      playSound("lift");
+      playPickUpSound(plannedBoard().board[from]?.[1]);
       dropped = null;
       if (match().state.turn === match().side) {
         clearPremoves();
@@ -922,7 +933,8 @@ export function renderMatch(content, { title, fourPlayer }) {
       drawBoard();
       return true;
     },
-    end() {
+    end(returned) {
+      if (returned) playSound("reseat");
       dragSource = null;
       drawBoard();
     },

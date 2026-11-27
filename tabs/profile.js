@@ -5,7 +5,7 @@ import { createEvaluationBar } from "../ui/evaluation-bar.js";
 import { createBestMoveControl } from "../ui/review-best-move.js";
 import { board } from "../ui/chessboard.js";
 import { getTheme } from "../ui/board-themes.js";
-import { action, replay, session, subscribe } from "../game/session.js";
+import { action, playManualStepSound, replay, session, subscribe } from "../game/session.js";
 
 export default function profile(content) {
   let disposed = false;
@@ -181,7 +181,9 @@ export default function profile(content) {
       buttons[1].disabled = ply === positions.length - 1;
     }
     function goToPly(next) {
-      ply = Math.max(0, Math.min(positions.length - 1, next));
+      const target = Math.max(0, Math.min(positions.length - 1, next));
+      if (target !== ply) playManualStepSound();
+      ply = target;
       draw();
     }
     for (const button of buttons) button.addEventListener("click", () =>

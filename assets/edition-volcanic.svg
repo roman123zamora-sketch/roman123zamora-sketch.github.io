@@ -17,4 +17,9 @@
 <path d="M38 20 74 36 54 68 83 78 75 112M74 36 112 55 144 31" class="lit" stroke-width="2.4"/>
 <path d="m34 57 9-3m88 9 9-7m-18 29 13-5" class="lit" stroke-width="1"/>
   </g>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m0 617 38 5 20-14 47 9 27-17m-74 8-13-16m1155 65-52 10-25 22-36 3-23 19m59-22-15-19" stroke="#110e16" stroke-width="9"/>
+    <path d="m0 617 38 5 20-14 47 9 27-17m-74 8-13-16m1155 65-52 10-25 22-36 3-23 19m59-22-15-19" stroke="#e77b48" stroke-width="7" opacity=".16"/>
+    <path d="m0 617 38 5 20-14 47 9 27-17m-74 8-13-16m1155 65-52 10-25 22-36 3-23 19m59-22-15-19" stroke="#ffac69" stroke-width="1.4"/>
+  </g>
 </svg>

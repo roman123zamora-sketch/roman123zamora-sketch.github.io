@@ -17,4 +17,10 @@
 <path d="M32 74 96 45l2-15 22-12-6 12 14 2-8 14-17 5-62 34Z" fill="#605352" stroke="#c2a17b" stroke-width="2"/>
 <path d="M55 66 99 45m7-7 7-8" class="lit"/><circle cx="136" cy="86" r="5" fill="#6a4a39"/>
   </g>
+  <g fill="none" stroke-linejoin="round">
+    <path d="M0 499h112l38 39h73m977-37h-96l-42 37h-73" stroke="#241c1b" stroke-width="18"/>
+    <path d="M0 494h112l38 39h73m977-37h-96l-42 37h-73" stroke="#ae8257" stroke-width="9"/>
+    <path d="m94 486 0 17m20-14-3 15m993-12 3 15m20-18v18" stroke="#6c8e77" stroke-width="6"/>
+    <path d="M0 491h109l38 39h75m978-37h-97l-43 36h-70" stroke="#e9bf7b" stroke-opacity=".46" stroke-width="1.4"/>
+  </g>
 </svg>

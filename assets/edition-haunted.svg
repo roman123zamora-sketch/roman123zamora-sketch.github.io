@@ -23,4 +23,9 @@
   <use href="#candelabrum" transform="translate(24 715)"/>
   <use href="#candelabrum" transform="translate(1036 727) scale(.86)"/>
 
+  <g fill="none">
+    <path d="M8 455v175m7-175v174m1170-181v180m7-180v177M0 626h1200" stroke="#aa92a6" stroke-opacity=".22"/>
+    <path d="M0 629h1200" stroke="#171220" stroke-width="4"/>
+    <path d="M11 716h126m-93 31h102m926-28h108m-111 30h98" stroke="#a97f6e" stroke-opacity=".28" stroke-width="1.5"/>
+  </g>
 </svg>

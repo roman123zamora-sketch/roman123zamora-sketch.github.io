@@ -37,4 +37,9 @@
   <ellipse cx="1104" cy="787" rx="45" ry="9" fill="#162635" opacity=".52"/>
   <use href="#plate-coral" transform="translate(1103 787) scale(1.02)" color="#a66d8b"/>
   <use href="#plate-coral" transform="translate(1161 818) scale(.72)" color="#ad805d"/>
+  <g>
+    <use href="#branch-coral" transform="translate(166 684) scale(.64)" color="#446b78" opacity=".55"/>
+    <use href="#branch-coral" transform="translate(1018 650) scale(-.58 .58)" color="#4b7185" opacity=".55"/>
+    <path d="M10 685q44-11 77 0t66-1m-131 15q34-9 60-3m963 14q48-13 115 2" fill="none" stroke="#a9e6d8" stroke-opacity=".21" stroke-width="2"/>
+  </g>
 </svg>

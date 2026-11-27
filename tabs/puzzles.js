@@ -1,7 +1,7 @@
 import { isRatedPuzzle, levelLabel, levelLock, levelOf, levelProgress, levels, solvesToUnlock,
   libraryEntries, openLibraryPuzzle, practiceQueue, puzzleCategories, puzzleChoice, recommendedLevel, updateRecommendation } from "../game/puzzle-library.js";
 import { loadPractice, migrateLibraryProgress, resolvePuzzle, savePractice } from "../game/puzzle-progress.js";
-import { playPositionMove, playSound, subscribe } from "../game/session.js";
+import { playPositionMove, playPickUpSound, playSound, subscribe } from "../game/session.js";
 import { bindBoardDrag } from "../game/board-drag.js";
 import { getTheme } from "../ui/board-themes.js";
 import { board } from "../ui/chessboard.js";
@@ -546,7 +546,7 @@ export default function puzzles(content) {
     const active = playable();
     const position = currentPosition(active);
     if (position.board[square]?.[0] === active.puzzle.side) {
-      if (selected !== square) playSound("lift");
+      if (selected !== square) playPickUpSound(position.board[square]?.[1]);
       selected = selected === square ? null : square;
       render();
     } else if (selected) choose(selected, square);
@@ -560,7 +560,7 @@ export default function puzzles(content) {
   const drag = bindBoardDrag(slot, {
     begin(from) {
       if (!canMove()) return false;
-      playSound("lift");
+      playPickUpSound(currentPosition(playable()).board[from]?.[1]);
       selected = from;
       slot.querySelector(`[data-square="${from}"]`)?.classList.add("drag-source");
       return true;

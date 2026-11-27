@@ -19,4 +19,11 @@
 <path d="m68 43 15 39 24-16-16-13Zm-36 32 30 5-23 11Z" fill="#b48c91"/>
 <path d="M39 91 68 43l15 39m8-29 52-19" class="lit" stroke-width="1.2"/>
   </g>
+  <g>
+    <path d="m8 677 112-48 54 48-118 38Z" fill="#211b30" opacity=".42"/>
+    <path d="m5 670 115-45 48 45-115 36Z" fill="#c6a58f"/>
+    <path d="m5 670 115-45-75 59Z" fill="#e5c9a9"/>
+    <path d="m45 684 75-59 48 45-112 29Z" fill="#a48485"/>
+    <path d="m12 670 105-41-62 61m7-1 93-20" fill="none" stroke="#f9dfbc" stroke-opacity=".46"/>
+  </g>
 </svg>

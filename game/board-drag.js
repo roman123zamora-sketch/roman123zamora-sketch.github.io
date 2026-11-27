@@ -68,7 +68,7 @@ export function bindBoardDrag(board, { begin, end: finish, drop }) {
     const accepted = destination && board.contains(destination) && drop(from, destination.dataset.square);
     if (accepted || matchMedia("(prefers-reduced-motion: reduce)").matches) {
       ghost.remove();
-      finish();
+      finish(!accepted);
       return;
     }
     const animation = ghost.animate([
@@ -80,7 +80,7 @@ export function bindBoardDrag(board, { begin, end: finish, drop }) {
       if (returning?.ghost !== ghost) return;
       returning = null;
       ghost.remove();
-      finish();
+      finish(true);
     };
   }
 

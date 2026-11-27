@@ -89,7 +89,12 @@ document.addEventListener("pointerdown", event => {
 document.addEventListener("pointerup", event => {
   if (event.isTrusted && event.pointerType !== "mouse" && !audio.contains(event.target)) unlockSound();
 }, { capture: true });
+let tabbing = false;
 document.addEventListener("keydown", event => {
+  if (event.isTrusted && event.key === "Tab") {
+    tabbing = true;
+    setTimeout(() => { tabbing = false; }, 0);
+  }
   if (event.isTrusted && !audio.contains(event.target)) unlockSound();
 }, { capture: true });
 document.addEventListener("pointerover", event => {
@@ -97,9 +102,13 @@ document.addEventListener("pointerover", event => {
   const control = event.target.closest(soundControl);
   if (control && !control.contains(event.relatedTarget)) playSound("hover", 0, control.dataset.soundBoard);
 });
+document.addEventListener("focusin", event => {
+  const control = event.target.closest(soundControl);
+  if (tabbing && event.isTrusted && control?.matches(":focus-visible")) playSound("focus", 0, control.dataset.soundBoard);
+});
 document.addEventListener("click", event => {
   const control = event.target.closest(soundControl);
-  if (control && control !== audio && !control.hasAttribute("data-premove-control")) unlockSound("button", control.dataset.soundBoard);
+  if (control && control !== audio && !control.matches("[data-premove-control], [data-step], .move-history-entry, .board-history-controls button")) unlockSound("button", control.dataset.soundBoard);
   else if (control !== audio) unlockSound();
 }, { capture: true });
 let previousMatch;

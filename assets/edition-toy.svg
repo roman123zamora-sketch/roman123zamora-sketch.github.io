@@ -22,4 +22,10 @@
 <path d="M24 43 53 66l54-15M53 66l-3 37m10-29 27-7m-26 15 21-5" class="lit"/>
 <ellipse cx="126" cy="101" rx="18" ry="4" fill="#3d312c" opacity=".58"/><circle cx="124" cy="87" r="14" fill="#719693"/><path d="M115 83q4-10 12-7" class="lit" stroke-width="2"/>
   </g>
+  <g>
+    <path d="M0 634h145l20 12H0Z" fill="#ac8462"/>
+    <path d="M0 647h165v6H0Z" fill="#694b3d"/>
+    <path d="M12 636h50m13 2h26m16 1h28" stroke="#e5b786" stroke-opacity=".54" stroke-width="2"/>
+    <path d="M1035 680q7-8 14-3l42 18-1 7-57-13Z" fill="#c8a475" stroke="#a67d5f" stroke-width="2"/>
+  </g>
 </svg>

@@ -18,4 +18,10 @@
   <path fill="#748c9d" d="M0 731 143 685l107 50-116 30Z"/>
   <path fill="none" stroke="#c1d4df" d="m0 733 143-46 104 48-113 29m-2 2-6 50"/>
   <path fill="none" stroke="#263747" stroke-width="3" d="m139 706 60 22m-80-16 62 24m-82-16 65 25"/>
+  <g fill="none" stroke-linejoin="round">
+    <path d="M0 574l121-20 107 131m972-110-128-24-103 131" stroke="#233340" stroke-width="6"/>
+    <path d="M0 570l120-21 110 135m970-113-128-24-107 134" stroke="#adbfca" stroke-opacity=".54" stroke-width="1.5"/>
+    <path d="m13 580 103-17m-99 23 103-17m-99 23 101-17m993-8 75 12m-80-6 76 12m-80-6 76 12" stroke="#cbd6dd" stroke-opacity=".25"/>
+    <path d="m94 563 11-2m-15 8 6-1m1007 17 11 2m-3 2 10 2" stroke="#dce5e8" stroke-opacity=".56"/>
+  </g>
 </svg>

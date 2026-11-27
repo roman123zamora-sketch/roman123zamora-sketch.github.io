@@ -18,4 +18,11 @@
 <path d="m57 99 47-26 55 22-55 20z" fill="#ca9a6f" opacity=".72"/>
 <path d="M1 111 75 38l61 9 33 47-61 26Zm56-12 47-26 55 22M68 39l36 34 23-21" class="lit" stroke-width="1.5"/>
   </g>
+  <g stroke="#372f4b" stroke-width="3">
+    <path d="m35 660 45-39 26 25-18 33-35-6Z" fill="#9777a9" fill-opacity=".56"/>
+    <path d="m80 621 51 10-25 15Z" fill="#bd887e" fill-opacity=".64"/>
+    <path d="m106 646 25-15 28 33-24 21-47-6Z" fill="#7197aa" fill-opacity=".52"/>
+    <path d="m1063 653 37-22 39 40-28 16-43-14Z" fill="#a377a5" fill-opacity=".54"/>
+    <path d="m49 660 25-23m18 32 27-16m-13 8q18-3 35 8m929-12q30-13 53 5" fill="none" stroke="#f7cee8" stroke-opacity=".28" stroke-width="1.4"/>
+  </g>
 </svg>

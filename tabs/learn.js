@@ -1,6 +1,6 @@
 import { bindBoardDrag } from "../game/board-drag.js";
 import { createPositionTools } from "../game/position-tools.js";
-import { accountStorageKey, playPositionMove, playSound, readSetting, subscribe, writeSetting } from "../game/session.js";
+import { accountStorageKey, playPositionMove, playPickUpSound, playSound, readSetting, subscribe, writeSetting } from "../game/session.js";
 import { getTheme } from "../ui/board-themes.js";
 import { board } from "../ui/chessboard.js";
 import { course } from "./learn-lessons.js";
@@ -283,11 +283,11 @@ export default function learn(content) {
       }
       if (lesson.options) return;
       if (frame.state.board[square]?.[0] === frame.state.turn && !selected) {
-        playSound("lift");
+        playPickUpSound(frame.state.board[square]?.[1]);
         selected = square;
         render();
       } else if (selected && !choose(selected, square) && frame.state.board[square]?.[0] === frame.state.turn) {
-        playSound("lift");
+        playPickUpSound(frame.state.board[square]?.[1]);
         selected = square;
         render();
       }

@@ -1,3 +1,5 @@
+import { soundLayers } from "./sound-gestures.js";
+
 // Short, dry impacts: noisy contact excites resonances tuned to each material.
 const sampleRate = 24000;
 const outputGain = 1.24;
@@ -70,11 +72,7 @@ const cues = {
   queue: [hit(0, "piece", .23, 1.08)],
   release: [hit(0, "cap", .13, .8)],
   wrong: [hit(0, "muffled", .36)],
-  check: [hit(0, "rim", .23), hit(.062, "rim", .19, 1.04)],
   mate: [hit(0, "cap", .18, .79), hit(.02, "hollow", .62, .87)],
-  win: [hit(0, "rim", .31, .88), hit(.075, "rim", .36), hit(.15, "rim", .38, 1.16)],
-  loss: [hit(0, "hollow", .36, .91), hit(.14, "piece", .15, .84, .14)],
-  draw: [hit(0, "rim", .24, .9), hit(.107, "rim", .24, .9), hit(.214, "muffled", .13)],
   solved: [hit(0, "rim", .24, .94), hit(.075, "rim", .29, 1.15)]
 };
 const interactionCues = {
@@ -107,12 +105,16 @@ const captureFinish = {
 };
 const rendered = new Map();
 const variationCount = 4;
-let variation = 0;
+const lastVariations = new Map();
+const cacheLimit = 144;
 
 function moveHits(name, variant, finish) {
-  const weight = name.endsWith("light") ? 0 : name.endsWith("heavy") ? 2 : 1;
+  const piece = name.split("-")[1];
+  const weight = piece === "p" || piece === "light" ? 0 : ["r", "q", "k", "heavy"].includes(piece) ? 2 : 1;
   const pitch = [1.15, 1, .88][weight] * [.96, 1.04, 1.01, .985][variant];
-  const land = at => hit(at, weight === 2 ? "hollow" : "piece", [.37, .44, .52][weight], pitch);
+  const contact = { volcanic: .48, origami: .32, "neon-circuit": .36, cosmic: .55 }[finish] ?? .81;
+  const land = at => hit(at, weight === 2 ? "hollow" : "piece", [.37, .44, .52][weight] * contact, pitch);
+  if (name.startsWith("lift")) return [hit(0, "softCap", .055, pitch)];
   if (name.startsWith("capture")) return [
     hit(0, "rim", .30, .98, .14),
     land(.019),
@@ -130,13 +132,24 @@ function moveHits(name, variant, finish) {
 export function createImpactSample(name, finish = "plastic") {
   const material = materialSurfaces[finish];
   const edition = Object.hasOwn(editionResonance, finish);
-  const variant = cues[name] ? 0 : variation++ % variationCount;
-  const key = `${finish}:${name}:${variant}`;
-  if (rendered.has(key)) return rendered.get(key);
+  const rotating = /^(lift|move|capture)(-|$)/.test(name);
+  const variationKey = finish + ":" + name;
+  const variant = rotating ? ((lastVariations.get(variationKey) ?? -1) + 1) % variationCount : 0;
+  if (rotating) lastVariations.set(variationKey, variant);
+  const key = `${variationKey}:${variant}`;
+  if (rendered.has(key)) {
+    const cached = rendered.get(key);
+    rendered.delete(key);
+    rendered.set(key, cached);
+    return cached;
+  }
+  const layers = soundLayers(name, finish, variant);
   const interfaceCue = edition && name === "hover" ? [hit(0, "softCap", .042)] :
     edition && name === "button" ? [hit(0, "cap", .15), hit(.022, "softCap", .055, .82)] : null;
-  const impacts = interfaceCue ?? interactionCues[finish]?.[name] ?? cues[name] ?? moveHits(name, variant, finish);
-  const duration = Math.max(...impacts.map(impact => impact.at + material[impact.surface][3]));
+  const acousticOnly = ["win", "loss", "draw", "stalemate", "check", "reseat", "focus", "clock", "offer", "setup"].includes(name);
+  const impacts = acousticOnly ? [] : interfaceCue ?? interactionCues[finish]?.[name] ?? cues[name] ?? moveHits(name, variant, finish);
+  const duration = Math.max(...impacts.map(impact => impact.at + material[impact.surface][3]),
+    ...layers.map(layer => layer.at + layer.duration));
   const channels = Array.from({ length: 2 }, () => new Float32Array(Math.ceil(duration * sampleRate)));
   let seed = 1327 + variant * 917;
   for (const { at, surface, strength, pitch, pan } of impacts) {
@@ -161,7 +174,42 @@ export function createImpactSample(name, finish = "plastic") {
       for (let channel = 0; channel < 2; channel++) channels[channel][start + index] += sample * gains[channel];
     }
   }
+  for (const layer of layers) {
+    const start = Math.round(layer.at * sampleRate), frames = Math.round(layer.duration * sampleRate);
+    const left = Math.sqrt(1 - layer.pan), right = Math.sqrt(1 + layer.pan);
+    let previous = 0, filtered = 0, phase = 0;
+    for (let i = 0; i < frames && start + i < channels[0].length; i++) {
+      const progress = i / frames, time = i / sampleRate;
+      const envelope = Math.min(1, time / .008) * Math.min(1, (layer.duration - time) / .025);
+      let voice;
+      if (layer.from) {
+        phase += 2 * Math.PI * (layer.from + (layer.to - layer.from) * progress) / sampleRate;
+        voice = (Math.sin(phase) + .14 * Math.sin(phase * 2)) * Math.exp(-1.7 * progress);
+      } else {
+        seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+        const noise = seed / 2147483648 - 1;
+        filtered += (noise - filtered) * (layer.color === "steam" ? .26 : .12);
+        voice = layer.color === "soft" ? filtered * 2.1 : layer.color === "dry" ?
+          (noise - previous) * .48 + filtered : layer.color === "steam" ? filtered * 1.1 + noise * .26 :
+          (noise - previous) * .65;
+        if (layer.flutter) voice *= .65 + .35 * Math.sin(time * layer.flutter * 2 * Math.PI);
+        voice *= Math.sin(Math.PI * (progress * .8 + .12));
+        previous = noise;
+      }
+      const value = voice * layer.gain * envelope;
+      channels[0][start + i] += value * left;
+      channels[1][start + i] += value * right;
+    }
+  }
+  // Guard combined layer peaks without flattening the space between soft and loud cues.
+  let peak = 0;
+  for (const channel of channels) for (const value of channel) peak = Math.max(peak, Math.abs(value));
+  if (peak > .88) {
+    const gain = .88 / peak;
+    for (const channel of channels) for (let i = 0; i < channel.length; i++) channel[i] *= gain;
+  }
   const sample = { sampleRate, channels, duration };
+  if (rendered.size >= cacheLimit) rendered.delete(rendered.keys().next().value);
   rendered.set(key, sample);
   return sample;
 }
