@@ -1,5 +1,4 @@
-/* Every theme supplies colors to the same SVG instance. */
-html:is([data-nature], [data-metal], [data-edition]) {
+:root {
   --scene-deep: color-mix(in srgb, var(--navy) 65%, black);
   --scene-base: var(--navy);
   --scene-shadow: color-mix(in srgb, var(--navy) 80%, var(--surface));

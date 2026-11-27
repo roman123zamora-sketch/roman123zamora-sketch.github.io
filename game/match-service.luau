@@ -53,7 +53,7 @@ local function getProfile(p)
  for _,record in ipairs(profile.history) do
   if type(record)=="table" and not record.id then record.id=historyId(profile.history) end
  end
- if profile.equippedBoard~="" and not Themes.exists(profile.equippedBoard) then profile.equippedBoard=Themes.defaultTheme end
+ profile.equippedBoard=Themes.defaultTheme
  profileCache[id]=profile
  if ok and (needsCaptureReset or (type(saved)=="table" and (saved.equippedBoard~=profile.equippedBoard or saved.pieceStorage~=nil or saved.ownedBoards~=nil))) then
   pcall(function() Profiles:SetAsync(id,profile) end)
@@ -591,7 +591,7 @@ Action.OnServerEvent:Connect(function(p,kind,data)
   local id=type(data)=="table" and data.id or nil
   if type(id)~="string" or (id~="" and not Themes.exists(id)) then return end
   local prof=getProfile(p)
-  prof.equippedBoard=id; saveProfile(p); send(p,"profile",profileView(p))
+  prof.equippedBoard=Themes.defaultTheme; saveProfile(p); send(p,"profile",profileView(p))
  elseif kind=="bot" or kind=="fourBot" then
   if playerMatch[p.UserId] then
    send(p,"reject",{reason="Leave the current match before starting another."})

@@ -2,49 +2,49 @@
   color-scheme: dark;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
   line-height: 1.5;
-  --navy: #081426;
-  --surface: #122743;
-  --recess: #0d1e35;
-  --stroke: #355372;
-  --text: #f1f7ff;
-  --muted: #b3c7e1;
-  --ice: #aadaff;
-  --focus: #91d6ff;
-  --selected: #164e88;
-  --legal: #112e51a6;
-  --last-move: #95d4ef80;
+  --navy: #131313;
+  --surface: #252525;
+  --recess: #1c1c1c;
+  --stroke: #4f4f4f;
+  --text: #f6f6f6;
+  --muted: #c5c5c5;
+  --ice: #d2d2d2;
+  --focus: #cacaca;
+  --selected: #464646;
+  --legal: #2a2a2aa6;
+  --last-move: #c8c8c880;
   --warning-dark: #741f32;
   --warning-line: #9c2946;
   --warning-text: #ffced6;
-  --accent: #2462b0;
-  --accent-hover: #3076c9;
-  --glow: #19375b;
-  --button: #142b49;
-  --button-pressed: #214b78;
-  --active-border: #73b6ed;
-  --press-ring: #9ad3ff6b;
-  --disabled-text: #a4bad4;
-  --button-hover: #234973;
-  --hover-border: #86b5de;
-  --header: #0a192cec;
-  --badge: #1b4270;
-  --panel-gloss: #172f4d;
-  --board-frame-gloss: #1a3657;
-  --square-focus: #08264b;
-  --square-hover: #173c6799;
-  --control-border: #629ae1;
-  --accent-disabled: #1a3c62;
-  --input-accent: #78beff;
-  --turn-border: #7fbeff;
-  --turn-surface: #183b61;
-  --dialog-border: #5b82aa;
-  --dialog-backdrop: #040c1bc7;
-  --collection-equipped: #193f66;
+  --accent: #5b5b5b;
+  --accent-hover: #6d6d6d;
+  --glow: #333333;
+  --button: #282828;
+  --button-pressed: #454545;
+  --active-border: #acacac;
+  --press-ring: #cacaca6b;
+  --disabled-text: #b7b7b7;
+  --button-hover: #444444;
+  --hover-border: #aeaeae;
+  --header: #171717ec;
+  --badge: #3d3d3d;
+  --panel-gloss: #2c2c2c;
+  --board-frame-gloss: #323232;
+  --square-focus: #222222;
+  --square-hover: #37373799;
+  --control-border: #939393;
+  --accent-disabled: #383838;
+  --input-accent: #b4b4b4;
+  --turn-border: #b5b5b5;
+  --turn-surface: #363636;
+  --dialog-border: #7d7d7d;
+  --dialog-backdrop: #0b0b0bc7;
+  --collection-equipped: #3a3a3a;
   --control-size: 2.75rem;
   --control-face: linear-gradient(165deg, var(--material-edge), transparent 68%);
   --control-bevel: inset 0 1px var(--material-edge), inset 0 -2px #0004;
   --control-selected: inset 0 -3px var(--focus);
-  --material-edge: #e5f2ff24;
+  --material-edge: #f0f0f024;
   --panel-material: linear-gradient(165deg, var(--panel-gloss), var(--surface) 8rem);
   --header-material: none;
   --panel-material-position: left top;
@@ -56,7 +56,7 @@
   --radius: .65rem;
   --panel-radius: 1rem;
   --space: clamp(.75rem, 2vw, 1.75rem);
-  --shadow: 0 12px 28px #020a192e;
+  --shadow: 0 12px 28px #0909092e;
   --good-text: #9de8cb;
 }
 
@@ -232,7 +232,7 @@ nav a[aria-current] {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
-.panel { box-shadow: var(--panel-rim), 0 8px 20px #020a1924; }
+.panel { box-shadow: var(--panel-rim), 0 8px 20px #09090924; }
 @media (max-width: 30rem) {
   .topbar { gap: .3rem .7rem; padding-block: .45rem; }
   nav { display: flex; gap: .12rem; }

@@ -1,7 +1,7 @@
 :root {
   --board-padding: clamp(.2rem, .5vw, .4rem);
-  --move-cue-ink: #16334e;
-  --move-cue-rim: #eff7ff;
+  --move-cue-ink: #2f2f2f;
+  --move-cue-rim: #f6f6f6;
 }
 
 .board-area, .board-slot { display: grid; min-inline-size: 0; justify-items: center; }
@@ -43,19 +43,19 @@
 .square.dark { background: var(--dark); }
 html:not([data-edition], [data-nature], [data-metal]) .board:not(.sample) .square:not(.cutout, .marked),
 .board.sample:not([data-edition-preview], [data-nature-board], [data-metal-board]) .square {
-  background-image: linear-gradient(145deg, #ffffff17, transparent 54%, #11283e0a);
+  background-image: linear-gradient(145deg, #ffffff17, transparent 54%, #2525250a);
 }
 .square.cutout { background: transparent; }
 .square[data-rank]::before, .square[data-file]::after {
   position: absolute;
   z-index: 1;
-  color: #11243c;
+  color: #222222;
   font-size: var(--coordinate-size, clamp(.5rem, 1.2vw, .75rem));
   font-weight: 750;
   line-height: 1;
   font-variant-numeric: tabular-nums;
   paint-order: stroke fill;
-  -webkit-text-stroke: 2px #edf5ff;
+  -webkit-text-stroke: 2px #f4f4f4;
   pointer-events: none;
 }
 .square[data-rank]::before {
@@ -75,9 +75,9 @@ button.square:focus-visible { z-index: 2; outline: 2px solid var(--move-cue-ink)
 button.square:focus-visible:not(.selected, .checked, .premove-trail) {
   box-shadow: inset 0 0 0 4px var(--move-cue-rim);
 }
-.square.selected { box-shadow: inset 0 0 0 2px #15334f, inset 0 0 0 4px #eaf4ff; }
-.square.last-move { background-color: color-mix(in srgb, var(--light) 65%, #eac46d); }
-.square.dark.last-move { background-color: color-mix(in srgb, var(--dark) 56%, #eac46d); }
+.square.selected { box-shadow: inset 0 0 0 2px #2f2f2f, inset 0 0 0 4px #f3f3f3; }
+.square.last-move { background-color: color-mix(in srgb, var(--light) 65%, #c5c5c5); }
+.square.dark.last-move { background-color: color-mix(in srgb, var(--dark) 56%, #c5c5c5); }
 .square.marked { background-image: linear-gradient(#b83048a6, #b83048a6); }
 .square.target > .move-marker {
   position: absolute;
@@ -91,10 +91,10 @@ button.square:focus-visible:not(.selected, .checked, .premove-trail) {
   box-shadow: 0 0 0 1px var(--move-cue-rim), inset 0 0 0 1px color-mix(in srgb, var(--move-cue-rim) 65%, transparent); }
 @media (hover: hover) {
   button.square:hover { box-shadow: inset 0 0 0 2px var(--square-hover); }
-  button.square.selected:hover { box-shadow: inset 0 0 0 2px #15334f, inset 0 0 0 4px #eaf4ff; }
+  button.square.selected:hover { box-shadow: inset 0 0 0 2px #2f2f2f, inset 0 0 0 4px #f3f3f3; }
 }
 .chess-piece { display: block; inline-size: 88%; aspect-ratio: 1; user-select: none; }
-.chess-piece svg { display: block; inline-size: 100%; block-size: 100%; filter: drop-shadow(0 1px 1px #07142755); pointer-events: none; }
+.chess-piece svg { display: block; inline-size: 100%; block-size: 100%; filter: drop-shadow(0 1px 1px #13131355); pointer-events: none; }
 .square.drag-enabled .chess-piece { cursor: grab; }
 .piece-dragging, .piece-dragging .square, .piece-dragging .chess-piece { cursor: grabbing; }
 .eliminated { filter: grayscale(1); opacity: .64; }
@@ -159,7 +159,7 @@ button.square:focus-visible:not(.selected, .checked, .premove-trail) {
   position: relative;
   flex: 1;
   min-block-size: 0;
-  background: #111c2d;
+  background: #1b1b1b;
   border: 1px solid var(--stroke);
   border-radius: .35rem;
   overflow: hidden;
@@ -170,9 +170,9 @@ button.square:focus-visible:not(.selected, .checked, .premove-trail) {
   inset: 0;
   pointer-events: none;
   background:
-    linear-gradient(#8ca0b4, #8ca0b4) center / 100% 2px no-repeat,
-    linear-gradient(#8ca0b4, #8ca0b4) center 25% / 45% 1px no-repeat,
-    linear-gradient(#8ca0b4, #8ca0b4) center 75% / 45% 1px no-repeat;
+    linear-gradient(#9d9d9d, #9d9d9d) center / 100% 2px no-repeat,
+    linear-gradient(#9d9d9d, #9d9d9d) center 25% / 45% 1px no-repeat,
+    linear-gradient(#9d9d9d, #9d9d9d) center 75% / 45% 1px no-repeat;
 }
 .eval-meter.white-on-top .eval-white { inset-block: 0 auto; }
 .eval-white {
@@ -180,7 +180,7 @@ button.square:focus-visible:not(.selected, .checked, .premove-trail) {
   inset-inline: 0;
   inset-block-end: 0;
   block-size: 50%;
-  background: #f4f8ff;
+  background: #f8f8f8;
 }
 .bot-eval output { display: contents; }
 .eval-score {
@@ -208,14 +208,14 @@ button.square:focus-visible:not(.selected, .checked, .premove-trail) {
   padding-block: .1rem;
   border-radius: .25rem;
 }
-.eval-score[data-side="w"] { background: #f4f8ff; color: #142335; }
-.eval-score[data-side="b"] { background: #111c2d; color: #f4f8ff; }
+.eval-score[data-side="w"] { background: #f8f8f8; color: #212121; }
+.eval-score[data-side="b"] { background: #1b1b1b; color: #f8f8f8; }
 
 /* Keep the trail inside the square so it can coexist with keyboard focus. */
 .square.premove-trail { outline: 2px dashed #c22946; outline-offset: -3px; }
 button.square.premove-trail:focus-visible {
   outline-color: var(--square-focus);
-  box-shadow: inset 0 0 0 4px #c22946;
+  box-shadow: inset 0 0 0 4px #4d4d4d;
 }
 .square > .premove-marker {
   max-inline-size: calc(100% - .25rem);
@@ -251,9 +251,9 @@ button.square.premove-trail:focus-visible {
   aspect-ratio: 1;
   border: 1px solid currentColor;
   border-radius: 50%;
-  background: #f1f7ff;
+  background: #f6f6f6;
 }
-.board-turn-label[data-side="b"]::before { background: #0a1429; }
+.board-turn-label[data-side="b"]::before { background: #131313; }
 .board-turn-label[data-side="R"]::before { background: #ef686e; }
 .board-turn-label[data-side="B"]::before { background: #75a8ef; }
 .board-turn-label[data-side="Y"]::before { background: #f3ce72; }
@@ -275,8 +275,8 @@ button.square.premove-trail:focus-visible {
 .promotion-dialog button > .chess-piece { inline-size: 2rem; }
 
 /* A quiet trail, a definite selection edge, and a distinct check warning. */
-.square.last-move { background-color: color-mix(in srgb, var(--light) 78%, #d9a446); }
-.square.dark.last-move { background-color: color-mix(in srgb, var(--dark) 73%, #d9a446); }
+.square.last-move { background-color: color-mix(in srgb, var(--light) 78%, #a8a8a8); }
+.square.dark.last-move { background-color: color-mix(in srgb, var(--dark) 73%, #a8a8a8); }
 .square.target > .move-marker:not(.capture-marker) { inset: 39%; }
 .square.checked { outline-width: 3px; }
 

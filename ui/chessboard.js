@@ -72,11 +72,6 @@ export function board(theme, fourPlayer = false, sample = false, options = {}) {
     const property = "--" + color;
     if (element.style.getPropertyValue(property) !== theme[color]) element.style.setProperty(property, theme[color]);
   }
-  if (sample) {
-    if (theme.edition) element.dataset.editionPreview = theme.id;
-    element.toggleAttribute("data-metal-board", theme.id === "slate");
-    element.toggleAttribute("data-nature-board", theme.id === "forest");
-  }
   boardOptions.set(element, options);
   const targets = new Map(options.targets?.map(target => [target.to, target]));
   const checkedColors = new Set(options.state?.checkedColors ? Object.values(options.state.checkedColors)

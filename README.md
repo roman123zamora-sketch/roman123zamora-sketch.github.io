@@ -9,8 +9,7 @@ show the planned position, and you can keep planning from their new squares.
 Undo the last premove or clear the queue using the controls below the board.
 Each premove is checked against the actual board when your turn starts.
 
-All board themes are available in Inventory. Equipping one changes the site
-palette and boards. Unequipping restores default Blue. The profile counts
+Classic is the shared monochrome board and interface. Inventory previews the board. The profile counts
 actual captures, starting at zero once for profiles from the old shop release.
 
 ## Project layout
@@ -31,11 +30,11 @@ ui/
   match-view.js                Shared interface for both chess modes
   chessboard.js                Board rendering and square interactions
   chess-pieces.js              SVG piece artwork
-  board-themes.js              Equipped board lookup and interface color tokens
+  board-themes.js              Classic board palette
 tabs/
   chess.js                     Standard chess tab
   four-player-chess.js         Four-player chess tab
-  inventory.js                 Free board themes and equipping
+  inventory.js                 Classic board preview
   profile.js                   Ratings, match history, and replay controls
   learn.js                     Interactive course and saved progress
   learn-lessons.js             Course modules, positions, and exercises

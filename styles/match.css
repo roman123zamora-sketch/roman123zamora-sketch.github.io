@@ -60,8 +60,8 @@
 }
 .players li.turn { border-color: var(--turn-border); background: var(--turn-surface); }
 .clock { color: var(--ice); font-weight: 750; font-variant-numeric: tabular-nums; }
-.side-dot { display: inline-block; inline-size: .6rem; aspect-ratio: 1; margin-inline-end: .45rem; border-radius: 100%; background: #f1f7ff; }
-.side-dot.black { background: #8b9fb8; }
+.side-dot { display: inline-block; inline-size: .6rem; aspect-ratio: 1; margin-inline-end: .45rem; border-radius: 100%; background: #f6f6f6; }
+.side-dot.black { background: #9d9d9d; }
 .side-dot.red { background: #ec7772; }
 .side-dot.blue { background: #7faff2; }
 .side-dot.yellow { background: #f1d077; }

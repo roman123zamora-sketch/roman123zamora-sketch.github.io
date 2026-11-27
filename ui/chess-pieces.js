@@ -1,12 +1,8 @@
-import { editionDetail } from "./edition-pieces.js";
-import { redesignedArtwork } from "./piece-designs.js";
-import { natureGrowth } from "./nature-pieces.js";
-
 const names = { p: "pawn", n: "knight", b: "bishop", r: "rook", q: "queen", k: "king" };
 
 const palettes = {
-  white: ["#ffffff", "#edf6ff", "#9cb6d2", "#4b6685", "#ffffff"],
-  black: ["#5d7899", "#263d5e", "#0e192d", "#151f33", "#b4d4f1"],
+  white: ["#ffffff", "#f1f0ed", "#aeadaa", "#545452", "#ffffff"],
+  black: ["#686868", "#303030", "#111111", "#131313", "#c7c7c7"],
   red: ["#ffd0c5", "#e17469", "#922c36", "#5b222a", "#ffdfd0"],
   blue: ["#c2e6ff", "#5c96dd", "#284f86", "#163454", "#dbf2ff"],
   yellow: ["#fff6c4", "#eabd55", "#a46c20", "#684418", "#fff6cd"],
@@ -76,92 +72,43 @@ const pedestal = `<path d="M28 62h24c2 0 3 1.2 3 3v3H25v-3c0-1.8 1-3 3-3Z" fill=
       <path d="M26 67h28c2.3 0 3.8 1.6 3.8 3.7v1.1c0 1.7-1.3 2.7-3 2.7H25.2
         c-1.7 0-3-1-3-2.7v-1.1c0-2.1 1.5-3.7 3.8-3.7Z" fill="BEVEL"/>`;
 
-const machinedEdges = {
-  p: { lip: "M33 45q7 3 14 0 M34 34a6 6 0 0 1 4-6" },
-  r: { lip: "M26 22v8l5 5h17 M37 20h5 M51 20h3", seam: "M32 40h16" },
-  n: { lip: "M46 16c11 7 14 24 5 42", seam: "M43 36c-1 9-5 16-11 23", pin: [48, 49] },
-  b: { lip: "M34 20l5-7 M30 44q9 3 19 0", seam: "M33 48q7 2 14 0" },
-  q: { lip: "M27 29l4 7 M31 41q8 4 18 0 M40 20l4 7", seam: "M31 47q9 5 18 0" },
-  k: { lip: "M33 12h6V7 M26 29c0-5 5-7 9-4 M30 46q10 6 20 0", seam: "M33 52q7 3 14 0" }
-};
-
 function artwork(piece, side, id) {
   const [light, fill, shade, edge, detail] = palettes[side];
   const body = id + "-body";
   const bevel = id + "-bevel";
   const shadow = id + "-shadow";
-  const steel = id + "-steel";
-  const edition = id + "-edition";
-  const bark = id + "-bark";
-  const clip = id + "-bark-clip";
   const base = pedestal.replaceAll("BEVEL", `url(#${bevel})`);
-  const metalStop = (stop, fallback) => `style="stop-color:var(--metal-${side}-${stop}, var(--edition-${stop}, ${fallback}))"`;
   const profile = profiles[piece];
-  const machining = machinedEdges[piece];
   const contours = profile.body.replaceAll("BEVEL", `url(#${bevel})`).replaceAll("EYE", side === "white" || side === "yellow" ? edge : detail);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 80 80"
        preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">
     <defs>
       <radialGradient id="${body}" cx="27%" cy="17%" r="86%">
-        <stop ${metalStop("highlight", light)}/>
-        <stop offset=".55" ${metalStop("face", fill)}/>
-        <stop offset="1" ${metalStop("shadow", shade)}/>
+        <stop stop-color="${light}"/>
+        <stop offset=".55" stop-color="${fill}"/>
+        <stop offset="1" stop-color="${shade}"/>
       </radialGradient>
       <linearGradient id="${bevel}" x1="18%" y1="0%" x2="78%" y2="100%">
-        <stop ${metalStop("highlight", light)}/>
-        <stop offset=".37" ${metalStop("face", fill)}/>
-        <stop offset="1" ${metalStop("shadow", shade)}/>
+        <stop stop-color="${light}"/>
+        <stop offset=".37" stop-color="${fill}"/>
+        <stop offset="1" stop-color="${shade}"/>
       </linearGradient>
-      <linearGradient id="${steel}" x2="83%" y2="98%">
-        <stop ${metalStop("shadow", shade)}/>
-        <stop offset=".17" ${metalStop("face", fill)}/>
-        <stop offset=".31" ${metalStop("highlight", light)}/>
-        <stop offset=".43" ${metalStop("face", fill)}/>
-        <stop offset=".61" ${metalStop("shadow", shade)}/>
-        <stop offset=".75" ${metalStop("face", fill)}/>
-        <stop offset="1" ${metalStop("shadow", shade)}/>
-      </linearGradient>
-      <linearGradient id="${edition}" x1="12%" y1="6%" x2="90%" y2="85%">
-        <stop style="stop-color:var(--edition-highlight, ${light})"/>
-        <stop offset=".32" style="stop-color:var(--edition-face, ${fill})"/>
-        <stop offset=".73" style="stop-color:var(--edition-shadow, ${shade})"/>
-        <stop offset="1" style="stop-color:var(--edition-rim, ${fill})"/>
-      </linearGradient>
-      <linearGradient id="${bark}" x1="5%" y1="12%" x2="87%" y2="85%">
-        <stop style="stop-color:var(--root-light)"/>
-        <stop offset=".53" style="stop-color:var(--root-mid)"/>
-        <stop offset="1" style="stop-color:var(--root-dark)"/>
-      </linearGradient>
-      <clipPath id="${clip}">${contours}${base}</clipPath>
       <radialGradient id="${shadow}">
-        <stop stop-color="#081525" stop-opacity=".35"/>
-        <stop offset="1" stop-color="#081525" stop-opacity="0"/>
+        <stop stop-color="#111111" stop-opacity=".35"/>
+        <stop offset="1" stop-color="#111111" stop-opacity="0"/>
       </radialGradient>
     </defs>
     <ellipse cx="40" cy="74.5" rx="20" ry="3" fill="url(#${shadow})"/>
-    <g class="piece-finish" style="--piece-steel: url(#${steel}); --piece-plastic: url(#${body}); --piece-edition: url(#${edition})" fill="url(#${body})" stroke="${edge}" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round">
+    <g class="piece-finish" fill="url(#${body})" stroke="${edge}" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round">
       ${contours}
       ${base}
       <path d="${profile.light}M26 69.5h16" fill="none" stroke="${detail}" stroke-opacity=".44" stroke-width="1.45"/>
       <path d="${profile.inset}" fill="none" stroke="${edge}" stroke-width="1.65" stroke-opacity=".62"/>
-      <g class="metal-rivets" fill="url(#${bevel})" stroke="${edge}" stroke-width=".6">
-        <path d="${machining.lip} M28 64h24 M26 69q14-2 28 0" fill="none"
-          stroke="var(--metal-${side}-highlight)" stroke-width="1.1" stroke-opacity=".83"/>
-        ${machining.seam ? `<path d="${machining.seam}" fill="none" stroke-width="1.05"/>` : ""}
-        ${machining.pin ? `<circle cx="${machining.pin[0]}" cy="${machining.pin[1]}" r="1.65"/>` : ""}
-        <path d="M26 72h28" fill="none" stroke-width=".8"/>
-      </g>
-    </g>
-    ${editionDetail(piece, clip)}
-    <g class="nature-piece" fill="url(#${bark})" stroke="var(--root-edge)" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round">
-      ${profile.body.replaceAll("BEVEL", `url(#${bark})`).replaceAll("EYE", "var(--root-edge)")}
-      ${pedestal.replaceAll("BEVEL", `url(#${bark})`)}
-      ${natureGrowth(piece, clip)}
     </g>
   </svg>`;
 }
 
-export function createChessPiece(type, side, theme = document.documentElement.dataset.edition ?? "classic") {
+export function createChessPiece(type, side, theme = "classic") {
   const piece = type.toLowerCase();
   const wrapper = document.createElement("span");
   wrapper.className = "chess-piece";
@@ -169,7 +116,7 @@ export function createChessPiece(type, side, theme = document.documentElement.da
   wrapper.dataset.art = `${piece}-${side}`;
   wrapper.dataset.artTheme = theme;
   const id = `piece-${++nextId}`;
-  wrapper.innerHTML = redesignedArtwork(theme, piece, side, id, profiles[piece]) ?? artwork(piece, side, id);
+  wrapper.innerHTML = artwork(piece, side, id);
   return wrapper;
 }
 

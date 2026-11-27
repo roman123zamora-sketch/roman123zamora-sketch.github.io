@@ -1,4 +1,3 @@
-import { applyEquippedTheme } from "./board-themes.js";
 import { action, connect, soundEnabled, toggleSound, unlockSound, playSound, session, subscribe } from "../game/session.js";
 import { showWelcome } from "./account-view.js";
 import rankings from "../tabs/rankings.js";
@@ -127,7 +126,6 @@ document.addEventListener("click", event => {
 }, { capture: true });
 let previousMatch;
 subscribe((kind, match) => {
-  if (kind === "profile" || kind === "catalog") applyEquippedTheme();
   if (kind === "inviteRoom") {
     const page = match.variant === "four" ? "#4-player-chess" : "#chess";
     if ((location.hash || "#chess") !== page) location.hash = page;
