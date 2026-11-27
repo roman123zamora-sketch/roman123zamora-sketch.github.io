@@ -204,15 +204,101 @@ const litFaces = {
 
 const ribbonPaths = [
   "M24 27Q35 29 51 23 M26 39Q37 42 53 31 M27 53Q38 56 56 43 M24 66Q38 66 55 55",
-  "M22 25Q44 28 54 15 M12 43Q24 45 38 29Q50 32 65 24 M34 49Q46 53 64 40 M26 63Q40 67 59 55",
+  "M21 25C34 28 44 25 55 15 M9 43C25 47 32 33 39 31C49 34 58 28 68 24 M29 50C44 53 56 48 68 39 M20 64C36 68 51 64 63 54",
   "M30 27Q42 26 49 16 M25 40Q35 44 53 32 M30 52Q43 52 54 42 M24 65Q37 64 53 55",
   "M22 23Q43 30 59 20 M22 37Q43 43 58 32 M25 51Q41 55 55 45 M22 64Q41 67 56 57",
   "M17 22Q25 26 32 21 M32 22Q40 28 50 19 M48 27Q57 28 64 20 M23 40Q43 42 57 30 M25 54Q41 56 56 44 M27 66Q42 65 57 54",
-  "M36 7L45 9 M35 20L45 22 M31 10L30 18 M48 10L46 18 M25 35Q39 39 53 29 M29 51Q39 53 55 42 M25 64Q40 66 56 54"
+  "M34 6Q41 7 46 10 M34 20Q41 20 46 23 M30 8Q32 13 27 20 M49 8Q51 13 46 20 M22 36C34 40 45 35 57 28 M25 51C38 55 48 49 57 41 M22 65C37 68 49 62 60 53"
 ];
 
 function path(d, fill, stroke = "none", width = 1) {
   return `<path d="${d}" fill="${fill}" stroke="${stroke}" stroke-width="${width}"/>`;
+}
+
+// One small material edge per piece. Coordinates follow the existing profiles,
+// in pawn, knight, bishop, rook, queen, king order.
+const joinEdges = {
+  haunted: [
+    "M23 69Q27 73 32 70Q39 74 47 70Q53 73 57 69",
+    "M19 42Q25 45 31 37M23 69Q26 72 31 70Q40 74 48 70",
+    "M28 38Q32 43 37 43M21 69Q25 72 30 70Q38 74 47 70",
+    "M24 22Q27 19 30 21L32 25Q35 29 39 25M26 39Q39 45 53 39",
+    "M23 25L32 31Q36 28 38 20M28 40Q40 46 52 40",
+    "M24 20Q29 18 35 18L37 11M42 17Q49 19 56 19"
+  ],
+  "ocean-reef": [
+    "M31 39Q37 34 44 37",
+    "M48 43Q54 44 57 39M52 28Q56 29 58 25",
+    "M32 42Q40 48 48 42",
+    "M27 34Q34 35 36 30M47 34Q53 33 56 29",
+    "M28 38Q36 44 40 38Q45 43 52 37",
+    "M32 36Q39 41 48 37"
+  ],
+  fossil: [
+    "M31 38Q37 43 46 40",
+    "M33 25Q39 20 45 24M21 40L29 39L36 34M38 51L51 48",
+    "M40 31L50 26M34 47Q40 50 46 46",
+    "M26 34Q39 37 54 34",
+    "M28 43Q40 49 53 41",
+    "M36 20Q40 23 45 20M33 45Q40 49 47 45"
+  ],
+  candy: [
+    "M31 32Q34 29 39 29",
+    "M21 40Q25 37 28 34M53 25Q58 30 58 36",
+    "M30 36Q32 29 37 23",
+    "M25 24V32Q25 36 29 38",
+    "M28 36Q33 40 39 40",
+    "M29 35Q31 29 36 28M30 12H37"
+  ],
+  "ancient-ruins": [
+    "M27 35L34 29H45",
+    "M29 31L36 25L43 24",
+    "M41 32L51 27",
+    "M22 20H29M36 19H43M51 20H58M35 63V53L40 49",
+    "M26 25L34 34L38 20",
+    "M29 29L39 24L46 25"
+  ],
+  steampunk: [
+    "M29 36H51",
+    "M42 47L49 43L57 38",
+    "M34 46H46",
+    "M24 34Q40 36 56 34M31 37V40M50 37V40",
+    "M29 36Q40 32 51 36",
+    "M36 27H44M35 48H45"
+  ],
+  "neon-circuit": [
+    "M27 35L34 28H46",
+    "M19 39L25 31L32 24",
+    "M28 34L39 14",
+    "M22 22H29M36 20H44M51 22H58",
+    "M27 39L32 43H48L53 39",
+    "M28 34L34 27H46"
+  ],
+  origami: [
+    "M29 39L39 41L50 39",
+    "M21 40L32 33L40 29M40 19L46 23",
+    "M27 39L45 33",
+    "M23 35L29 39L40 37L51 39L57 35",
+    "M27 41L39 44L51 41M40 16V34",
+    "M29 15L40 17L50 15"
+  ],
+  toy: [
+    "M29 47Q40 51 51 47",
+    "M22 44Q28 42 33 37",
+    "M32 47Q40 51 48 47",
+    "M24 40Q40 43 56 40",
+    "M29 44Q40 49 51 44",
+    "M35 19Q40 21 45 19"
+  ]
+};
+
+function joinedEdge(theme, index, id, glint, edge) {
+  const seam = joinEdges[theme][index];
+  const width = theme === "haunted" ? 1.35 : 1;
+  return `<g clip-path="url(#${id}-shape)">
+    <g opacity=".36" transform="translate(.2 1)">${path(seam, "none", edge, width + .5)}</g>
+    <g opacity=".68">${path(seam, "none", glint, width)}</g>
+  </g>`;
 }
 
 export function redesignedArtwork(theme, piece, side, id, classicProfile) {
@@ -235,6 +321,7 @@ export function redesignedArtwork(theme, piece, side, id, classicProfile) {
   let decoration = path(detail, inset);
   const footing = theme === "haunted" && !draped ? path(base, bevel, edge, 1.2) : "";
   const shoulder = "M23 65Q39 69 57 65L56 69Q39 73 24 69Z";
+  const finish = theme !== "haunted" || draped ? joinedEdge(theme, index, id, glint, edge) : "";
   const hasFooting = !["haunted", "origami", "candy"].includes(theme);
   const foundation = hasFooting ? `<g clip-path="url(#${id}-shape)">${path(shoulder, bevel)}</g>` : "";
 
@@ -248,7 +335,8 @@ export function redesignedArtwork(theme, piece, side, id, classicProfile) {
         lighting = "";
         decoration = piece === "r" ? "" : `<g transform="translate(0 1.8)" opacity=".65">${path(hatBands[index], "none", edge, 5.6)}</g>`
           + path(witchHats[index], coat, edge, 1.15)
-          + path(hatBands[index], "none", glint, 1.35);
+          + path(hatBands[index], "none", dark, 2.8)
+          + `<g transform="translate(0 -.85)" opacity=".72">${path(hatBands[index], "none", glint, 1.1)}</g>`;
         if (piece === "k") decoration += path("M41 13V25 M37 17H45", "none", accent, 2.2);
       }
       break;
@@ -256,7 +344,8 @@ export function redesignedArtwork(theme, piece, side, id, classicProfile) {
       decoration = path(detail, white || team ? coat : `url(#${id}-coral)`, white ? dark : edge, .65);
       if (piece === "n") decoration = `<g transform="translate(-.9 1.25)">${path(detail, dark)}</g>` + decoration;
       if (white) {
-        decoration += path("M37 54q1-2 2 0m5 4q1-2 2 0m-10 4q1-2 2 0", "none", dark, 1.5);
+        decoration += `<g fill="${dark}" opacity=".52"><ellipse cx="38" cy="55" rx="1.4" ry="1"/>
+          <ellipse cx="44" cy="58" rx=".8" ry=".95"/><ellipse cx="34" cy="62" rx="1.05" ry=".75"/></g>`;
       }
       if (piece === "n") decoration += path("M32 27Q35 24 38 26Q36 29 32 27Z", white ? edge : "#afced2");
       break;
@@ -264,17 +353,17 @@ export function redesignedArtwork(theme, piece, side, id, classicProfile) {
       decoration = path(detail, piece === "n" ? inset : coat);
       if (piece === "n") decoration += path("M23 40Q31 40 36 35L42 34Q37 41 32 42L27 44Z", lit);
       if (!white) {
-        decoration += path("M31 61Q35 56 46 55L50 56Q38 58 36 62Z M35 51Q40 49 47 48L48 49Q43 51 36 53Z", lit);
+        decoration += `<g clip-path="url(#${id}-shape)" opacity=".64">${path("M29 63Q35 56 47 55L51 56Q39 59 35 64Z M34 55Q39 48 48 47L49 49Q41 51 37 56Z", lit)}</g>`;
       }
       break;
     case "steampunk":
       decoration = path(detail, bevel, edge, 1);
-      if (piece === "n") decoration += `<circle cx="45" cy="50" r="6.8" fill="${edge}"/><circle cx="45" cy="49.4" r="5.1" fill="${bevel}"/><circle cx="45" cy="49.4" r="2" fill="${accent}"/>`;
+      if (piece === "n") decoration += `<circle cx="45" cy="50" r="6.8" fill="${edge}"/><circle cx="45" cy="49.4" r="5.1" fill="${bevel}"/><circle cx="45" cy="49.4" r="2.35" fill="${accent}" stroke="${edge}" stroke-width=".55"/>${path("M44 50.15L46 48.65", "none", edge, .65)}`;
       if (piece === "r") decoration += path("M29 29H33V38L31 40H29Z M48 29H52V40H50L48 38Z", coat, edge, .9);
       if (piece === "k") decoration += path("M36 27H44V31H36Z", bevel, edge, .8);
       break;
     case "neon-circuit":
-      decoration = path(detail, "none", edge, 4.8) + path(detail, "none", accent, 2.05);
+      decoration = path(detail, "none", edge, 4.2) + path(detail, "none", accent, 2) + `<g opacity=".48">${path(detail, "none", glint, .65)}</g>`;
       if (piece === "p") decoration += `<circle cx="50" cy="35" r="2" fill="${accent}"/>`;
       if (piece === "r") decoration += `<circle cx="53" cy="36" r="2" fill="${accent}"/>`;
       if (piece === "n") decoration += path("M31 27H35", "none", glint, 1.8);
@@ -348,6 +437,7 @@ export function redesignedArtwork(theme, piece, side, id, classicProfile) {
       ${footing}
       ${foundation}
       ${decoration}
+      ${finish}
     </g>
   </svg>`;
 }
