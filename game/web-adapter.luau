@@ -118,7 +118,7 @@ return function(op, time, id, first, second)
   local state=engine.initial()
   if first.board then
    state={board=first.board,turn=first.turn or "w",castling=first.castling or {},
-    ep=first.ep,halfmove=0,fullmove=1,history={},positions={}}
+    ep=first.ep,halfmove=first.halfmove or 0,fullmove=first.fullmove or 1,history={},positions={}}
    state.positions[engine.positionKey(state)]=1
    if next(state.board) and engine.inCheck(state,state.turn=="w" and "b" or "w") then
     error("The side waiting to move is in check in this lesson position.")
@@ -158,7 +158,25 @@ return function(op, time, id, first, second)
     end
    end
   end
-  return {frames=frames,promotions=promotions}
+  local alternatives={}
+  if first.explore then
+   local original=state
+   for _,move in ipairs(frames[#frames].legal) do
+    if move.from==first.explore.from and not move.promotion then
+     state=engine.apply(original,move)
+     local result=describe(move)
+     local reply
+     if first.explore.goal=="safe" then
+      for _,candidate in ipairs(result.legal) do
+       if candidate.to==move.to then reply=candidate; break end
+      end
+     end
+     local success=not reply and (first.explore.goal~="mate" or result.state.status=="checkmate")
+     alternatives[move.to]={frame=result,success=success,reply=reply}
+    end
+   end
+  end
+  return {frames=frames,promotions=promotions,alternatives=alternatives}
  end
  -- Invalidate a bot turn before resuming due search coroutines.
  if op=="action" and (first=="reset" or first=="undo" or first=="leave" or first=="resign") then

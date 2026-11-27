@@ -3,7 +3,7 @@ import { woodenSample, woodenSampleUrl } from "./wooden-sounds.js";
 const legacyProfileKey = "exalted-chess-profile-v1";
 const tokenKey = "exalted-account-session";
 const legacyGuestKeys = [
-  legacyProfileKey, "exalted-chess-puzzle-progression-v2", "exalted-chess-learn-v1",
+  legacyProfileKey, "exalted-chess-puzzle-progression-v2", "exalted-chess-learn-v1", "exalted-chess-learn-v2",
   "exalted-chess-puzzle-attempts-v1", "exalted-chess-puzzles-v1",
   "exalted-server-token", "exalted-guest-mode"
 ];

@@ -1,104 +1,81 @@
-.learn .replay-heading { margin-block-end: 1rem; }
-.learn > p { line-height: 1.6; }
+.learn { max-inline-size: 42rem; }
+.learn.learn-in-lesson { max-inline-size: 69rem; }
 .learn-summary {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: .65rem 1rem;
-  margin-block: 1.15rem 1.4rem;
-  color: var(--muted);
+  margin-block: 1rem 1.5rem;
+  padding: .9rem 1rem;
+  border: 1px solid var(--stroke);
+  border-radius: var(--radius);
+  background: var(--recess);
 }
-.learn-summary progress { accent-color: var(--ice); inline-size: min(100%, 14rem); }
-.learn-module-grid {
+.learn-summary progress { accent-color: var(--ice); inline-size: 100%; }
+.learn-summary > span { color: var(--muted); font-size: .88rem; }
+.learn-summary > button { grid-row: 1 / 3; grid-column: 2; }
+.learn-up-next { grid-column: 1 / -1; }
+.learn-section + .learn-section { margin-block-start: 1.35rem; }
+.learn-section h2 { color: var(--muted); margin-block-end: .35rem; }
+.learn-section ol { padding-inline-start: 1.8rem; margin: 0; }
+.learn-section li { border-block-end: 1px solid var(--stroke); }
+.learn-section li::marker { color: var(--muted); font-variant-numeric: tabular-nums; font-size: .85rem; }
+.learn-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
-  gap: var(--space);
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: .65rem;
+  width: 100%;
+  padding: .65rem .55rem;
+  text-align: start;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
+.learn-row span { font-size: .77rem; color: var(--muted); }
+.learn-row[aria-current] { background: var(--turn-surface); box-shadow: inset .16rem 0 var(--active-border); }
+.learn-row[aria-current] span { color: var(--text); }
+
 .learn-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 29rem) minmax(0, 1fr);
-  gap: var(--space);
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  grid-template-areas: "board context" "board practice";
+  grid-template-rows: auto 1fr;
+  gap: .8rem var(--space);
   align-items: start;
 }
+.learn-context { grid-area: context; display: grid; justify-items: start; gap: .6rem; }
+.learn-context h1 { margin: 0; }
+.learn-position { grid-area: board; min-inline-size: 0; }
+.learn-practice { grid-area: practice; display: grid; gap: .7rem; min-inline-size: 0; }
+.learn-practice p { overflow-wrap: anywhere; }
 .learn-position .board-slot:empty {
-  min-block-size: 0;
   inline-size: 100%;
   aspect-ratio: 1;
   background: var(--recess);
   border-radius: var(--radius);
 }
-.learn-board-meta, .learn-picker {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: .5rem;
-  color: var(--ice);
-  font-size: .9rem;
+.learn-turn { color: var(--ice); font-size: .9rem; margin-block-end: .4rem; min-block-size: 1.35rem; }
+.learn-position .square.marked {
+  background-image: linear-gradient(145deg, #e6ba4238, #e6ba4270);
 }
-.learn-board-meta { margin-block-end: .55rem; }
-.learn-picker select { flex: 1 1 10rem; min-inline-size: 0; max-inline-size: 100%; }
-.learn-context, .learn-practice {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  min-inline-size: 0;
-  gap: .75rem;
-  padding: clamp(.85rem, 2vw, 1.25rem);
-  overflow-wrap: anywhere;
-}
-.learn-position { min-inline-size: 0; }
 .learn-answers button, .learn-next button { flex: 1 1 auto; }
-.learn-practice .action-row:empty { display: none; }
-.learn-context p, .learn-practice p { line-height: 1.55; }
-.learn-context .replay-heading, .learn-context h1 { margin-block-end: 0; }
-.learn-context .replay-heading { align-items: start; }
-.learn-context .learn-picker { margin-block-start: .35rem; }
-.learn-next { padding-block-start: .75rem; border-block-start: 1px solid var(--stroke); }
-.learn-feedback { padding: .65rem .8rem; background: var(--surface); border-radius: var(--radius); }
+.learn-answers:empty, .learn-feedback:empty { display: none; }
+.learn-feedback {
+  padding: .65rem .8rem;
+  background: var(--recess);
+  border-radius: var(--radius);
+}
 .learn-feedback[data-outcome="wrong"] { color: var(--warning-text); }
-.learn-feedback[data-outcome="correct"] { color: var(--ice); box-shadow: inset 3px 0 var(--ice); }
-.learn-feedback:empty { display: none; }
-@media (hover: hover) {
-  .learn-position button.square:hover { box-shadow: none; }
-}
-.learn-fade { position: fixed; z-index: 4; pointer-events: none; }
-@media (max-width: 72rem) {
-  .learn-workspace {
-    grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
-  }
-  .learn-context { grid-column: 1 / -1; }
-}
+.learn-feedback[data-outcome="correct"] { color: var(--good-text); box-shadow: inset 3px 0 var(--good-text); }
+.learn-task { font-weight: 650; line-height: 1.5; }
+
 @media (max-width: 43rem) {
-  .learn-workspace { grid-template-columns: minmax(0, 1fr); }
+  .learn-workspace { grid-template-columns: minmax(0, 1fr); grid-template-areas: "context" "board" "practice"; }
   .learn-position { inline-size: min(100%, 29rem); justify-self: center; }
 }
-@media (max-width: 22rem) {
-  .learn { padding-inline: .8rem; }
-}
-
-.learn-summary { padding: .8rem 1rem; border: 1px solid var(--stroke); border-radius: var(--radius); background: var(--recess); }
-.learn-summary [data-continue] { margin-inline-start: auto; }
-.learn-feedback[data-outcome="correct"] { color: var(--good-text); box-shadow: inset 3px 0 var(--good-text); }
-
-.learn-module-title { margin: 0; text-transform: none; letter-spacing: normal; }
-.learn-module-card {
-  display: grid;
-  align-content: start;
-  gap: .45rem;
-  inline-size: 100%;
-  block-size: 100%;
-  padding: 1rem;
-  background: var(--recess);
-  text-align: start;
-}
-.learn-module-card strong { color: var(--text); font-size: 1.12rem; line-height: 1.2; }
-.learn-module-description { color: var(--muted); font-weight: 500; line-height: 1.45; }
-.learn-module-card small { margin-block-start: .2rem; color: var(--ice); font-size: .78rem; }
-.learn-task {
-  border-inline-start: 3px solid var(--focus);
-  padding: .5rem .65rem;
-  color: var(--text);
-  background: var(--recess);
-  border-radius: .3rem;
-  font-weight: 750;
+@media (max-width: 25rem) {
+  .learn-summary { grid-template-columns: 1fr; }
+  .learn-summary > button { grid-area: auto; }
+  .learn { padding-inline: .75rem; }
 }
