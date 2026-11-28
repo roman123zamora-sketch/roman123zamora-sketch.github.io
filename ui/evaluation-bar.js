@@ -45,8 +45,7 @@ export function createEvaluationBar(element) {
     const mate = score?.kind === "mate";
     const share = mate ? (score.side === "w" ? 100 : 0) :
       50 + 48 * Math.tanh((score?.value ?? 0) / 410);
-    white.style.blockSize = share + "%";
-    element.toggleAttribute("data-pending", !score);
+    if (score) white.style.blockSize = share + "%";
     element.setAttribute("aria-busy", String(!score && pendingLabel === "Analyzing position"));
     const format = value => Math.abs(value) < .5 ? "0.00" :
       (value > 0 ? "+" : "−") + (Math.abs(value) / 100).toFixed(2);
@@ -88,7 +87,10 @@ export function createEvaluationBar(element) {
       element.toggleAttribute("data-flipped", match.side === "b");
       meter.classList.toggle("white-on-top", match.side === "b");
       const nextContext = match.matchId ?? match;
-      if (nextContext !== context) scores = new WeakMap();
+      if (nextContext !== context) {
+        scores = new WeakMap();
+        white.style.blockSize = "50%";
+      }
       const end = terminalScore(state, outcome);
       const endKey = end ? end.kind + (end.side ?? "") : undefined;
       if (context === nextContext && frame === state && terminal === endKey && preview === projected) return;

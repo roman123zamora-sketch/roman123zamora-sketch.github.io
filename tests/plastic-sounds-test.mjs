@@ -21,6 +21,12 @@ for (let variant = 1; variant <= 3; variant++) {
   assert.notDeepEqual(other.samples, move.samples);
   assert(Math.abs(peak(other.samples) / peak(move.samples) - 1) < .25);
 }
+const bounceWindow = sample => peak(sample.samples.slice(
+  Math.round(.025 * sample.sampleRate), Math.round(.034 * sample.sampleRate)));
+assert(bounceWindow(plasticSample("move", 1)) > bounceWindow(move));
+assert(bounceWindow(plasticSample("move", 1)) < peak(move.samples) / 3);
+assert(peak(plasticSample("hover").samples) < peak(plasticSample("button").samples));
+assert(peak(plasticSample("button").samples) < peak(move.samples) / 2);
 assert.equal(plasticSample("move", 4), move);
 assert(peak(plasticSample("clock").samples) < peak(move.samples) / 3);
 for (const name of ["capture", "castle", "capturePromote", "promote"]) {

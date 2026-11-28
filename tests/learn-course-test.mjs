@@ -19,6 +19,13 @@ for (const lesson of course) {
       if (step.setup.explore) assert(Object.values(model.alternatives).some(result => result.success));
       if (step.setup.promotion) assert.deepEqual(Object.keys(model.promotions).sort(), ["B", "N", "Q", "R"]);
       if (step.choices) assert(step.choices.includes(step.answer));
+      // Explicit coordinate instructions must name a move on this exact board.
+      for (const [, from, to] of step.instruction.matchAll(/from ([a-h][1-8]) (?:back )?to ([a-h][1-8])/g)) {
+        const available = frames.slice(step.practiceStart ?? 0).some(frame =>
+          Object.values(frame.legal).some(move => move.from === from && move.to === to));
+        const demonstrated = frames.some(frame => frame.move?.from === from && frame.move?.to === to);
+        assert(available || demonstrated, `${from}–${to} is absent from the diagram and history`);
+      }
       exercises.push({ ...model, frames });
     } catch (error) {
       throw new Error(lesson.title + " / step " + (index + 1), { cause: error });
@@ -29,11 +36,14 @@ for (const lesson of course) {
 
 const sample = (id, index = 0) => models.get(id)[index];
 assert(sample("movement", 5).alternatives.d3.success && sample("movement", 5).alternatives.d4.success);
+assert(sample("safe").alternatives.d5.success);
 assert(!sample("safe").alternatives.f4.success);
 assert.equal(sample("safe").alternatives.f4.reply.from, "f8");
 assert(!sample("check", 4).alternatives.d2);
 assert(sample("check", 4).alternatives.e8.success);
 assert.equal(sample("mate").frames[0].state.status, "checkmate");
+assert.equal(sample("mate", 2).frames[0].state.status, "check");
+assert(Object.values(sample("mate", 2).frames[0].legal).some(move => move.from === "h8" && move.to === "h7"));
 assert.equal(sample("draws").frames[0].state.status, "stalemate");
 assert(sample("draws", 2).frames.at(-1).state.claimReason);
 assert(sample("draws", 3).frames[0].state.claimReason);

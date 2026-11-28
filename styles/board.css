@@ -287,4 +287,3 @@ button.square.premove-trail:focus-visible {
 }
 
 .eval-white { transition: block-size 140ms ease-out; }
-.bot-eval[data-pending] .eval-white { opacity: .34; transition: none; }

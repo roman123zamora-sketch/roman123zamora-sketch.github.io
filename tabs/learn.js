@@ -152,15 +152,17 @@ export default function learn(content) {
       for (const button of $(".learn-answers").children) button.disabled = !canAct;
       if (!frame) return;
       const state = frame.state;
+      const guided = step.setup.promotion ?? frames?.[ply + 1]?.move;
       const targets = canSelect && selected && !step.square
-        ? moveList(frame).filter(move => move.from === selected) : [];
+        ? moveList(frame).filter(move => move.from === selected && (!guided || move.to === guided.to)) : [];
       const result = board(getTheme(), false, false, {
         frame: slot.firstElementChild, state, selected, targets, marks: new Set(marks),
         select: canSelect ? select : undefined,
         canDrag: canSelect && !step.square ? square => state.board[square]?.[0] === state.turn : undefined
       });
       if (slot.firstElementChild !== result) slot.replaceChildren(result);
-      $(".learn-turn").textContent = `${state.turn === "w" ? "White" : "Black"} to move`;
+      const outcome = solved && (outcomes[state.status] ?? (state.status === "draw" ? "Draw" : ""));
+      $(".learn-turn").textContent = outcome || `${state.turn === "w" ? "White" : "Black"} to move`;
       const entry = $("[data-observation]");
       const moves = Object.values(state.history ?? {});
       if (step.material) {
@@ -352,7 +354,8 @@ export default function learn(content) {
       if (hints > 1 && to) clues.push(to);
       marks = clues;
       report(hints > 1 ? (to ? `Try ${from} to ${to}.` : step.square ? `Tap ${step.square}.` : `Answer: ${step.answer}.`)
-        : (from ? `Start with the piece on ${from}.` : step.square ? "Look for the piece that can take back." : "Look at what the king or the highlighted piece can legally do."));
+        : (from ? `Start with the piece on ${from}.` : step.square ? "Look for the piece that can take back." :
+          step.marks?.length ? "Look at the shaded squares." : "Use the rule in the instruction to answer."));
       render();
     };
     reset.onclick = () => restart();
